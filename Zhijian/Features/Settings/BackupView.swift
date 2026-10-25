@@ -31,6 +31,7 @@ private struct BackupContent: View {
     @State private var showAlert = false
     @State private var encryptBackup = false
     @State private var backupPassword = ""
+    @State private var includeLocalBooks = false
     @State private var restorePassword = ""
     @State private var showRestorePassword = false
 
@@ -132,8 +133,9 @@ private struct BackupContent: View {
     private var localSection: some View {
         QiSettingsSection(title: "本地备份") {
             QiRow(icon: "clock", title: "最近本地备份", value: displayDate(backup.lastLocalBackupAt))
-            QiDivider()
             QiToggleRow(icon: "lock.shield", title: "加密备份（AES-GCM）", isOn: $encryptBackup)
+            QiDivider()
+            QiToggleRow(icon: "books.vertical", title: "包含本地书正文（EPUB/PDF/漫画）", isOn: $includeLocalBooks)
             if encryptBackup {
                 QiDivider()
                 SecureField("备份密码", text: $backupPassword)
@@ -391,7 +393,8 @@ private struct BackupContent: View {
             return
         }
         do {
-            exportURL = try backup.export(password: encryptBackup ? backupPassword : nil)
+            exportURL = try backup.export(password: encryptBackup ? backupPassword : nil,
+                                          includeLocalBooks: includeLocalBooks)
             showExportSheet = true
         } catch {
             presentAlert("导出失败", error.localizedDescription)

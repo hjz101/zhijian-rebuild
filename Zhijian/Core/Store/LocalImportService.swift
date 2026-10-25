@@ -85,6 +85,76 @@ final class LocalImportService {
         return book
     }
 
+    /// P2-05：RAR / 7z 导入（自动识别：纯图片 → 漫画；单 txt → TXT；内含 epub → EPUB）。
+    func importArchive(url: URL, into store: BookStore) throws -> Book {
+        let needsStop = url.startAccessingSecurityScopedResource()
+        defer { if needsStop { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        let entries = try ArchiveReader.list(data: data)
+        guard !entries.isEmpty else { throw ImportError.empty }
+
+        let imageExts = MangaLibrary.imageExtensions
+        let images = entries.filter { imageExts.contains(($0.name as NSString).pathExtension.lowercased()) }
+        let texts = entries.filter { $0.name.lowercased().hasSuffix(".txt") }
+        let epubs = entries.filter { $0.name.lowercased().hasSuffix(".epub") }
+
+        if images.count >= 2 {
+            var payloads: [(String, Data)] = []
+            for entry in images.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) {
+                if let entryData = try? ArchiveReader.read(data: data, entry: entry.name) {
+                    payloads.append((entry.name, entryData))
+                }
+            }
+            guard !payloads.isEmpty else { throw ImportError.empty }
+            let bookId = "manga-" + UUID().uuidString
+            let urls = try MangaLibrary.shared.save(entries: payloads, bookId: bookId)
+            var book = Book.local(title: url.deletingPathExtension().lastPathComponent,
+                                  author: "漫画",
+                                  fileName: url.lastPathComponent)
+            book.id = bookId
+            book.totalChapters = urls.count
+            book.lastChapter = "共 \(urls.count) 页"
+            store.add(book)
+            return book
+        }
+
+        if let txt = texts.first {
+            let payload = try ArchiveReader.read(data: data, entry: txt.name)
+            let text = Self.decode(payload)
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { throw ImportError.empty }
+            let title = url.deletingPathExtension().lastPathComponent
+            let chapters = Self.splitChapters(trimmed, pattern: chapterPattern)
+            let bookId = "local-" + UUID().uuidString
+            let records = chapters.enumerated().map { i, c in
+                LocalChapterRecord(index: i, title: c.title, text: c.text)
+            }
+            LocalLibrary.shared.save(LocalBookRecord(bookId: bookId, chapters: records))
+            var book = Book.local(title: title, author: "本地导入", fileName: url.lastPathComponent)
+            book.id = bookId
+            book.totalChapters = records.count
+            book.lastChapter = records.last?.title
+            store.add(book)
+            return book
+        }
+
+        if let epub = epubs.first {
+            let payload = try ArchiveReader.read(data: data, entry: epub.name)
+            let parsed = try EPUBImporter.parse(data: payload, fallbackTitle: url.deletingPathExtension().lastPathComponent)
+            let bookId = "epub-" + UUID().uuidString
+            LocalLibrary.shared.save(LocalBookRecord(bookId: bookId, chapters: parsed.chapters))
+            try? EPUBContentStore.shared.prepare(bookId: bookId, data: payload)
+            var book = Book.local(title: parsed.title, author: parsed.author, fileName: url.lastPathComponent)
+            book.id = bookId
+            book.totalChapters = parsed.chapters.count
+            book.lastChapter = parsed.chapters.last?.title
+            store.add(book)
+            return book
+        }
+
+        throw ImportError.unsupported("压缩包内没有可识别的 TXT / EPUB / 图片")
+    }
+
     func importPDF(url: URL, into store: BookStore) throws -> Book {
         let needsStop = url.startAccessingSecurityScopedResource()
         defer { if needsStop { url.stopAccessingSecurityScopedResource() } }
@@ -158,6 +228,12 @@ final class LocalImportService {
 
     enum ImportError: LocalizedError {
         case empty
-        var errorDescription: String? { "文件内容为空" }
+        case unsupported(String)
+        var errorDescription: String? {
+            switch self {
+            case .empty: return "文件内容为空"
+            case .unsupported(let detail): return detail
+            }
+        }
     }
 }

@@ -23,6 +23,8 @@ struct ShelfView: View {
         if let epub = UTType(filenameExtension: "epub") { types.append(epub) }
         if let cbz = UTType(filenameExtension: "cbz") { types.append(cbz) }
         if let zip = UTType(filenameExtension: "zip") { types.append(zip) }
+        if let rar = UTType(filenameExtension: "rar") { types.append(rar) }
+        if let seven = UTType(filenameExtension: "7z") { types.append(seven) }
         return types
     }
 
@@ -99,6 +101,8 @@ struct ShelfView: View {
                         _ = try LocalImportService.shared.importPDF(url: url, into: env.books)
                     } else if ["cbz", "zip"].contains(url.pathExtension.lowercased()) {
                         _ = try LocalImportService.shared.importManga(url: url, into: env.books)
+                    } else if ["rar", "7z"].contains(url.pathExtension.lowercased()) {
+                        _ = try LocalImportService.shared.importArchive(url: url, into: env.books)
                     } else {
                         _ = try LocalImportService.shared.importTXT(url: url, into: env.books)
                     }

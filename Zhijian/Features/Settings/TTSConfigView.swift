@@ -46,6 +46,8 @@ private struct TTSConfigContent: View {
                 systemSection
                 characterSection
                 httpSection
+                aiSection
+                sleepSection
                 cacheSection
                 helpSection
             }
@@ -377,6 +379,81 @@ private struct TTSConfigContent: View {
         .contentShape(Rectangle())
     }
 
+    // MARK: LLM 角色识别（P3-02）
+
+    private var aiSection: some View {
+        QiSettingsSection(title: "LLM 角色识别（可选）") {
+            QiToggleRow(icon: "sparkles", title: "启用 AI 角色识别", isOn: Binding(
+                get: { AIConfigStore.shared.config.enabled },
+                set: { AIConfigStore.shared.config.enabled = $0 }
+            ))
+            QiDivider()
+            HStack(spacing: 8) {
+                Text("接口").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                TextField("https://api.openai.com/v1", text: Binding(
+                    get: { AIConfigStore.shared.config.endpoint },
+                    set: { AIConfigStore.shared.config.endpoint = $0 }
+                ))
+                .font(.system(size: 12))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            QiDivider()
+            HStack(spacing: 8) {
+                Text("模型").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                TextField("gpt-4o-mini", text: Binding(
+                    get: { AIConfigStore.shared.config.model },
+                    set: { AIConfigStore.shared.config.model = $0 }
+                ))
+                .font(.system(size: 12))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            QiDivider()
+            HStack(spacing: 8) {
+                Text("Key").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                SecureField("API Key（存 Keychain）", text: Binding(
+                    get: { AIConfigStore.shared.apiKey },
+                    set: { AIConfigStore.shared.setAPIKey($0) }
+                ))
+                .font(.system(size: 12))
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            footer("OpenAI 兼容接口；识别结果按章节缓存，失败自动回退启发式；Key 只存 Keychain，不进备份。")
+        }
+    }
+
+    // MARK: 睡眠定时
+
+    private var sleepSection: some View {
+        QiSettingsSection(title: "睡眠定时") {
+            HStack(spacing: 8) {
+                Text("定时停止").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                if tts.sleepTimerMinutes > 0 {
+                    Text("剩余 \(tts.sleepTimerRemaining) 分")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(ZJ.accent)
+                }
+                ForEach([0, 10, 20, 30, 60], id: \.self) { minutes in
+                    Button(minutes == 0 ? "关" : "\(minutes)分") {
+                        tts.setSleepTimer(minutes: minutes)
+                    }
+                    .font(.system(size: 11, weight: tts.sleepTimerMinutes == minutes ? .semibold : .regular))
+                    .foregroundStyle(tts.sleepTimerMinutes == minutes ? .white : ZJ.textSecondary)
+                    .padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(tts.sleepTimerMinutes == minutes ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            footer("到点自动停止朗读并清空定时；朗读停止时定时随之取消。")
+        }
+    }
+
     // MARK: 缓存 / 说明
 
     private var cacheSection: some View {
@@ -418,13 +495,11 @@ private struct TTSConfigContent: View {
             defer { testingSourceID = nil }
             do {
                 let url = try await HTTPTTSDriver.shared.previewFile(text: sampleText, source: source)
-                let player = try AVAudioPlayer(contentsOf: url)
-                previewPlayer?.stop()
-                previewPlayer = player
                 let session = AVAudioSession.sharedInstance()
                 try? session.setCategory(.playback, mode: .spokenAudio)
                 try? session.setActive(true)
-                player.play()
+                try StreamingAudioPreviewer.shared.load(url: url)
+                StreamingAudioPreviewer.shared.play()
             } catch {
                 presentAlert("测试失败", error.localizedDescription)
             }

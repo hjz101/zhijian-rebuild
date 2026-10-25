@@ -294,6 +294,40 @@ final class HTTPClient: @unchecked Sendable {
     static let defaultUserAgent =
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 " +
         "(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    /// P2-08：书源 HTTPS 优先开关（默认开启）
+    static var httpsFirstEnabled = true
+
+    static func httpsUpgrade(_ url: String) -> String? {
+        guard url.hasPrefix("http://") else { return nil }
+        return "https://" + String(url.dropFirst("http://".count))
+    }
+
+    /// P3-07：全局代理（HTTP / SOCKS），应用到所有书源请求；不影响系统其他 App。
+    static var proxyConfiguration: [String: Any]? = nil
+
+    static func applyProxy(_ proxy: (host: String, port: Int, socks: Bool)?) {
+        guard let proxy else {
+            proxyConfiguration = nil
+            return
+        }
+        if proxy.socks {
+            // SOCKS5：使用 CFNetwork 字典键（iOS 上这些常量不可用，用字符串字面量）
+            proxyConfiguration = [
+                "SOCKSEnable": 1,
+                "SOCKSProxy": proxy.host,
+                "SOCKSPort": proxy.port
+            ]
+        } else {
+            proxyConfiguration = [
+                "HTTPEnable": 1,
+                "HTTPProxy": proxy.host,
+                "HTTPPort": proxy.port,
+                "HTTPSEnable": 1,
+                "HTTPSProxy": proxy.host,
+                "HTTPSPort": proxy.port
+            ]
+        }
+    }
 
     let jar: CookieJar
     let limiter: RateLimiter
@@ -314,6 +348,9 @@ final class HTTPClient: @unchecked Sendable {
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 120
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        if let proxy = HTTPClient.proxyConfiguration {
+            configuration.connectionProxyDictionary = proxy
+        }
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 4
         self.session = URLSession(configuration: configuration, delegate: nil, delegateQueue: queue)
@@ -353,7 +390,7 @@ final class HTTPClient: @unchecked Sendable {
         if let optionHeaders = options.headers {
             for (key, value) in optionHeaders { mergedHeaders[key] = value }
         }
-        let prepared = try prepare(
+        var prepared = try prepare(
             url: split.url,
             method: method ?? options.method,
             headers: mergedHeaders,
@@ -362,6 +399,25 @@ final class HTTPClient: @unchecked Sendable {
             timeout: timeout ?? defaultTimeout,
             retry: retry ?? options.retry ?? 1
         )
+        // P2-08：书源 HTTPS 优先——http 地址先试 https，失败再回退 http
+        if Self.httpsFirstEnabled, prepared.url.hasPrefix("http://"),
+           let https = Self.httpsUpgrade(prepared.url), let httpsURL = URL(string: https) {
+            let httpsPrepared = Prepared(url: https, method: prepared.method, headers: prepared.headers,
+                                         body: prepared.body, charset: prepared.charset,
+                                         timeout: prepared.timeout, retry: 0)
+            do {
+                let response = try await withCheckedThrowingContinuation { continuation in
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        do { continuation.resume(returning: try self.perform(httpsPrepared)) }
+                        catch { continuation.resume(throwing: error) }
+                    }
+                }
+                return response
+            } catch {
+                _ = httpsURL
+                // 回退 http
+            }
+        }
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {

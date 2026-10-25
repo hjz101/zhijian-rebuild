@@ -198,6 +198,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var highlightRules: [HighlightRule] = []
     // 漫画纵向长图模式
     var mangaScrollMode: Bool = false
+    /// P2-08：书源 HTTPS 优先
+    var httpsFirst: Bool = true
 
     enum PageMode: String, Codable, Sendable { case paged, scroll }
     enum PageTurnAnimation: String, Codable, Sendable, CaseIterable {
@@ -254,5 +256,6 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         chapterTitleDecoration = try container.decodeIfPresent(TitleDecoration.self, forKey: .chapterTitleDecoration) ?? .plain
         highlightRules = try container.decodeIfPresent([HighlightRule].self, forKey: .highlightRules) ?? []
         mangaScrollMode = try container.decodeIfPresent(Bool.self, forKey: .mangaScrollMode) ?? false
+        httpsFirst = try container.decodeIfPresent(Bool.self, forKey: .httpsFirst) ?? true
     }
 }

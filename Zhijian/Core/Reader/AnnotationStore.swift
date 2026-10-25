@@ -25,6 +25,9 @@ struct ReadingAnnotation: Codable, Identifiable, Hashable, Sendable {
     var colorHex: String
     var kind: Kind
     var createdAt: Date
+    /// P3-08：稳定坐标锚点（前文上下文），重排后用于重定位
+    var anchor: String?
+    var anchorOffset: Int = 0
 }
 
 struct AnnotationBackup: Codable, Sendable {
@@ -52,6 +55,15 @@ final class AnnotationStore: ObservableObject {
 
     func bookmarks(bookId: String) -> [ReadingBookmark] {
         bookmarks.filter { $0.bookId == bookId }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// P3-08：按锚点把批注偏移映射到新排版文本；找不到则返回原位置。
+    func relocatedAnnotation(_ annotation: ReadingAnnotation, in text: String) -> NSRange? {
+        if let anchor = annotation.anchor,
+           let resolved = StableTextCoordinate.resolve(anchor: anchor, offset: annotation.anchorOffset, in: text) {
+            return NSRange(location: resolved, length: min(annotation.length, max(0, text.count - resolved)))
+        }
+        return StableTextCoordinate.resolveRange(location: annotation.location, length: annotation.length, in: text)
     }
 
     func isBookmarked(bookId: String, chapterIndex: Int) -> Bool {
@@ -91,14 +103,16 @@ final class AnnotationStore: ObservableObject {
     @discardableResult
     func addAnnotation(bookId: String, chapterIndex: Int, chapterTitle: String,
                        location: Int, length: Int, text: String,
-                       note: String?, kind: ReadingAnnotation.Kind, colorHex: String = "#E8663D") -> ReadingAnnotation {
+                       note: String?, kind: ReadingAnnotation.Kind, colorHex: String = "#E8663D",
+                       anchor: String? = nil, anchorOffset: Int = 0) -> ReadingAnnotation {
         // 同一位置重复划线视为覆盖
         annotations.removeAll {
             $0.bookId == bookId && $0.chapterIndex == chapterIndex && $0.location == location && $0.length == length
         }
         let ann = ReadingAnnotation(id: UUID().uuidString, bookId: bookId, chapterIndex: chapterIndex,
                                     chapterTitle: chapterTitle, location: location, length: length,
-                                    text: text, note: note, colorHex: colorHex, kind: kind, createdAt: Date())
+                                    text: text, note: note, colorHex: colorHex, kind: kind, createdAt: Date(),
+                                    anchor: anchor, anchorOffset: anchorOffset)
         annotations.append(ann)
         persist()
         return ann

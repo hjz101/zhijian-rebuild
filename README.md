@@ -14,6 +14,16 @@
 |---|---|---|
 | WebDAV 增量镜像 | ✅ | 目录递归 PROPFIND 比对大小/时间，只传变化文件；冲突保护 + 可选删除远端多余文件；`-webdavMirrorDiffTest` |
 | iCloud 备份 | ✅ | 自动备份（退出/每天/每周）+ iCloud Drive 镜像 + 云端列表/恢复；未签名落本地 Documents/ZhijianAutoBackup；`-autoBackupTest` |
+| 本地书备份 | ✅ | 备份可选包含 EPUB/PDF/漫画正文（local/ 目录），恢复写回 |
+| RAR/7z 导入 | ✅ | 压缩包自动识别漫画/TXT/EPUB |
+| 文件管理 | ✅ | App Documents 浏览/导入/删除/重命名 |
+| 热评 Top3 | ✅ | 章末评论按点赞展示热评（🔥） |
+| TTS 睡眠定时 | ✅ | 关/10/20/30/60 分，到点自动停止 |
+| LLM 角色识别 | ✅ | OpenAI 兼容 + Keychain Key + 章节缓存 + 失败回退 |
+| TTS 引擎播放 | ✅ | AVAudioEngine 预览播放 |
+| 源速度统计 | ✅ | 搜索耗时均值持久化，换源排序 |
+| 网络代理 | ✅ | HTTP/SOCKS5 代理（仅本 App） |
+| 稳定坐标 | ✅ | 批注前文锚点，重排后重定位 |
 | 凭据安全 | ✅ | WebDAV 密码 / TTS 登录 Header 迁移 iOS Keychain；未签名环境回退明文并提示；`-keychainTest` 自检 |
 | 书源登录/鉴权 | ✅ | loginUrl 自动调用 `login()`；loginUi 按钮执行源内 action（`login(true)`/`fq_login()`/`sethost()`…）；表单 POST 自动 `x-www-form-urlencoded`；后端 `{"error":"访问被拒绝"}` 映射为 -12 并给登录引导 |
 | 书源兼容修复 | ✅ | 动态 `header`（`@js:` 求值后注入，如 `X-Novel-Token`/`X-Api-Key`）；`java.androidId()/deviceID()` 返回稳定 16 位 hex 设备码；429 按 `Retry-After` 退避；加密正文识别为可读错误 |

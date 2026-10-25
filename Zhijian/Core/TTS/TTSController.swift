@@ -30,6 +30,11 @@ final class TTSController: NSObject, ObservableObject, TTSControlling {
     @Published private(set) var currentSourceName = "系统朗读"
     @Published private(set) var lastError: String?
 
+    // MARK: 睡眠定时（P3-01）
+    @Published private(set) var sleepTimerMinutes: Int = 0
+    @Published private(set) var sleepTimerRemaining: Int = 0
+    private var sleepTimerTask: Task<Void, Never>?
+
     /// 0.2–1.0，对应 AVSpeechUtterance.rate；HTTP 源的 `{{speakSpeed}}` = Int(rate * 10)。
     @Published var rate: Float = 0.5 {
         didSet {
@@ -197,6 +202,7 @@ final class TTSController: NSObject, ObservableObject, TTSControlling {
         let names = Array(Set(split.compactMap(\.characterName))).sorted()
         recognizedCharacters = names
         if autoCharacterVoices { assignCharacterVoices(for: names) }
+        refineCharactersWithLLM(chapter: cleaned)
         segmentCount = split.count
         index = min(max(startSegmentIndex, 0), split.count - 1)
         currentSegmentIndex = index
@@ -253,7 +259,52 @@ final class TTSController: NSObject, ObservableObject, TTSControlling {
         if isPaused { resume() } else if isSpeaking { pause() } else { /* 没有可恢复内容 */ }
     }
 
+    /// 设置睡眠定时（分钟）；0 取消。到点后自动停止朗读并清空定时。
+    func setSleepTimer(minutes: Int) {
+        sleepTimerTask?.cancel()
+        sleepTimerTask = nil
+        sleepTimerMinutes = max(0, min(120, minutes))
+        sleepTimerRemaining = sleepTimerMinutes
+        guard sleepTimerMinutes > 0 else { return }
+        sleepTimerTask = Task { [weak self] in
+            for remaining in stride(from: sleepTimerMinutes, through: 1, by: -1) {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                guard !Task.isCancelled else { return }
+                self?.sleepTimerRemaining = remaining - 1
+                if remaining - 1 == 0 {
+                    self?.stop()
+                    self?.sleepTimerMinutes = 0
+                    self?.sleepTimerRemaining = 0
+                }
+            }
+        }
+    }
+
+    /// P3-02：可选 LLM 角色识别（失败静默，不影响朗读）。
+    private func refineCharactersWithLLM(chapter: String) {
+        let ai = AIConfigStore.shared
+        guard ai.config.enabled, !ai.apiKey.isEmpty else { return }
+        let key = "llm-roles:\(chapter.hashValue)"
+        if LLMRoleCache.shared.cached(key) != nil { return }
+        let existing = recognizedCharacters
+        Task { [weak self] in
+            let roles = await LLMRoleDetector.detectRoles(text: chapter,
+                                                          config: ai.config,
+                                                          apiKey: ai.apiKey)
+            LLMRoleCache.shared.put(roles, key: key)
+            guard !roles.isEmpty else { return }
+            var merged = Set(existing)
+            merged.formUnion(roles)
+            let sorted = merged.sorted()
+            self?.recognizedCharacters = sorted
+            if self?.autoCharacterVoices == true {
+                self?.assignCharacterVoices(for: sorted)
+            }
+        }
+    }
+
     func stop() {
+        if sleepTimerMinutes > 0 { setSleepTimer(minutes: 0) }
         stopInternal(clearSession: true)
     }
 

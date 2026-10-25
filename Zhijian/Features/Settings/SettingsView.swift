@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules, chapterCache, fonts }
+    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules, chapterCache, fonts, files }
     @EnvironmentObject private var env: AppEnvironment
     @State private var path: [Route] = []
     @State private var showReaderSettings = false
@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var placeholder: String?
     @State private var showAppearance = false
     @State private var showShelfLayout = false
+    @State private var showProxy = false
     @AppStorage("shelf.listMode") private var shelfListMode = false
     @AppStorage("shelf.columns") private var shelfColumns = 3
 
@@ -50,6 +51,7 @@ struct SettingsView: View {
                 case .chapterRules: ChapterRulesView()
                 case .chapterCache: CacheManageView()
                 case .fonts: FontManageView()
+                case .files: FileBrowserView()
                 }
             }
             .sheet(isPresented: $showReaderSettings) {
@@ -57,6 +59,7 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showAppearance) { AppearanceSettingsView() }
             .sheet(isPresented: $showShelfLayout) { ShelfLayoutSettingsView() }
+            .sheet(isPresented: $showProxy) { ProxySettingsView() }
             .sheet(isPresented: $showSources) {
                 SourcesView().environmentObject(env)
             }
@@ -92,6 +95,11 @@ struct SettingsView: View {
             row("rectangle.grid.3x2", "书架布局", value: shelfListMode ? "列表" : "\(shelfColumns) 列网格") {
                 showShelfLayout = true
             }
+            QiDivider()
+            row("network.slash", "网络代理",
+                value: ProxySettingsStore.shared.enabled ? ProxySettingsStore.shared.host : "未启用") {
+                showProxy = true
+            }
         }
     }
 
@@ -103,6 +111,8 @@ struct SettingsView: View {
             }
             row("wand.and.stars", "替换净化", value: "\(ReplaceRuleStore.shared.rules.count) 条", route: .replaceRules)
             row("list.bullet.indent", "目录规则", value: "去重/排序/卷名", route: .chapterRules)
+            QiDivider()
+            row("folder", "文件管理", value: "本地文件", route: .files)
         }
     }
 

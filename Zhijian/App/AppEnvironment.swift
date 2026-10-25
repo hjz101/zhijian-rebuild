@@ -785,8 +785,16 @@ final class SourceStore: ObservableObject {
 
 @MainActor
 final class SettingsStore: ObservableObject {
-    @Published var settings: ReadingSettings { didSet { AppData.save(settings, "settings.json") } }
-    init() { settings = AppData.load(ReadingSettings.self, "settings.json") ?? ReadingSettings() }
+    @Published var settings: ReadingSettings {
+        didSet {
+            AppData.save(settings, "settings.json")
+            HTTPClient.httpsFirstEnabled = settings.httpsFirst
+        }
+    }
+    init() {
+        settings = AppData.load(ReadingSettings.self, "settings.json") ?? ReadingSettings()
+        HTTPClient.httpsFirstEnabled = settings.httpsFirst
+    }
 }
 
 // MARK: - 多源搜索引擎
@@ -798,20 +806,42 @@ final class EngineRegistry: ObservableObject {
     /// 搜索页缓存：key = keyword|page|sourceCount
     private var searchCache: [String: (date: Date, groups: [(source: BookSource, books: [SourceBook], error: String?)])] = [:]
     private let searchCacheTTL: TimeInterval = 180
+    /// P3-05：按源复用 pipeline（避免重复初始化 JSContext），内存紧张/空闲时回收。
+    private var pipelineCache: [String: SourcePipeline] = [:]
+    private let pipelineCacheLimit = 6
+    private var memoryObserver: NSObjectProtocol?
 
     init(sources: SourceStore, settings: SettingsStore) {
         self.sources = sources
         self.settings = settings
+        memoryObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.recyclePipelines()
+        }
     }
 
     func enabledSources() -> [BookSource] { sources.sources.filter { $0.enabled ?? true } }
 
     func makePipeline(source: BookSource) -> SourcePipeline {
+        if let cached = pipelineCache[source.bookSourceUrl] { return cached }
         let initial = CookieStore.shared.snapshot()
-        return SourcePipeline(source: source, initialCookies: initial,
-                              loginInfo: SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
-                              loginHeader: SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl),
-                              onCookiesChanged: { CookieStore.onChange($0) })
+        let pipeline = SourcePipeline(source: source, initialCookies: initial,
+                                      loginInfo: SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
+                                      loginHeader: SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl),
+                                      onCookiesChanged: { CookieStore.onChange($0) })
+        if pipelineCache.count >= pipelineCacheLimit {
+            let oldest = pipelineCache.keys.first ?? ""
+            pipelineCache.removeValue(forKey: oldest)
+        }
+        pipelineCache[source.bookSourceUrl] = pipeline
+        return pipeline
+    }
+
+    /// P3-05：内存紧张或空闲时回收复用的 pipeline。
+    func recyclePipelines() {
+        pipelineCache.removeAll()
     }
 
     func pipelines() -> [SourcePipeline] {
@@ -831,24 +861,28 @@ final class EngineRegistry: ObservableObject {
             result[source.bookSourceUrl] = (SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
                                             SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl))
         }
-        return await withTaskGroup(of: (BookSource, [SourceBook], String?).self) { group in
+        return await withTaskGroup(of: (BookSource, [SourceBook], String?, Double).self) { group in
             for source in enabled {
                 group.addTask {
+                    let started = Date()
                     do {
                         let login = loginStates[source.bookSourceUrl] ?? ([:], [:])
                         let pipeline = SourcePipeline(source: source, initialCookies: initialCookies,
                                                       loginInfo: login.info, loginHeader: login.header,
                                                       onCookiesChanged: { CookieStore.onChange($0) })
                         let books = try await pipeline.search(keyword, page: page)
-                        return (source, books, nil)
+                        return (source, books, nil, Date().timeIntervalSince(started) * 1000)
                     } catch {
-                        return (source, [], error.localizedDescription)
+                        return (source, [], error.localizedDescription, Date().timeIntervalSince(started) * 1000)
                     }
                 }
             }
-            var out: [(BookSource, [SourceBook], String?)] = []
+            var out: [(BookSource, [SourceBook], String?, Double)] = []
             for await item in group { out.append(item) }
             if Task.isCancelled { return [] }
+            for item in out {
+                SourceSpeedStore.shared.record(sourceURL: item.0.bookSourceUrl, elapsedMs: Double(item.3))
+            }
             let sorted = out.sorted { ($0.1.count) > ($1.1.count) }
                 .map { (source: $0.0, books: $0.1, error: $0.2) }
             searchCache[cacheKey] = (Date(), sorted)

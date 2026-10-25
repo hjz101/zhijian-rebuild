@@ -357,10 +357,13 @@ final class ReaderViewModel {
     func addHighlight(location: Int, length: Int, text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard length > 0, !trimmed.isEmpty else { return }
+        let body = attributedChapter?.string ?? ""
+        let anchor = StableTextCoordinate.makeAnchor(text: body, location: location)
         annotationStore.addAnnotation(
             bookId: book.id, chapterIndex: currentChapterIndex, chapterTitle: chapterTitle,
             location: location, length: length, text: trimmed,
-            note: nil, kind: .highlight
+            note: nil, kind: .highlight,
+            anchor: anchor?.anchor, anchorOffset: anchor?.anchorOffset ?? 0
         )
         renderVersion += 1
     }
@@ -368,10 +371,13 @@ final class ReaderViewModel {
     func addNote(location: Int, length: Int, text: String, note: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard length > 0, !trimmed.isEmpty, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let body = attributedChapter?.string ?? ""
+        let anchor = StableTextCoordinate.makeAnchor(text: body, location: location)
         annotationStore.addAnnotation(
             bookId: book.id, chapterIndex: currentChapterIndex, chapterTitle: chapterTitle,
             location: location, length: length, text: trimmed,
-            note: note.trimmingCharacters(in: .whitespacesAndNewlines), kind: .note
+            note: note.trimmingCharacters(in: .whitespacesAndNewlines), kind: .note,
+            anchor: anchor?.anchor, anchorOffset: anchor?.anchorOffset ?? 0
         )
         renderVersion += 1
     }

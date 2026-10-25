@@ -55,6 +55,8 @@ final class BackupService: ObservableObject {
         var annotations: AnnotationBackup?
         var paragraphComments: [ParagraphComment]?
         var chapterComments: [ChapterComment]?
+        /// P2-03：本地书正文（local/ 相对路径 → 数据）
+        var localBooks: [String: Data]?
     }
 
     private static let stateFile = "backup_state.json"
@@ -75,11 +77,11 @@ final class BackupService: ObservableObject {
     // MARK: - 本地导出
 
     /// 导出到临时目录并返回文件 URL（可直接 ShareLink / 存到“文件”）。
-    func export(password: String? = nil) throws -> URL {
-        try export(to: nil, password: password)
+    func export(password: String? = nil, includeLocalBooks: Bool = false) throws -> URL {
+        try export(to: nil, password: password, includeLocalBooks: includeLocalBooks)
     }
 
-    func export(to directory: URL?, password: String? = nil) throws -> URL {
+    func export(to directory: URL?, password: String? = nil, includeLocalBooks: Bool = false) throws -> URL {
         let targetDirectory = directory ?? FileManager.default.temporaryDirectory
             .appendingPathComponent("ZhijianBackups", isDirectory: true)
         do {
@@ -90,7 +92,7 @@ final class BackupService: ObservableObject {
 
         let fileName = "zhijian-\(Self.fileTimestamp(Date())).zjbk"
         let url = targetDirectory.appendingPathComponent(fileName)
-        var data = try makeBackupData()
+        var data = try makeBackupData(includeLocalBooks: includeLocalBooks)
         if let password, !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             data = try BackupCrypto.encrypt(data, password: password)
         }
@@ -106,9 +108,9 @@ final class BackupService: ObservableObject {
     }
 
     /// 只生成备份数据（不落盘），供测试/预览。
-    func makeBackupData() throws -> Data {
+    func makeBackupData(includeLocalBooks: Bool = false) throws -> Data {
         var zip = ZipWriter()
-        let manifest = makeManifest()
+        let manifest = makeManifest(includeLocalBooks: includeLocalBooks)
         zip.add(try Self.encodeJSON(manifest), name: Self.manifestName)
         zip.add(try Self.encodeJSON(books.books), name: "bookshelf.json")
         zip.add(try Self.encodeJSON(sources.sources), name: "sources.json")
@@ -117,10 +119,51 @@ final class BackupService: ObservableObject {
         zip.add(try Self.encodeJSON(AnnotationStore.shared.backup()), name: "annotations.json")
         zip.add(try Self.encodeJSON(ParagraphCommentStore.shared.all()), name: "paragraph_comments.json")
         zip.add(try Self.encodeJSON(ChapterCommentStore.shared.all()), name: "chapter_comments.json")
+        if includeLocalBooks {
+            addLocalBooks(to: &zip, manifest: manifest)
+        }
         return zip.build()
     }
 
-    private func makeManifest() -> BackupManifest {
+    /// P2-03：把本地书正文（EPUB / PDF / Manga / local_library.json）打包进 `local/`。
+    private func addLocalBooks(to zip: inout ZipWriter, manifest: BackupManifest) {
+        let fm = FileManager.default
+        let root = AppData.root
+        for folder in ["EPUB", "PDF", "Manga"] {
+            let dir = root.appendingPathComponent(folder, isDirectory: true)
+            guard let items = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey]) else { continue }
+            for item in items {
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: item.path, isDirectory: &isDir) else { continue }
+                if isDir.boolValue {
+                    addDirectory(item, prefix: "local/\(folder)/\(item.lastPathComponent)", into: &zip)
+                } else {
+                    if let data = try? Data(contentsOf: item) {
+                        zip.add(data, name: "local/\(folder)/\(item.lastPathComponent)")
+                    }
+                }
+            }
+        }
+        if let libraryData = try? Data(contentsOf: root.appendingPathComponent("local_library.json")) {
+            zip.add(libraryData, name: "local/local_library.json")
+        }
+    }
+
+    private func addDirectory(_ dir: URL, prefix: String, into zip: inout ZipWriter) {
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
+        for item in items {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: item.path, isDirectory: &isDir) else { continue }
+            if isDir.boolValue {
+                addDirectory(item, prefix: "\(prefix)/\(item.lastPathComponent)", into: &zip)
+            } else if let data = try? Data(contentsOf: item) {
+                zip.add(data, name: "\(prefix)/\(item.lastPathComponent)")
+            }
+        }
+    }
+
+    private func makeManifest(includeLocalBooks: Bool = false) -> BackupManifest {
         let shortVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         let counts: [String: Int] = [
@@ -132,14 +175,16 @@ final class BackupService: ObservableObject {
             "paragraphComments": ParagraphCommentStore.shared.items.count,
             "chapterComments": ChapterCommentStore.shared.items.count,
         ]
+        var categories = ["bookshelf", "sources", "settings", "tts_sources", "annotations", "paragraph_comments", "chapter_comments"]
+        if includeLocalBooks { categories.append("local_books") }
         return BackupManifest(
             version: Self.supportedVersion,
             appVersion: "\(shortVersion) (\(build))",
             createdAt: Date(),
             deviceName: UIDevice.current.name,
             counts: counts,
-            includesLocalBooks: false,
-            categories: ["bookshelf", "sources", "settings", "tts_sources", "annotations", "paragraph_comments", "chapter_comments"]
+            includesLocalBooks: includeLocalBooks,
+            categories: categories
         )
     }
 
@@ -181,6 +226,9 @@ final class BackupService: ObservableObject {
     }
 
     private func apply(_ payload: BackupPayload, remoteFileName: String?) {
+        if let localBooks = payload.localBooks, !localBooks.isEmpty {
+            restoreLocalBooks(localBooks)
+        }
         if let newBooks = payload.books {
             for book in books.books { books.remove(book) }
             for book in newBooks { books.add(book) }
@@ -298,6 +346,21 @@ final class BackupService: ObservableObject {
         return directory
     }
 
+    /// P2-03：把备份里的 `local/` 写回 AppData.root（EPUB/PDF/Manga 目录 + local_library.json）。
+    private func restoreLocalBooks(_ entries: [String: Data]) {
+        let fm = FileManager.default
+        let root = AppData.root
+        for (name, data) in entries.sorted(by: { $0.key < $1.key }) {
+            guard name.hasPrefix("local/") else { continue }
+            let rel = String(name.dropFirst("local/".count))
+            guard !rel.isEmpty else { continue }
+            let dest = root.appendingPathComponent(rel).standardizedFileURL
+            guard dest.path.hasPrefix(root.standardizedFileURL.path + "/") else { continue }
+            try? fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: dest, options: .atomic)
+        }
+    }
+
     // MARK: - 状态
 
     private func persistState() {
@@ -359,6 +422,16 @@ final class BackupService: ObservableObject {
         let paragraphComments = try decodeArray(ParagraphComment.self, zip: zip, names: ["paragraph_comments.json"])
         let chapterComments = try decodeArray(ChapterComment.self, zip: zip, names: ["chapter_comments.json"])
 
+        var localBooks: [String: Data]? = nil
+        if manifest.includesLocalBooks {
+            localBooks = [:]
+            for name in zip.entryNames where name.hasPrefix("local/") {
+                if let data = try? zip.read(name) {
+                    localBooks?[name] = data
+                }
+            }
+        }
+
         return BackupPayload(
             manifest: manifest,
             books: books,
@@ -367,7 +440,8 @@ final class BackupService: ObservableObject {
             ttsSources: ttsSources,
             annotations: annotations,
             paragraphComments: paragraphComments,
-            chapterComments: chapterComments
+            chapterComments: chapterComments,
+            localBooks: localBooks
         )
     }
 

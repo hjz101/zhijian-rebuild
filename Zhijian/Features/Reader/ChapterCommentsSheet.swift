@@ -29,6 +29,18 @@ struct ChapterCommentsSheet: View {
         store.topLevelComments(bookId: bookId, chapterIndex: chapterIndex, limit: visibleCount)
     }
 
+    private var hotIDs: Set<String> {
+        Set(store.topLevelComments(bookId: bookId, chapterIndex: chapterIndex)
+            .filter { $0.likes > 0 }
+            .sorted { $0.likes > $1.likes }
+            .prefix(3)
+            .map { $0.id })
+    }
+
+    private var nonHotComments: [ChapterComment] {
+        comments.filter { !hotIDs.contains($0.id) }
+    }
+
     private var total: Int { store.totalCount(bookId: bookId, chapterIndex: chapterIndex) }
     private var topLevelTotal: Int { store.topLevelCount(bookId: bookId, chapterIndex: chapterIndex) }
 
@@ -47,13 +59,26 @@ struct ChapterCommentsSheet: View {
                         }
                         .padding(.bottom, 4)
 
+                        let hot = hotIDs
+                        if !hot.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "flame.fill").font(.system(size: 11)).foregroundStyle(theme.accent)
+                                Text("热评 Top \(hot.count)").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text)
+                            }
+                            .padding(.bottom, 2)
+                            ForEach(nonHotComments.filter { hotIDs.contains($0.id) }.prefix(3)) { comment in
+                                commentRow(comment, isReply: false, hot: true)
+                            }
+                            Rectangle().fill(theme.text.opacity(0.08)).frame(height: 1).padding(.vertical, 6)
+                        }
+
                         if comments.isEmpty {
                             Text("还没有章末评论，读完这章来说两句。")
                                 .font(.footnote)
                                 .foregroundStyle(theme.secondary)
                                 .padding(.vertical, 20)
                         } else {
-                            ForEach(comments) { comment in
+                            ForEach(nonHotComments) { comment in
                                 commentRow(comment, isReply: false)
                                 ForEach(store.replies(bookId: bookId, chapterIndex: chapterIndex, parentId: comment.id)) { reply in
                                     commentRow(reply, isReply: true)
@@ -128,7 +153,7 @@ struct ChapterCommentsSheet: View {
         .preferredColorScheme(theme.isDark ? .dark : .light)
     }
 
-    private func commentRow(_ comment: ChapterComment, isReply: Bool) -> some View {
+    private func commentRow(_ comment: ChapterComment, isReply: Bool, hot: Bool = false) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Circle()
                 .fill(theme.accent.opacity(isReply ? 0.55 : 0.85))
