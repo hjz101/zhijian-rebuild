@@ -1,0 +1,205 @@
+// AppModels.swift — 应用层数据模型（书、章节、主题、TTS 源、备份清单…）
+import Foundation
+import SwiftUI
+
+enum ReaderFontFamily: String, CaseIterable, Codable, Identifiable, Sendable {
+    case songti, pingfang
+    var id: String { rawValue }
+    var name: String { self == .songti ? "宋体" : "苹方" }
+}
+
+enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
+    case paper, ink, moss
+    var id: String { rawValue }
+    var name: String {
+        switch self { case .paper: return "米宣纸"; case .ink: return "深墨"; case .moss: return "护眼绿" }
+    }
+    var background: Color {
+        switch self {
+        case .paper: return Color(hex: 0xF4EFE4)
+        case .ink: return Color(hex: 0x12161C)
+        case .moss: return Color(hex: 0xE6EDDF)
+        }
+    }
+    var text: Color {
+        switch self {
+        case .paper: return Color(hex: 0x1F1C17)
+        case .ink: return Color(hex: 0xC9C6BF)
+        case .moss: return Color(hex: 0x26301F)
+        }
+    }
+    var secondary: Color {
+        switch self {
+        case .paper: return Color(hex: 0x6B6459)
+        case .ink: return Color(hex: 0x8A8F99)
+        case .moss: return Color(hex: 0x5E6B52)
+        }
+    }
+    var accent: Color {
+        switch self {
+        case .paper: return Color(hex: 0xC2552E)
+        case .ink: return ZJ.accent
+        case .moss: return Color(hex: 0x4E7A45)
+        }
+    }
+    var isDark: Bool { self == .ink }
+}
+
+struct Book: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var title: String
+    var author: String
+    var coverURL: String?
+    var intro: String?
+    var sourceUrl: String?
+    var bookUrl: String?
+    var kind: String?
+    var lastChapter: String?
+    var totalChapters: Int
+    var currentChapterIndex: Int
+    var currentPageIndex: Int
+    var currentScrollRatio: Double
+    var addedAt: Date
+    var lastReadAt: Date?
+    var isLocal: Bool
+    var fileName: String?
+    var groupName: String?
+
+    static func local(title: String, author: String, fileName: String) -> Book {
+        Book(id: UUID().uuidString, title: title, author: author, coverURL: nil, intro: nil,
+             sourceUrl: nil, bookUrl: nil, kind: nil, lastChapter: nil, totalChapters: 0,
+             currentChapterIndex: 0, currentPageIndex: 0, currentScrollRatio: 0,
+             addedAt: Date(), lastReadAt: nil, isLocal: true, fileName: fileName, groupName: nil)
+    }
+
+    static func remote(_ b: SourceBook, source: BookSource) -> Book {
+        Book(id: UUID().uuidString, title: b.name, author: b.author, coverURL: b.coverUrl,
+             intro: b.intro, sourceUrl: source.bookSourceUrl, bookUrl: b.bookUrl, kind: b.kind,
+             lastChapter: b.lastChapter, totalChapters: 0, currentChapterIndex: 0,
+             currentPageIndex: 0, currentScrollRatio: 0, addedAt: Date(), lastReadAt: nil,
+             isLocal: false, fileName: nil, groupName: nil)
+    }
+}
+
+struct Chapter: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var index: Int
+    var title: String
+    var url: String
+    var isVip: Bool = false
+    var isPay: Bool = false
+}
+
+struct ChapterContent: Codable, Hashable, Sendable {
+    var title: String
+    var content: String
+    var nextURL: String?
+    var chapterURL: String?
+}
+
+struct HttpTTS: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var name: String
+    var url: String
+    var contentType: String?
+    var concurrentRate: String?
+    var enabledCookieJar: Bool?
+    var loginUrl: String?
+    var loginUi: String?
+    var loginCheckJs: String?
+    var header: String?
+    var jsLib: String?
+    var enabled: Bool?
+}
+
+struct WebDAVConfig: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var name: String
+    var url: String
+    var username: String
+    var password: String
+    var directory: String
+}
+
+struct BackupManifest: Codable, Hashable, Sendable {
+    var version: Int
+    var appVersion: String
+    var createdAt: Date
+    var deviceName: String
+    var counts: [String: Int]
+    var includesLocalBooks: Bool
+    var categories: [String]
+}
+
+struct HighlightRule: Codable, Hashable, Identifiable, Sendable {
+    var id: String = UUID().uuidString
+    var name: String
+    var pattern: String
+    var colorHex: String = "#D9A441"
+    var enabled: Bool = true
+    var isRegex: Bool = false
+}
+
+struct ReadingSettings: Codable, Hashable, Sendable {
+    var fontFamily: ReaderFontFamily = .songti
+    var fontSize: Double = 20
+    var lineHeight: Double = 10
+    var paragraphSpacing: Double = 10
+    var horizontalPadding: Double = 22
+    var theme: ReaderTheme = .paper
+    var pageMode: PageMode = .paged
+    var showPageNumber: Bool = true
+    var ttsRate: Double = 0.5
+
+    // 章节标题设计器
+    var chapterTitleAlignment: TitleAlignment = .center
+    var chapterTitleScale: Double = 1.28
+    var chapterTitleDecoration: TitleDecoration = .plain
+
+    // 自动高亮规则
+    var highlightRules: [HighlightRule] = []
+    // 漫画纵向长图模式
+    var mangaScrollMode: Bool = false
+
+    enum PageMode: String, Codable, Sendable { case paged, scroll }
+    enum TitleAlignment: String, Codable, Sendable, CaseIterable {
+        case leading, center, trailing
+        var name: String {
+            switch self {
+            case .leading: return "左对齐"
+            case .center: return "居中"
+            case .trailing: return "右对齐"
+            }
+        }
+    }
+    enum TitleDecoration: String, Codable, Sendable, CaseIterable {
+        case plain, line, ornament
+        var name: String {
+            switch self {
+            case .plain: return "无装饰"
+            case .line: return "分隔线"
+            case .ornament: return "花饰"
+            }
+        }
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fontFamily = try container.decodeIfPresent(ReaderFontFamily.self, forKey: .fontFamily) ?? .songti
+        fontSize = try container.decodeIfPresent(Double.self, forKey: .fontSize) ?? 20
+        lineHeight = try container.decodeIfPresent(Double.self, forKey: .lineHeight) ?? 10
+        paragraphSpacing = try container.decodeIfPresent(Double.self, forKey: .paragraphSpacing) ?? 10
+        horizontalPadding = try container.decodeIfPresent(Double.self, forKey: .horizontalPadding) ?? 22
+        theme = try container.decodeIfPresent(ReaderTheme.self, forKey: .theme) ?? .paper
+        pageMode = try container.decodeIfPresent(PageMode.self, forKey: .pageMode) ?? .paged
+        showPageNumber = try container.decodeIfPresent(Bool.self, forKey: .showPageNumber) ?? true
+        ttsRate = try container.decodeIfPresent(Double.self, forKey: .ttsRate) ?? 0.5
+        chapterTitleAlignment = try container.decodeIfPresent(TitleAlignment.self, forKey: .chapterTitleAlignment) ?? .center
+        chapterTitleScale = try container.decodeIfPresent(Double.self, forKey: .chapterTitleScale) ?? 1.28
+        chapterTitleDecoration = try container.decodeIfPresent(TitleDecoration.self, forKey: .chapterTitleDecoration) ?? .plain
+        highlightRules = try container.decodeIfPresent([HighlightRule].self, forKey: .highlightRules) ?? []
+        mangaScrollMode = try container.decodeIfPresent(Bool.self, forKey: .mangaScrollMode) ?? false
+    }
+}

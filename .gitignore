@@ -1,0 +1,17 @@
+.DS_Store
+
+# Xcode build output
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+.swiftpm/
+
+# Oversized development screenshots (kept only docs/screenshots)
+shots/
+
+# Local distribution artifacts
+dist/

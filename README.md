@@ -1,0 +1,138 @@
+# 指尖阅读 2.0 · 重建工程
+
+> 基于 QiReader（栖阅）逆向分析的架构重建版：全新 Xcode 工程 + 原生 TextKit 分页 + Legado 书源引擎 + 系统/HTTP 多角色 TTS + 备份/WebDAV。
+> 设计语言沿用「指尖阅读」的纸感阅读 + 玻璃外壳；旧工程（`../zhijian-ios`）仅作组件参考，不直接复用 UI 架构。
+
+![书架](docs/screenshots/lead-01-shelf.png)
+![分页阅读](docs/screenshots/lead-05-reader.png)
+![远程书源](docs/screenshots/lead-06-reader-remote.png)
+![朗读](docs/screenshots/lead-10-tts-fixed.png)
+
+## 状态（P0 已完成）
+
+| 模块 | 状态 | 说明 |
+|---|---|---|
+| 书源引擎 | ✅ | Legado `BookSource` 全量模型（35 字段）、`AnalyzeUrl` 请求、规则链/`{{}}`/`@put`/`@get`/索引/`##`、CSS/XPath/JSONPath/正则/JS；`packages_stub.js`（javax.crypto/java.security/java.util/java.io/net + hutool/okhttp/JsonPath/Jsoup）+ 原生 `_native*`/`_jsoup*` 下沉；多源并发搜索、详情/目录/正文、`concurrentRate`、`loginCheckJs`、TOC 顺序归一化、诊断快照 |
+| 分页阅读器 | ✅ | native TextKit 断页（`NSTextStorage+NSLayoutManager+NSTextContainer`）、UIPageViewController 左右翻页、点击左右 1/3、章节过渡页、页缓存、目录/设置 Sheet、滚动模式回退、进度持久化 |
+| TTS | ✅ | 系统 `AVSpeechSynthesizer`（切句/暂停/继续/停止/语速/Now Playing/远程控制）、旁白/对话多角色、**智能角色识别**（引号归属 + 提示语 → 角色名/逐角色音色+音高）、**句级高亮 + 自动翻页/滚动**（分页/滚动/EPUB/PDF）、HTTP TTS 源（模板 / `,{JSON}` POST / `@js:`；header/Cookie；contentType 校验；缓存）、**登录页 Cookie 提取**、**WebSocket 流式播放**（文本帧 → 二进制音频 → done） |
+| 备份/同步 | ✅ | `.zjbk`（ZIP + `manifest.json`，bookshelf/sources/settings/tts_sources/**annotations/paragraph_comments**）导出/恢复；WebDAV（PROPFIND/MKCOL/PUT/GET + Basic Auth）上传/下载/列表；**加密备份**（PBKDF2-SHA256 120k + AES-GCM）；**Cookie 持久化**（`cookies.json`）与 **iCloud KVS** 设置/进度/段评/章末评论/批注同步（未签名时本地镜像降级） |
+| 本地书 | ✅ | TXT 导入（UTF-8/GB18030 探测）+ 自动分章；**EPUB 导入**（ZIP → container/OPF/spine → nav/ncx 标题）与 **EPUB 富文本阅读**（解包原始 XHTML/CSS/图片，WKWebView 渲染 + 主题注入 + 目录/章节切换/进度 + **分页模式**）；**PDF 导入与阅读**（PDFKit）；**漫画 CBZ/ZIP 导入**（横向分页 / 纵向长图、缩放、页码、进度） |
+| 阅读增强 | ✅ | 书签、划线、笔记（分页/滚动均可选中 → 划线/笔记）、笔记列表、目录/书签/笔记三 Tab、换源；**章节标题设计器**（对齐/大小/分隔线·花饰）；**自动高亮规则**（关键词/正则 + 颜色）；**段评**（分页段落气泡 + 整章侧栏）与**章末评论**（章尾按钮/菜单入口，列表/发表、分页加载、点赞/回复/@、时间戳冲突处理）；**段评同能力**；**WebDAV 独立评论同步**（`zhijian-comments.json`，下载→合并→回传）；**EPUB 图片查看器**（点击图片全屏、缩放/双击、分享）；本地 JSON 持久化 |
+| 书源体检 | ✅ | 逐源四阶段（搜索/详情/目录/正文）耗时与错误、批量体检、HTTP 流水 + JS console 诊断、一键复制；结果持久化；内置「引擎自检」 |
+| 引擎兼容补强 | ✅ | fastjson、Gson；`java.getZipStringContent/getZipByteArrayContent/unzipFile` 支持 ZIP **以及 RAR/7z（iOS SDK libarchive 弱链接）**；JSC 执行超时中断（12s，可测试 2s） |
+| **WebView 兜底** | ✅ | 离屏 WKWebView：`@webjs:` 规则、`java.webView/webViewGetSource/webViewGetOverrideUrl`、`ruleContent.webJs`；**网络拦截**（XHR/fetch → `ruleContent.sourceRegex` 匹配响应体/URL）；引擎自检 13/13 |
+| 批量测试 | ✅ | 多关键词 × 多源、可选深度四阶段、并发 1–4、逐项结果/耗时、报告文本分享与复制 |
+| 漫画阅读 | ✅ | CBZ/ZIP → 图片仓库 + manifest；横向分页、双指/双击缩放、页码滑杆、页码目录、进度持久化 |
+| 设计系统 | ✅ | 纸面阅读（米宣纸/深墨/护眼绿）、玻璃顶栏、迷你朗读条；沿用 `ZJ` 设计令牌 |
+| 发布准备 | ✅ | 2.1 (2)、App Icon、深色启动屏、隐私清单、2.1 未签名 IPA、未签名 Archive；签名/iCloud 检查清单与风险见 [docs/RELEASE.md](docs/RELEASE.md) |
+
+已验证路径：本地示例书分页/跨章/主题切换；真实书源「关于小说」搜索《剑来》→ 详情 1,320 章 → 首章正文分页（1/10 页）；朗读条与 TTS 设置；备份页；Debug 模拟器构建 + Release iphoneos 构建均通过。
+
+引擎自测（iOS 模拟器 CLI）59/59：兼容层加载、Base64/MD5/SHA/AES/DES/GZIP/JsonPath/Pattern/容器/URLEncoder/BigInteger/Android Base64/hutool/okhttp、Jsoup/JXDocument、规则链/索引/`##`/`###`/`{{}}`/`@put`/`@get`/`@webjs` 诊断、loginCheckJs、TOC 归一化。
+
+## 构建 / 运行
+
+```bash
+# 模拟器构建
+xcodebuild -project Zhijian.xcodeproj -scheme Zhijian \
+  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -derivedDataPath build build
+
+# 安装 + 启动
+xcrun simctl boot "iPhone 17" 2>/dev/null || true
+xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Zhijian.app
+xcrun simctl launch booted com.zhijian.reader
+```
+
+- Bundle ID：`com.zhijian.reader`，最低 iOS 17.0，Swift 5 语言模式（Xcode 26.5 可编译）。
+- 无第三方依赖（离线可构建）。
+
+## 调试参数
+
+| 参数 | 作用 |
+|---|---|
+| `-tab=0/1/2` | 启动 Tab（书架/书源/我的） |
+| `-autoSearch=书名` | 启动后在书源页自动搜索 |
+| `-autoOpenFirstHit` | 自动打开第一条搜索结果的详情 |
+| `-autoAddHit` | 详情加载完成后自动加入书架 |
+| `-autoOpenBookTitle=书名` | 书架按标题匹配并直接打开阅读器 |
+| `-autoOpenFirstBook` | 打开书架第一本 |
+| `-autoTTS` | 阅读页打开后自动开始朗读 |
+| `-autoOpenTTSConfig` / `-autoOpenBackup` | 设置页直达朗读/备份 |
+| `-seedLocalTxt` | 导入内置示例 TXT（演示本地分章） |
+| `-seedEpub` | 导入内置示例 EPUB《指尖测试书》 |
+| `-seedPDF` | 导入内置示例 PDF《指尖PDF示例》 |
+| `-seedManga` / `-mangaPage=N` | 导入内置示例漫画《指尖漫画示例》/ 定位第 N 页（0 起） |
+| `-mangaScroll` | 漫画纵向长图模式 |
+| `-seedLongEpub` / `-epubPaged` / `-epubPage=N` | 导入长章 EPUB / 打开分页模式 / 定位第 N 页（1 起） |
+| `-cookieTest` / `-autoOpenCookies` | 写入示例 Cookie / 打开 Cookie 管理 |
+| `-cloudTest` / `-autoOpenCloud` | iCloud KVS 自检 / 打开 iCloud 同步 |
+| `-pdfPage=N` | 打开 PDF 时定位到第 N 页（0 起） |
+| `-seedAnnotations` | 给示例书种一条书签 + 一条划线 + 一条笔记（调试用） |
+| `-showCatalog` / `-catalogTab=notes` | 阅读页自动打开目录/书签/笔记 |
+| `-showChangeSource` | 阅读页自动打开换源 |
+| `-showHealth` / `-showHealthDetail` | 打开书源体检 / 首个书源详情 |
+| `-autoHealthCheck` | 打开体检后自动跑全部书源 |
+| `-engineSelfTest` | 打开引擎自检（fastjson/Gson/ZIP/WebView） |
+| `-showBatchTest` / `-autoBatchTest` | 打开批量测试 / 自动开始 |
+| `-backupCryptoTest` | 调试：加密导出 → 解密 → 恢复自检 |
+| `-backupEncryptOn` | 打开备份页并开启加密（预填测试密码） |
+| `-ttsCharacterTest` | 播放含「阿禾/老陈」的样本文本并展示角色识别 |
+| `-wsTTSTest` | 用本地 ws://127.0.0.1:8766 测试 WebSocket 流式朗读 |
+| `-pdfTTS` | 打开 PDF 后自动朗读当前页 |
+| `-systemTTS` | 清除 HTTP TTS 选择，强制系统朗读 |
+| `-seedHighlightRules` | 种入「雾 / 书庐」两条高亮规则 |
+| `-titleDesign` | 应用左对齐 + 1.5x + 分隔线标题样式 |
+| `-showReaderSettings` | 阅读页自动打开阅读设置 |
+| `-readerPaged` | 强制分页模式（调试段评气泡） |
+| `-seedParagraphComments` / `-showParagraphComments` | 种入段评 / 打开第 2 段段评 |
+| `-showEpubImage` | 打开示例 EPUB 章节内嵌图片查看器 |
+
+## 架构
+
+```
+Zhijian/
+├── App/                  # 入口、RootView、AppEnvironment（依赖容器）
+├── Core/
+│   ├── Models/           # Legado 模型、书/章节、TTS/WebDAV/备份、协议
+│   ├── Parsing/          # HTMLDocument / CSSSelector / XPathQuery / JSONPath / HtmlFormatter
+│   ├── Rules/            # RuleEngine（规则链/CSS/XPath/JSON/JS/正则/变量）
+│   ├── Runtime/          # JSRuntime + Java 兼容（JSRuntime+JavaCompat/Native/Jsoup）
+│   ├── Pipeline/         # SourcePipeline（search/bookInfo/toc/content + HTTP/Cookie/限速）
+│   ├── Reader/           # PaginationEngine / ReaderViewModel / BookContentService
+│   ├── TTS/              # TTSController / HTTPTTSDriver / TTSSourceStore / WebSocket
+│   ├── Sync/             # BackupService / WebDAVClient / ZipArchive
+│   └── Store/            # BookStore / SourceStore / LocalLibrary / 导入
+├── Features/             # Shelf / Sources / Reader / TTS / Settings
+├── Design/               # ZJ 设计令牌
+└── Resources/            # packages_stub.js / jsoup_bridge.js / 示例书源/示例书
+```
+
+## 与旧工程的差异
+
+1. **阅读器**：旧版为 `UITextView` 纵向滚动；新版为 native TextKit 分页 + 页缓存 + 章间过渡。
+2. **书源引擎**：旧版 `JSRuntime` 只实现少量 `java.*`；新版加入 Rhino/Java 兼容包（`packages_stub.js`）与原生下沉 API，覆盖加密/摘要/容器/编码/GZIP/JsonPath/jsoup。
+3. **TTS**：旧版只有系统朗读；新版加入 HTTP TTS 源、多角色、音频缓存与迷你播放条。
+4. **备份**：旧版为 zip 全量；新版 `.zjbk` + manifest + 分类 + WebDAV。
+5. **工程结构**：全新目录分层（Core/Features/Design），旧工程未改动。
+
+## 数据位置
+
+- 应用数据：`Application Support/Zhijian/`（bookshelf.json / sources.json / settings.json / local_library.json / tts_sources.json / webdav.json）
+- 备份：`.zjbk`（ZIP，未加密；UI 已提示敏感性）
+- 书源/书籍仅用户导入；仓库不预置第三方书源（`demo-source-rulianshi.json` 仅用于开发验证，发布前请移除或替换）。
+
+## 已知缺口 / 下一步
+
+- 阅读器：图片、章节标题 HTML 设计器尚未接回；跨章为过渡页重载（非无缝）；滚动模式暂不支持选区划线。
+- 引擎：验证码/`startBrowser` 交互浏览器、RAR/7z 解码、JSC 执行超时中断；`sourceRegex` 目前只捕获页面加载后 2.5s 内的 XHR/fetch（不修改请求头）。
+- TTS：角色识别仍是本地启发式（未接大模型）；WebSocket 约定为发送文本帧、接收二进制音频帧 + `{"type":"done"}`。
+- 验证：`-ttsCharacterTest` 识别「阿禾/老陈」；分页/滚动/EPUB 三种阅读器句级高亮；本地 ws://127.0.0.1:8766 返回 151,644 字节 WAV 并成功播放。
+- 同步：iCloud 文档镜像、备份加密、Cookie 迁移；WebDAV 密码目前明文（UI 已提示）。
+- 本地书：EPUB 富文本、PDF 已支持；漫画未开始。
+- 发布：图标/启动图/隐私清单已就位；TestFlight 签名与元数据待补。
+
+## 合规
+
+- 本工程为自有代码重建：书源格式与协议按 Legado 公开规范实现，未复制 QiReader、Legado（GPL）、origo-x（AGPL）的代码或资源。
+- 不预置书源、不内置内容；用户导入的书源与内容版权归原站/作者。

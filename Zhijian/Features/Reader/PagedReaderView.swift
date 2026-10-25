@@ -1,0 +1,415 @@
+// PagedReaderView.swift — 原生 TextKit 分页渲染（UIPageViewController 横向翻页）
+//
+// - 每一页是一个只读 UITextView，显示分页引擎算好的 UTF-16 子串；
+// - 左右滑动由 UIPageViewController 负责；点击左/右 1/3 翻页、中间 1/3 显示/隐藏控制层；
+// - 章首/章尾额外提供一页"上一章 / 下一章"过渡页，继续滑动或点击即跨章。
+import SwiftUI
+import UIKit
+
+struct PagedReaderView: UIViewControllerRepresentable {
+    let pages: [ReaderPage]
+    let currentIndex: Int
+    let renderVersion: Int
+    let theme: ReaderTheme
+    let previousChapterTitle: String?
+    let nextChapterTitle: String?
+    let pageText: (Int) -> NSAttributedString
+    let onPageChanged: (Int) -> Void
+    let onNextPage: () -> Void
+    let onPreviousPage: () -> Void
+    let onChapterBoundary: (Int) -> Void
+    let onToggleChrome: () -> Void
+    var onHighlight: ((Int, Int, String) -> Void)? = nil
+    var onNote: ((Int, Int, String) -> Void)? = nil
+    var paragraphRanges: [NSRange] = []
+    var commentCounts: [Int: Int] = [:]
+    var onParagraphComment: ((Int) -> Void)? = nil
+    var chapterCommentCount: Int = 0
+    var onChapterComments: (() -> Void)? = nil
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIViewController(context: Context) -> UIPageViewController {
+        let controller = UIPageViewController(
+            transitionStyle: .scroll,
+            navigationOrientation: .horizontal,
+            options: [.interPageSpacing: 0]
+        )
+        controller.dataSource = context.coordinator
+        controller.delegate = context.coordinator
+        controller.view.backgroundColor = .clear
+        context.coordinator.attach(controller)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIPageViewController, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.synchronize()
+    }
+
+    final class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+        var parent: PagedReaderView
+        private weak var pageController: UIPageViewController?
+        private var displayedIndex = 0
+        private var displayedVersion = -1
+        private var displayedPageCount = 0
+        private var isReady = false
+
+        init(_ parent: PagedReaderView) {
+            self.parent = parent
+        }
+
+        func attach(_ controller: UIPageViewController) {
+            pageController = controller
+            isReady = true
+            displayedIndex = parent.currentIndex
+            displayedVersion = parent.renderVersion
+            displayedPageCount = parent.pages.count
+            guard let page = makePage(displayedIndex) else { return }
+            controller.setViewControllers([page], direction: .forward, animated: false, completion: nil)
+        }
+
+        /// 模型状态变化后，把当前页/页数/版本同步给 UIPageViewController。
+        func synchronize() {
+            guard isReady, let controller = pageController, !parent.pages.isEmpty else { return }
+            let targetIndex = min(max(parent.currentIndex, 0), parent.pages.count - 1)
+            let contentChanged = parent.renderVersion != displayedVersion || parent.pages.count != displayedPageCount
+            let indexChanged = targetIndex != displayedIndex
+            guard contentChanged || indexChanged else { return }
+            guard let page = makePage(targetIndex) else { return }
+
+            // 单页前后翻（点击翻页）用动画；换章、换字号、换主题直接重建。
+            let animated = !contentChanged && abs(targetIndex - displayedIndex) == 1
+            let direction: UIPageViewController.NavigationDirection = targetIndex >= displayedIndex ? .forward : .reverse
+            displayedIndex = targetIndex
+            displayedVersion = parent.renderVersion
+            displayedPageCount = parent.pages.count
+            controller.setViewControllers([page], direction: direction, animated: animated, completion: nil)
+        }
+
+        // MARK: - 页面构建
+
+        private func makePage(_ index: Int) -> UIViewController? {
+            guard parent.pages.indices.contains(index) else { return nil }
+            let pageStart = parent.pages[index].range.location
+            let controller = ReaderPageViewController(index: index, attributed: parent.pageText(index),
+                                                     pageStart: pageStart, theme: parent.theme,
+                                                     paragraphRanges: parent.paragraphRanges,
+                                                     commentCounts: parent.commentCounts)
+            controller.onParagraphComment = { [weak self] paragraphIndex in
+                self?.parent.onParagraphComment?(paragraphIndex)
+            }
+            controller.onTap = { [weak self, weak controller] location in
+                guard let self else { return }
+                self.handleTap(location: location, width: controller?.view.bounds.width ?? 0)
+            }
+            controller.onHighlight = { [weak self] range, text in
+                guard let self else { return }
+                self.parent.onHighlight?(pageStart + range.location, range.length, text)
+            }
+            controller.onNote = { [weak self] range, text in
+                guard let self else { return }
+                self.parent.onNote?(pageStart + range.location, range.length, text)
+            }
+            return controller
+        }
+
+        private func makeGate(isNext: Bool) -> UIViewController {
+            let title = (isNext ? parent.nextChapterTitle : parent.previousChapterTitle) ?? ""
+            let gate = ReaderChapterGateViewController(isNext: isNext, title: title, theme: parent.theme)
+            gate.onTap = { [weak self] in
+                guard let self else { return }
+                self.parent.onChapterBoundary(isNext ? 1 : -1)
+            }
+            gate.onComments = { [weak self] in
+                self?.parent.onChapterComments?()
+            }
+            gate.commentCount = parent.chapterCommentCount
+            return gate
+        }
+
+        private func handleTap(location: CGPoint, width: CGFloat) {
+            let width = max(width, 1)
+            if location.x < width / 3 {
+                parent.onPreviousPage()
+            } else if location.x > width * 2 / 3 {
+                parent.onNextPage()
+            } else {
+                parent.onToggleChrome()
+            }
+        }
+
+        // MARK: - UIPageViewControllerDataSource
+
+        func pageViewController(
+            _ pageViewController: UIPageViewController,
+            viewControllerBefore viewController: UIViewController
+        ) -> UIViewController? {
+            if let page = viewController as? ReaderPageViewController {
+                if page.pageIndex > 0 {
+                    return makePage(page.pageIndex - 1)
+                }
+                if parent.previousChapterTitle != nil {
+                    return makeGate(isNext: false)
+                }
+                return nil
+            }
+            if let gate = viewController as? ReaderChapterGateViewController, gate.isNext {
+                return makePage(parent.pages.count - 1)
+            }
+            return nil
+        }
+
+        func pageViewController(
+            _ pageViewController: UIPageViewController,
+            viewControllerAfter viewController: UIViewController
+        ) -> UIViewController? {
+            if let page = viewController as? ReaderPageViewController {
+                if page.pageIndex + 1 < parent.pages.count {
+                    return makePage(page.pageIndex + 1)
+                }
+                if parent.nextChapterTitle != nil {
+                    return makeGate(isNext: true)
+                }
+                return nil
+            }
+            if let gate = viewController as? ReaderChapterGateViewController, !gate.isNext {
+                return makePage(0)
+            }
+            return nil
+        }
+
+        // MARK: - UIPageViewControllerDelegate
+
+        func pageViewController(
+            _ pageViewController: UIPageViewController,
+            didFinishAnimating finished: Bool,
+            previousViewControllers: [UIViewController],
+            transitionCompleted completed: Bool
+        ) {
+            guard completed, let visible = pageViewController.viewControllers?.first else { return }
+            if let page = visible as? ReaderPageViewController {
+                displayedIndex = page.pageIndex
+                parent.onPageChanged(page.pageIndex)
+            } else if let gate = visible as? ReaderChapterGateViewController {
+                parent.onChapterBoundary(gate.isNext ? 1 : -1)
+            }
+        }
+    }
+}
+
+// MARK: - 单页正文
+
+private final class ReaderPageViewController: UIViewController, UITextViewDelegate, UIGestureRecognizerDelegate {
+    let pageIndex: Int
+    private let attributed: NSAttributedString
+    private let pageStart: Int
+    private let theme: ReaderTheme
+    private let paragraphRanges: [NSRange]
+    private let commentCounts: [Int: Int]
+    private let textView = UITextView()
+    private var bubbleButtons: [UIButton] = []
+    var onTap: ((CGPoint) -> Void)?
+    var onHighlight: ((NSRange, String) -> Void)?
+    var onNote: ((NSRange, String) -> Void)?
+    var onParagraphComment: ((Int) -> Void)?
+
+    init(index: Int, attributed: NSAttributedString, pageStart: Int, theme: ReaderTheme,
+         paragraphRanges: [NSRange] = [], commentCounts: [Int: Int] = [:]) {
+        self.pageIndex = index
+        self.attributed = attributed
+        self.pageStart = pageStart
+        self.theme = theme
+        self.paragraphRanges = paragraphRanges
+        self.commentCounts = commentCounts
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(theme.background)
+
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        textView.backgroundColor = .clear
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isScrollEnabled = false
+        textView.isUserInteractionEnabled = true
+        textView.delegate = self
+        textView.textContainerInset = .zero
+        textView.contentInset = .zero
+        textView.textContainer.lineFragmentPadding = 0
+        textView.textContainer.lineBreakMode = .byWordWrapping
+        textView.attributedText = attributed
+        view.addSubview(textView)
+        NSLayoutConstraint.activate([
+            textView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            textView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            textView.topAnchor.constraint(equalTo: view.topAnchor),
+            textView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
+        tap.cancelsTouchesInView = false
+        tap.delegate = self
+        view.addGestureRecognizer(tap)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        layoutCommentBubbles()
+    }
+
+    private func layoutCommentBubbles() {
+        bubbleButtons.forEach { $0.removeFromSuperview() }
+        bubbleButtons.removeAll()
+        guard !paragraphRanges.isEmpty, !commentCounts.isEmpty,
+              attributed.length > 0, textView.bounds.width > 0 else { return }
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        let pageEnd = pageStart + attributed.length
+
+        for (index, fullRange) in paragraphRanges.enumerated() {
+            guard let count = commentCounts[index], count > 0 else { continue }
+            let overlap = NSIntersectionRange(fullRange, NSRange(location: pageStart, length: attributed.length))
+            guard overlap.length > 0 else { continue }
+            let local = NSRange(location: overlap.location - pageStart, length: overlap.length)
+            guard local.location >= 0, local.location + local.length <= attributed.length else { continue }
+            let glyphRange = textView.layoutManager.glyphRange(forCharacterRange: local, actualCharacterRange: nil)
+            var rect = textView.layoutManager.boundingRect(forGlyphRange: glyphRange, in: textView.textContainer)
+            rect.origin.x += textView.textContainerInset.left
+            rect.origin.y += textView.textContainerInset.top
+            let size = CGSize(width: 58, height: 24)
+            var origin = CGPoint(x: textView.bounds.width - size.width - 2, y: rect.maxY - size.height + 2)
+            if origin.y < 0 || origin.y > textView.bounds.height - size.height { continue }
+            origin.y = max(0, min(origin.y, textView.bounds.height - size.height))
+
+            var config = UIButton.Configuration.filled()
+            config.baseBackgroundColor = UIColor(theme.accent).withAlphaComponent(0.16)
+            config.baseForegroundColor = UIColor(theme.accent)
+            config.cornerStyle = .capsule
+            config.title = "💬 \(count)"
+            config.contentInsets = NSDirectionalEdgeInsets(top: 2, leading: 6, bottom: 2, trailing: 6)
+            let button = UIButton(configuration: config)
+            button.frame = CGRect(origin: origin, size: size)
+            button.addAction(UIAction { [weak self] _ in self?.onParagraphComment?(index) }, for: .touchUpInside)
+            view.addSubview(button)
+            bubbleButtons.append(button)
+        }
+    }
+
+    @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        if textView.selectedRange.length > 0 {
+            textView.selectedRange = NSRange(location: 0, length: 0)
+            return
+        }
+        onTap?(gesture.location(in: view))
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
+    }
+
+    // iOS 16+：自定义文本选择菜单
+    func textView(_ textView: UITextView,
+                  editMenuForTextIn range: NSRange,
+                  suggestedActions: [UIMenuElement]) -> UIMenu? {
+        guard range.length > 0,
+              let textRange = Range(range, in: textView.text) else { return nil }
+        let selected = String(textView.text[textRange])
+        guard !selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+
+        var actions = suggestedActions
+        actions.append(UIAction(title: "划线", image: UIImage(systemName: "highlighter")) { [weak self] _ in
+            self?.onHighlight?(range, selected)
+            textView.selectedRange = NSRange(location: 0, length: 0)
+        })
+        actions.append(UIAction(title: "笔记", image: UIImage(systemName: "note.text")) { [weak self] _ in
+            self?.onNote?(range, selected)
+            textView.selectedRange = NSRange(location: 0, length: 0)
+        })
+        return UIMenu(children: actions)
+    }
+}
+
+// MARK: - 章间过渡页
+
+private final class ReaderChapterGateViewController: UIViewController {
+    let isNext: Bool
+    private let chapterTitle: String
+    private let theme: ReaderTheme
+    var onTap: (() -> Void)?
+    var onComments: (() -> Void)?
+    var commentCount: Int = 0
+
+    init(isNext: Bool, title: String, theme: ReaderTheme) {
+        self.isNext = isNext
+        self.chapterTitle = title
+        self.theme = theme
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+
+        let icon = UIImageView(image: UIImage(systemName: isNext ? "chevron.right.2" : "chevron.left.2"))
+        icon.tintColor = UIColor(theme.accent)
+        icon.contentMode = .scaleAspectFit
+        icon.heightAnchor.constraint(equalToConstant: 30).isActive = true
+
+        let kicker = UILabel()
+        kicker.text = isNext ? "下一章" : "上一章"
+        kicker.font = .systemFont(ofSize: 11, weight: .semibold)
+        kicker.textColor = UIColor(theme.secondary)
+        kicker.textAlignment = .center
+
+        let titleLabel = UILabel()
+        titleLabel.text = chapterTitle
+        titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+        titleLabel.textColor = UIColor(theme.text)
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+
+        let hint = UILabel()
+        hint.text = isNext ? "继续左滑进入下一章" : "继续右滑返回上一章"
+        hint.font = .systemFont(ofSize: 11)
+        hint.textColor = UIColor(theme.secondary)
+        hint.textAlignment = .center
+
+        let commentButton = UIButton(type: .system)
+        commentButton.setTitle("章末评论 \(commentCount)", for: .normal)
+        commentButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+        commentButton.tintColor = UIColor(theme.accent)
+        commentButton.addAction(UIAction { [weak self] _ in self?.onComments?() }, for: .touchUpInside)
+
+        let stack = UIStackView(arrangedSubviews: [icon, kicker, titleLabel, hint, commentButton])
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 14
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            stack.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, multiplier: 0.8)
+        ])
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        onTap?()
+    }
+}
