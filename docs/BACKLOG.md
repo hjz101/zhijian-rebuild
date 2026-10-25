@@ -87,7 +87,7 @@
   - 实测：7 条脏目录 → 5 条，去重 1、去空 1、卷名 1，顺序 1→2→3→卷2→4；
   - 调试：`-chapterRuleTest`、`-autoOpenChapterRules`。
 
-### [P0-05] 章节磁盘缓存
+### [P0-05] ✅ 已完成 · 章节磁盘缓存
 - **对应差距**：栖阅 `Caches/ChapterCache`；我们仅内存 `chapterCache`。
 - **范围**：
   - `BookContentService` 落盘目录/正文/摘要；LRU/容量统计/清理。
@@ -95,6 +95,15 @@
 - **验收**：断网可读已缓存章节；缓存大小可见并可清理；重复打开不重复请求。
 - **估算**：2–3 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `ChapterCacheStore`：`Caches/ChapterCache/<sha256(bookId)>/{toc,meta,chapter_*.json}`；
+  - 目录 TTL 24h：命中先返回旧目录保证离线可读，后台刷新成功再更新；失败保留旧目录；
+  - 正文缓存：按 chapterUrl 失效（换源/目录更新自动不命中）；命中不重复请求；
+  - LRU：默认 200 MB，超限按修改时间删除最旧章节；
+  - 设置 → 章节缓存：总大小/文件数/书籍数、按书清理、全部清理；
+  - `invalidate(bookId:)` 同时清磁盘缓存；
+  - 实测：写 2 章目录 + 1 章正文 → `toc=2 bodyChars=600 size=2KB books=1 files=3`；
+  - 调试：`-chapterCacheTest`、`-autoOpenChapterCache`。
 
 ### [P0-06] 搜索分页 / 取消 / 结果缓存
 - **对应差距**：栖阅 `SearchEngine` 分页/取消/缓存；我们只搜第 1 页且不可取消。

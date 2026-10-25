@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules }
+    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules, chapterCache }
     @EnvironmentObject private var env: AppEnvironment
     @State private var path: [Route] = []
     @State private var showReaderSettings = false
@@ -45,6 +45,7 @@ struct SettingsView: View {
                 case .cloud: CloudSyncView()
                 case .replaceRules: ReplaceRulesView()
                 case .chapterRules: ChapterRulesView()
+                case .chapterCache: CacheManageView()
                 }
             }
             .sheet(isPresented: $showReaderSettings) {
@@ -108,9 +109,7 @@ struct SettingsView: View {
             row("textformat", "字体管理", value: "\(env.settings.settings.fontFamily.name)") {
                 placeholder = "自定义字体导入将在 P1-06 上线。"
             }
-            row("square.stack.3d.up", "章节预缓存", value: "内存") {
-                placeholder = "章节磁盘缓存将在 P0-05 上线。"
-            }
+            row("square.stack.3d.up", "章节缓存", value: ChapterCacheStore.shared.formattedSize, route: .chapterCache)
             row("paintpalette.fill", "主题 / 显示", value: env.settings.settings.theme.name) {
                 showReaderSettings = true
             }
@@ -195,6 +194,7 @@ struct SettingsView: View {
         if args.contains("-autoOpenCloud") { path = [.cloud] }
         if args.contains("-autoOpenReplaceRules") { path = [.replaceRules] }
         if args.contains("-autoOpenChapterRules") { path = [.chapterRules] }
+        if args.contains("-autoOpenChapterCache") { path = [.chapterCache] }
         if args.contains("-showReaderSettings") { showReaderSettings = true }
         if args.contains("-showAppearance") { showAppearance = true }
     }

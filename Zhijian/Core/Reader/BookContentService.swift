@@ -52,6 +52,7 @@ final class BookContentService: ReaderContentProviding {
     func invalidate(bookId: String) {
         bookInfoCache.removeValue(forKey: bookId)
         chapterCache.removeValue(forKey: bookId)
+        ChapterCacheStore.shared.remove(bookId: bookId)
     }
 
     // MARK: - 目录
@@ -61,6 +62,34 @@ final class BookContentService: ReaderContentProviding {
             return try loadLocalChapters(for: book)
         }
 
+        let cache = ChapterCacheStore.shared
+        if let cached = cache.loadChapters(bookId: book.id), !cached.isEmpty {
+            chapterCache[book.id] = cached
+            updateBookMetadata(book, chapters: cached)
+            if cache.tocIsFresh(bookId: book.id) {
+                return cached
+            }
+            // TTL 过期：后台刷新，失败保留旧目录（离线可用）
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let fresh = try await self.fetchFreshChapters(for: book)
+                    cache.saveChapters(bookId: book.id, title: book.title, chapters: fresh)
+                    self.chapterCache[book.id] = fresh
+                    self.updateBookMetadata(book, chapters: fresh)
+                } catch {
+                    // keep stale cache
+                }
+            }
+            return cached
+        }
+
+        let chapters = try await fetchFreshChapters(for: book)
+        cache.saveChapters(bookId: book.id, title: book.title, chapters: chapters)
+        return chapters
+    }
+
+    private func fetchFreshChapters(for book: Book) async throws -> [Chapter] {
         let pipeline = try makePipeline(for: book)
         let info = try await fetchInfo(for: book, pipeline: pipeline)
         let toc = try await pipeline.toc(info)
@@ -91,6 +120,11 @@ final class BookContentService: ReaderContentProviding {
             return try loadLocalContent(for: book, chapter: chapter)
         }
 
+        let cache = ChapterCacheStore.shared
+        if let cached = cache.loadContent(bookId: book.id, chapter: chapter) {
+            return cached
+        }
+
         let pipeline = try makePipeline(for: book)
         let info = try await fetchInfo(for: book, pipeline: pipeline)
         let sourceChapter = SourceChapter(
@@ -116,11 +150,13 @@ final class BookContentService: ReaderContentProviding {
             title = store.cleanTitle(title)
             body = store.cleanContent(body)
         }
-        return BookChapterContent(
+        let content = BookChapterContent(
             title: title,
             text: body,
             nextChapterIndex: nextChapterIndex(after: chapter, bookId: book.id)
         )
+        cache.saveContent(bookId: book.id, chapter: chapter, content: content)
+        return content
     }
 
     // MARK: - 远程书流水线

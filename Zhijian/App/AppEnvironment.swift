@@ -89,6 +89,26 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-chapterCacheTest") {
+            let bookId = "demo-local-001"
+            let chapters = [
+                Chapter(id: "\(bookId)#0", index: 0, title: "第一章 入山", url: "https://example.com/1"),
+                Chapter(id: "\(bookId)#1", index: 1, title: "第二章 书庐", url: "https://example.com/2")
+            ]
+            ChapterCacheStore.shared.saveChapters(bookId: bookId, title: "缓存测试书", chapters: chapters)
+            ChapterCacheStore.shared.saveContent(bookId: bookId, chapter: chapters[0],
+                                                  content: BookChapterContent(title: "第一章 入山", text: String(repeating: "山雾。", count: 200), nextChapterIndex: 1))
+            let loadedToc = ChapterCacheStore.shared.loadChapters(bookId: bookId)?.count ?? -1
+            let loadedBody = ChapterCacheStore.shared.loadContent(bookId: bookId, chapter: chapters[0])?.text.count ?? -1
+            let lines = [
+                "toc=\(loadedToc)",
+                "bodyChars=\(loadedBody)",
+                "size=\(ChapterCacheStore.shared.formattedSize)",
+                "books=\(ChapterCacheStore.shared.bookCount) files=\(ChapterCacheStore.shared.chapterFileCount)"
+            ]
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("chapter-cache-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
         if ProcessInfo.processInfo.arguments.contains("-chapterRuleTest") {
             var config = ChapterRuleConfig()
             config.titleCleanupRegex = "^(正文|最新章节)\\s*"
