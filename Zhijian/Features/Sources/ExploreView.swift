@@ -16,6 +16,7 @@ struct ExploreView: View {
     @State private var error: String?
     @State private var hasMore = true
     @State private var detail: SourceHit?
+    var initialSource: BookSource? = nil
 
     private var exploreSources: [BookSource] {
         env.sources.sources.filter {
@@ -108,9 +109,13 @@ struct ExploreView: View {
                                 Image(systemName: "person.crop.circle.badge.checkmark").font(.system(size: 9))
                             }
                         }
-                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .padding(.horizontal, 11).padding(.vertical, 7)
                         .foregroundStyle(selectedSource?.bookSourceUrl == source.bookSourceUrl ? .white : ZJ.textSecondary)
-                        .background(selectedSource?.bookSourceUrl == source.bookSourceUrl ? ZJ.accent : ZJ.bgElev1, in: Capsule())
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule().fill(selectedSource?.bookSourceUrl == source.bookSourceUrl ? ZJ.accent : Color.clear)
+                        )
+                        .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
                 }
@@ -130,9 +135,13 @@ struct ExploreView: View {
                     } label: {
                         Text(category.title)
                             .font(.system(size: 11))
-                            .padding(.horizontal, 9).padding(.vertical, 5)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
                             .foregroundStyle(selectedCategory?.id == category.id ? ZJ.accent : ZJ.textSecondary)
-                            .background(selectedCategory?.id == category.id ? ZJ.accent.opacity(0.12) : ZJ.bgElev1, in: Capsule())
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .overlay(
+                                Capsule().fill(selectedCategory?.id == category.id ? ZJ.accent.opacity(0.14) : Color.clear)
+                            )
+                            .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
                 }
@@ -210,7 +219,9 @@ struct ExploreView: View {
     }
 
     private func bootstrap() async {
-        if ProcessInfo.processInfo.arguments.contains("-autoExplore") {
+        if let initialSource {
+            selectedSource = initialSource
+        } else if ProcessInfo.processInfo.arguments.contains("-autoExplore") {
             selectedSource = exploreSources.first
         } else if selectedSource == nil {
             selectedSource = exploreSources.first

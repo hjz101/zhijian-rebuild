@@ -18,6 +18,7 @@ struct SourcesView: View {
     @State private var message: String?
     @State private var showHealth = false
     @State private var loginTarget: LoginTarget?
+    @State private var exploreSource: BookSource?
     @State private var page = 1
     @State private var hasMore = false
     @State private var loadingMore = false
@@ -67,6 +68,9 @@ struct SourcesView: View {
             .sheet(isPresented: $showHealth) { SourceHealthView() }
             .sheet(item: $loginTarget) { target in
                 SourceLoginSheet(source: target.source)
+            }
+            .fullScreenCover(item: $exploreSource) { source in
+                ExploreView(initialSource: source).environmentObject(env)
             }
             .sheet(isPresented: $showImport) { importSheet }
             .alert("从 URL 导入", isPresented: $showURLImport) {
@@ -192,40 +196,115 @@ struct SourcesView: View {
     private var searchState: some View { EmptyView() }
 
     private var sourcesPane: some View {
-        List {
-            Section {
-                ForEach(env.sources.sources) { s in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(s.bookSourceName).font(.system(size: 15, weight: .medium))
-                            if loginStore.state(for: s.bookSourceUrl) != nil {
-                                Text("已登录")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(ZJ.celadon)
-                                    .padding(.horizontal, 5).padding(.vertical, 2)
-                                    .background(ZJ.celadon.opacity(0.12), in: Capsule())
-                            }
-                            Spacer()
-                            if let loginUrl = s.loginUrl, !loginUrl.isEmpty {
-                                Button("登录") { loginTarget = LoginTarget(source: s) }
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            Toggle("", isOn: Binding(
-                                get: { s.enabled ?? true },
-                                set: { _ in env.sources.toggle(s) }
-                            )).labelsHidden()
-                        }
-                        Text(s.bookSourceUrl).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+        ScrollView {
+            VStack(spacing: 12) {
+                if env.sources.sources.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 34, weight: .light))
+                            .foregroundStyle(ZJ.textTertiary)
+                        Text("尚未导入书源").font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                        Text("点右上角 + 粘贴或从 URL 导入 Legado 书源")
+                            .font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
                     }
-                    .padding(.vertical, 2)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 70)
                 }
-                .onDelete { idx in idx.map { env.sources.sources[$0] }.forEach(env.sources.remove) }
-            } header: {
-                Text("已导入 \(env.sources.sources.count) 个书源")
-            } footer: {
-                Text("长按/左滑可删除；支持 Legado 书源 JSON（单条或数组）。")
+
+                ForEach(env.sources.sources) { source in
+                    sourceCard(source)
+                }
+
+                Text("长按可删除；支持 Legado 书源 JSON（单条或数组）。")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(ZJ.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 4)
             }
-        }.listStyle(.insetGrouped)
+            .padding(.horizontal, ZJ.pageMargin)
+            .padding(.vertical, 10)
+        }
+    }
+
+    private func sourceCard(_ source: BookSource) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(source.bookSourceName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(ZJ.textPrimary)
+                if loginStore.state(for: source.bookSourceUrl) != nil {
+                    Text("已登录")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(ZJ.celadon)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(ZJ.celadon.opacity(0.12), in: Capsule())
+                }
+                if let group = source.bookSourceGroup, !group.isEmpty {
+                    Text(group)
+                        .font(.system(size: 9))
+                        .foregroundStyle(ZJ.textSecondary)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(ZJ.bgElev2.opacity(0.7), in: Capsule())
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { source.enabled ?? true },
+                    set: { _ in env.sources.toggle(source) }
+                ))
+                .labelsHidden()
+                .tint(ZJ.accent)
+            }
+
+            Text(source.bookSourceUrl)
+                .font(.system(size: 10.5))
+                .foregroundStyle(ZJ.textTertiary)
+                .lineLimit(1)
+
+            HStack(spacing: 8) {
+                if let loginUrl = source.loginUrl, !loginUrl.isEmpty {
+                    chipButton("登录", icon: "person.badge.key") {
+                        loginTarget = LoginTarget(source: source)
+                    }
+                }
+                if !(source.exploreUrl ?? "").isEmpty {
+                    chipButton("发现", icon: "square.grid.2x2") {
+                        exploreSource = source
+                    }
+                }
+                chipButton("体检", icon: "stethoscope") {
+                    showHealth = true
+                }
+                Spacer()
+                Text("\((source.respondTime ?? 0))ms")
+                    .font(.system(size: 10).monospacedDigit())
+                    .foregroundStyle(ZJ.textTertiary)
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8)
+        )
+        .contextMenu {
+            Button(role: .destructive) { env.sources.remove(source) } label: {
+                Label("删除书源", systemImage: "trash")
+            }
+        }
+    }
+
+    private func chipButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 9, weight: .semibold))
+                Text(title).font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(ZJ.accent)
+            .padding(.horizontal, 9).padding(.vertical, 5)
+            .background(ZJ.accent.opacity(0.08), in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - 工具栏 / 导入
@@ -273,6 +352,7 @@ struct SourcesView: View {
                 keyword = String(arg.dropFirst(12)); mode = .search; runSearch()
             }
             if arg == "-showHealth" { showHealth = true }
+            if arg == "-showSourceList" { mode = .sources }
             if arg == "-showSourceLogin" {
                 if let source = env.sources.sources.first(where: {
                     ($0.loginUrl ?? "").isEmpty == false && ($0.loginUi ?? "").isEmpty == false

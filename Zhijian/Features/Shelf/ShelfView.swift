@@ -349,7 +349,7 @@ struct ShelfView: View {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-showExplore") || args.contains("-autoExplore") { showExplore = true }
         if args.contains(where: {
-            $0 == "-showSources" || $0 == "-showHealth" || $0 == "-showSourceLogin" || $0.hasPrefix("-autoSearch=")
+            $0 == "-showSources" || $0 == "-showSourceList" || $0 == "-showHealth" || $0 == "-showSourceLogin" || $0.hasPrefix("-autoSearch=")
                 || $0 == "-showBatchTest" || $0 == "-engineSelfTest"
         }) {
             showSources = true

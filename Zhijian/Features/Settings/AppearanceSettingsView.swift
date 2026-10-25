@@ -5,6 +5,7 @@ struct AppearanceSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selected = ZJPaletteStore.currentID
     @State private var refresh = UUID()
+    @AppStorage("appIcon.followPalette") private var iconFollowsPalette = true
 
     private var palette: ZJPalette { ZJPaletteStore.all.first { $0.id == selected } ?? ZJPaletteStore.all[0] }
 
@@ -24,6 +25,38 @@ struct AppearanceSettingsView: View {
                         paletteRow(item)
                     }
 
+                    QiSettingsSection(title: "App 图标") {
+                        QiToggleRow(icon: "app.badge", title: "图标跟随配色", isOn: $iconFollowsPalette)
+                        QiDivider()
+                        HStack(spacing: 10) {
+                            ForEach(ZJPaletteStore.all) { item in
+                                VStack(spacing: 5) {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(LinearGradient(colors: item.gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                        .frame(width: 40, height: 40)
+                                        .overlay(
+                                            Image(systemName: "book.closed.fill")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundStyle(item.accent)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .strokeBorder(selected == item.id ? palette.accent.opacity(0.5) : Color.clear, lineWidth: 1.5)
+                                        )
+                                    Text(item.name).font(.system(size: 9)).foregroundStyle(palette.textSecondary).lineLimit(1)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        Text("图标会随配色自动切换；关掉则使用默认图标。")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(palette.textTertiary)
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     previewCard
                 }
                 .padding(.horizontal, 20)
@@ -40,11 +73,18 @@ struct AppearanceSettingsView: View {
                     Button("完成") { dismiss() }
                 }
             }
+            .onAppear {
+                AppIconController.apply(paletteID: selected, enabled: iconFollowsPalette)
+            }
             .onChange(of: selected) { _, value in
                 withAnimation(.easeInOut(duration: 0.28)) {
                     ZJPaletteStore.apply(value)
                     refresh = UUID()
                 }
+                AppIconController.apply(paletteID: value, enabled: iconFollowsPalette)
+            }
+            .onChange(of: iconFollowsPalette) { _, enabled in
+                AppIconController.apply(paletteID: selected, enabled: enabled)
             }
         }
         .preferredColorScheme(palette.isDark ? .dark : .light)
