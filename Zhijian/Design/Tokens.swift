@@ -17,20 +17,20 @@ extension Color {
 }
 
 enum ZJ {
-    // 品牌
-    static let accent = Color(hex: 0xE8663D)
-    static let accentPressed = Color(hex: 0xD4572F)
-    static let celadon = Color(hex: 0x4E8F86)
-    static let gold = Color(hex: 0xD9A441)
-    // 深色底
-    static let bgBase = Color(hex: 0x0B0E13)
-    static let bgElev1 = Color(hex: 0x121722)
-    static let bgElev2 = Color(hex: 0x1A2130)
-    static let textPrimary = Color(hex: 0xF5F7FA)
-    static let textSecondary = Color.rgba(245, 247, 250, 0.64)
-    static let textTertiary = Color.rgba(245, 247, 250, 0.40)
-    static let separator = Color.rgba(255, 255, 255, 0.10)
-    static let error = Color(hex: 0xD65745)
+    // 品牌（栖阅式墨色/玻璃浅色）
+    static let accent = Color(hex: 0x15181D)
+    static let accentPressed = Color(hex: 0x000000)
+    static let celadon = Color(hex: 0x5C8D86)
+    static let gold = Color(hex: 0xC79A4A)
+    // 浅色玻璃底
+    static let bgBase = Color(hex: 0xF3FAFE)
+    static let bgElev1 = Color.white.opacity(0.72)
+    static let bgElev2 = Color(hex: 0xE7F1F8)
+    static let textPrimary = Color(hex: 0x11151A)
+    static let textSecondary = Color.rgba(17, 21, 26, 0.58)
+    static let textTertiary = Color.rgba(17, 21, 26, 0.38)
+    static let separator = Color.rgba(17, 21, 26, 0.08)
+    static let error = Color(hex: 0xC94A3D)
 
     // 间距（4pt 基准）
     static let s1: CGFloat = 4
@@ -51,6 +51,31 @@ enum ZJ {
 
     // 页面边距
     static let pageMargin: CGFloat = 20
+}
+
+/// 栖阅式浅色玻璃背景：近白青渐变。
+struct QiBackground: View {
+    var body: some View {
+        LinearGradient(
+            colors: [Color(hex: 0xF8FDFF), Color(hex: 0xEAF4FB), Color(hex: 0xF2FAFE)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+}
+
+extension View {
+    func qiCard(cornerRadius: CGFloat = 22, padding: CGFloat = 18) -> some View {
+        self
+            .padding(padding)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.65), lineWidth: 0.8)
+            )
+            .shadow(color: Color.black.opacity(0.05), radius: 18, y: 6)
+    }
 }
 
 // 字体：中文标题用系统字重；阅读正文用宋体/苹方

@@ -18,13 +18,14 @@
 | 备份/同步 | ✅ | `.zjbk`（ZIP + `manifest.json`，bookshelf/sources/settings/tts_sources/**annotations/paragraph_comments**）导出/恢复；WebDAV（PROPFIND/MKCOL/PUT/GET + Basic Auth）上传/下载/列表；**加密备份**（PBKDF2-SHA256 120k + AES-GCM）；**Cookie 持久化**（`cookies.json`）与 **iCloud KVS** 设置/进度/段评/章末评论/批注同步（未签名时本地镜像降级） |
 | 本地书 | ✅ | TXT 导入（UTF-8/GB18030 探测）+ 自动分章；**EPUB 导入**（ZIP → container/OPF/spine → nav/ncx 标题）与 **EPUB 富文本阅读**（解包原始 XHTML/CSS/图片，WKWebView 渲染 + 主题注入 + 目录/章节切换/进度 + **分页模式**）；**PDF 导入与阅读**（PDFKit）；**漫画 CBZ/ZIP 导入**（横向分页 / 纵向长图、缩放、页码、进度） |
 | 阅读增强 | ✅ | 书签、划线、笔记（分页/滚动均可选中 → 划线/笔记）、笔记列表、目录/书签/笔记三 Tab、换源；**章节标题设计器**（对齐/大小/分隔线·花饰）；**自动高亮规则**（关键词/正则 + 颜色）；**段评**（分页段落气泡 + 整章侧栏）与**章末评论**（章尾按钮/菜单入口，列表/发表、分页加载、点赞/回复/@、时间戳冲突处理）；**段评同能力**；**WebDAV 独立评论同步**（`zhijian-comments.json`，下载→合并→回传）；**EPUB 图片查看器**（点击图片全屏、缩放/双击、分享）；本地 JSON 持久化 |
-| 发现 / Explore | ✅ | `exploreUrl`（JS/JSON/行文本）+ `ruleExplore`；书源/分类横滑、列表分页、详情、登录态徽标；底部「发现」Tab |
+| 发现 / Explore | ✅ | `exploreUrl`（JS/JSON/行文本）+ `ruleExplore`；书源/分类横滑、列表分页、详情、登录态徽标；书架「✨」入口 |
+| 阅读统计 | ✅ | 今日/本周/连续天数、7 日柱状图、总时长/活跃天/日均、书架/书源计数；阅读页停留自动计时 |
 | 书源体检 | ✅ | 逐源四阶段（搜索/详情/目录/正文）耗时与错误、批量体检、HTTP 流水 + JS console 诊断、一键复制；结果持久化；内置「引擎自检」 |
 | 引擎兼容补强 | ✅ | fastjson、Gson；`java.getZipStringContent/getZipByteArrayContent/unzipFile` 支持 ZIP **以及 RAR/7z（iOS SDK libarchive 弱链接）**；JSC 执行超时中断（12s，可测试 2s） |
 | **WebView 兜底** | ✅ | 离屏 WKWebView：`@webjs:` 规则、`java.webView/webViewGetSource/webViewGetOverrideUrl`、`ruleContent.webJs`；**网络拦截**（XHR/fetch → `ruleContent.sourceRegex` 匹配响应体/URL）；引擎自检 13/13 |
 | 批量测试 | ✅ | 多关键词 × 多源、可选深度四阶段、并发 1–4、逐项结果/耗时、报告文本分享与复制 |
 | 漫画阅读 | ✅ | CBZ/ZIP → 图片仓库 + manifest；横向分页、双指/双击缩放、页码滑杆、页码目录、进度持久化 |
-| 设计系统 | ✅ | 纸面阅读（米宣纸/深墨/护眼绿）、玻璃顶栏、迷你朗读条；沿用 `ZJ` 设计令牌 |
+| 设计系统 | ✅ | **栖阅式 UI**：三 Tab（书架/统计/设置）、浅色青白玻璃渐变、墨色强调、圆角磨砂卡片、大标题；阅读器仍保留米宣纸/深墨/护眼绿三主题 |
 | 发布准备 | ✅ | 2.1 (2)、App Icon、深色启动屏、隐私清单、2.1 未签名 IPA、未签名 Archive；签名/iCloud 检查清单与风险见 [docs/RELEASE.md](docs/RELEASE.md) |
 
 已验证路径：本地示例书分页/跨章/主题切换；真实书源「关于小说」搜索《剑来》→ 详情 1,320 章 → 首章正文分页（1/10 页）；朗读条与 TTS 设置；备份页；Debug 模拟器构建 + Release iphoneos 构建均通过。

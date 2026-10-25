@@ -32,8 +32,9 @@ struct SourcesView: View {
                     if mode == .search { searchPane } else { sourcesPane }
                 }
             }
-            .background(ZJ.bgBase.ignoresSafeArea())
+            .background(QiBackground())
             .navigationTitle(mode == .search ? "搜索" : "书源")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .sheet(item: $detail) { hit in BookDetailView(book: hit.book, source: hit.source) }
             .sheet(isPresented: $showHealth) { SourceHealthView() }

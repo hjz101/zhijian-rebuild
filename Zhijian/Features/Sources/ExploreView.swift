@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ExploreView: View {
     @EnvironmentObject private var env: AppEnvironment
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject private var loginStore = SourceLoginStore.shared
 
     @State private var selectedSource: BookSource?
@@ -24,6 +25,7 @@ struct ExploreView: View {
     }
 
     var body: some View {
+        NavigationStack {
         VStack(spacing: 0) {
             sourceBar
             categoryBar
@@ -101,14 +103,20 @@ struct ExploreView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(ZJ.bgBase.ignoresSafeArea())
+        .background(QiBackground().ignoresSafeArea())
         .navigationTitle("发现")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("完成") { dismiss() }
+            }
+        }
         .sheet(item: $detail) { hit in
             BookDetailView(book: hit.book, source: hit.source)
                 .environmentObject(env)
         }
         .task { await bootstrap() }
+        }
     }
 
     private var sourceBar: some View {

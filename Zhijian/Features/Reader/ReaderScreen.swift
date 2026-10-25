@@ -13,6 +13,8 @@ struct ReaderScreen: View {
     let book: Book
 
     @State private var model: ReaderViewModel?
+    @State private var sessionStart = Date()
+    @Environment(\.scenePhase) private var scenePhase
 
     init(book: Book) {
         self.book = book
@@ -31,6 +33,17 @@ struct ReaderScreen: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { sessionStart = Date() }
+        .onDisappear { flushReadingTime() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { flushReadingTime() }
+        }
+    }
+
+    private func flushReadingTime() {
+        let elapsed = Date().timeIntervalSince(sessionStart)
+        if elapsed >= 5 { ReadingStatsStore.shared.add(seconds: elapsed) }
+        sessionStart = Date()
     }
 
     private var textReader: some View {
