@@ -47,7 +47,7 @@
 
 ### 需要先做的事（开源前清理清单）
 1. **License 选定**：建议 **AGPL-3.0**（与 origo-x 一致，保护书源生态不被闭源分叉）或 Apache-2.0（更宽松）。若含栖阅启发部分，注意栖阅本身未开源——但我们是「行为规格参考、代码自写」，无代码侵权。
-2. **清敏感项**：删除 `dist/`（IPA/SHA256）、`docs/screenshots` 中可能含个人信息的图、`zhijian-rebuild-2.1.bundle`（含 git 历史）、个人路径（`/Users/a706/...`）在文档里的硬编码、`qireader` 逆向报告路径引用（`file:///Users/a706/...`）。
+2. **清敏感项**：删除 `dist/`（IPA/SHA256）、`zhijian-rebuild-2.1.bundle`（含 git 历史）、个人路径硬编码、逆向报告路径引用（均已完成）。
 3. **建立开源边界检查**：仿 origo-x 加 `PUBLIC_SOURCE_SCOPE.md` + `tool/check_public_source.py`（防 secrets/路径/排除文件混入）。
 4. **README 重写**：面向贡献者（构建步骤、书源格式说明、调试参数、自检套件、合规文档链接），去个人化表述。
 5. **CI 落地**：`gh auth refresh -s workflow` 后放回 `.github/workflows/`，加「开源边界检查」job。

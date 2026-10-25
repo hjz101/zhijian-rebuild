@@ -1,6 +1,6 @@
 # 指尖阅读 2.1 vs 栖阅（QiReader）详细对比
 
-> 对照依据：[栖阅逆向分析报告](file:///Users/a706/Documents/deepseek-harness/default-workspace/qireader/report/栖阅-QiReader-逆向分析报告.md)（360 个源文件、25,294 个函数名、364 个 ObjC 类）与本仓库当前代码（**130 Swift 文件 / 35,445 行**）。
+> 对照依据：栖阅（QiReader）行为规格（360 个源文件、25,294 个函数名、364 个 ObjC 类，逆向报告不随本仓库分发）与本仓库当前代码（**130 Swift 文件 / 35,445 行**）。
 > 图例：✅ 对齐或更好 · 🟡 部分实现/语义有差异 · ❌ 缺失。
 > 可执行任务清单见 [BACKLOG.md](BACKLOG.md)（P0–P4，P0/P1/P2/P3 已完成）。
 

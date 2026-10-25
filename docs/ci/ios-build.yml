@@ -7,10 +7,19 @@ on:
     branches: [main]
 
 jobs:
+  boundary-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 开源边界检查
+        run: python3 tool/check_public_source.py
+
   build:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: 开源边界检查（构建前）
+        run: python3 tool/check_public_source.py
       - name: Build for iOS Simulator
         run: |
           xcodebuild \
