@@ -327,7 +327,7 @@ private struct BackupContent: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("· 备份格式：`.zjbk` = 标准 ZIP（store），根目录 `manifest.json` 带版本/时间/设备/计数；可用系统解压工具查看。")
                 Text("· 恢复是整体替换：书架、书源、阅读设置、TTS 源；本地书正文文件不包含在备份中。")
-                Text("· WebDAV 采用 PROPFIND / MKCOL / PUT / GET，目录不存在会自动创建；仅上传 `.zjbk` 文件。")
+                Text("· WebDAV 采用 PROPFIND / MKCOL / PUT / GET，目录不存在会自动创建；支持目录增量镜像（只传变化文件）。")
             }
             .font(.system(size: 10.5))
             .foregroundStyle(ZJ.textTertiary)
