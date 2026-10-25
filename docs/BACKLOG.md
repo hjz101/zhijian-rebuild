@@ -46,7 +46,12 @@
   - `data:detailsUrl|data:catalogUrl|data:chapterUrl` 私有协议：不发起 HTTP，payload 转 hex 作为 `result` 交给规则 JS；
   - POST body 为 JSON 且未声明 Content-Type 时自动补 `application/json`；
   - 发现页分类失败自动跳到下一个分类并顶部提示，不再整页报错；
-  - 实测：215 个分类、个性推荐 30 本书、详情页解析成功；目录需番茄账号登录（后端返回「访问被拒绝」）。
+  - 实测：215 个分类、个性推荐 30 本书、详情页解析成功；
+  - 动态 `header` 规则求值（补齐 `X-Novel-Token`/`X-Api-Key` 签名头）后，目录接口正常返回（3947 章）；
+  - `java.androidId()/deviceID()` 改为稳定 16 位 hex（原 `zhijian-ios` 被聚合后端判为「伪造设备码」并 429）；
+  - 429 增加 `Retry-After` 退避；
+  - 该源正文由聚合后端加密下发（且解码密钥长度非法），已识别为「加密正文」并给出可读提示，不再展示乱码；
+  - 顺带修复 P1-04 引入的回归：无图片的 HTML 正文未清洗标签。
   - 后续（同日）：`java.ajax` 记录末次响应，后端鉴权失败映射为 `-12`；详情页给出「登录该书源」入口；loginUrl 自动 `login()`；loginUi 按钮逐个执行源内 action；表单 POST 补 `application/x-www-form-urlencoded`；JS 错误不再把所有 `is not an object` 误判为「缺失 JS API」。
 - **对应差距**：栖阅 `ExploreFilterEngine` + 分类/筛选/信息流/网格；我们完全缺失。
 - **范围**：

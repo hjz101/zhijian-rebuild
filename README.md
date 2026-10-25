@@ -13,6 +13,7 @@
 | 模块 | 状态 | 说明 |
 |---|---|---|
 | 书源登录/鉴权 | ✅ | loginUrl 自动调用 `login()`；loginUi 按钮执行源内 action（`login(true)`/`fq_login()`/`sethost()`…）；表单 POST 自动 `x-www-form-urlencoded`；后端 `{"error":"访问被拒绝"}` 映射为 -12 并给登录引导 |
+| 书源兼容修复 | ✅ | 动态 `header`（`@js:` 求值后注入，如 `X-Novel-Token`/`X-Api-Key`）；`java.androidId()/deviceID()` 返回稳定 16 位 hex 设备码；429 按 `Retry-After` 退避；加密正文识别为可读错误 |
 | 书源兼容修复 | ✅ | `<js>…</js>` 正确解包；规则 JS 每次独立词法作用域（修复 `let` 重声明）；`data:detailsUrl/catalogUrl/chapterUrl` 私有协议（payload 交给规则自解析）；POST JSON body 自动补 `Content-Type` |
 | 书源引擎 | ✅ | Legado `BookSource` 全量模型（35 字段）、`AnalyzeUrl` 请求、规则链/`{{}}`/`@put`/`@get`/索引/`##`、CSS/XPath/JSONPath/正则/JS；`packages_stub.js` + 原生 `_native*`/`_jsoup*`；多源并发搜索、详情/目录/正文、`concurrentRate`、`loginCheckJs`；**登录**（`loginUi` 原生表单 / `loginUrl` WebView / `@js:` 脚本 / 登录态持久化）；TOC 归一化、诊断快照 |
 | 分页阅读器 | ✅ | native TextKit 断页（`NSTextStorage+NSLayoutManager+NSTextContainer`）、UIPageViewController 左右翻页、点击左右 1/3、章节过渡页、页缓存、目录/设置 Sheet、滚动模式回退、进度持久化 |
@@ -97,6 +98,7 @@ xcrun simctl launch booted com.zhijian.reader
 | `-twoPageTest` / `-forceTwoPage` | 启用双页 / 强制双页（小屏验证） |
 | `-importSourceFile=<文件名>` | 启动时从 App 容器导入书源 JSON（联调真实书源） |
 | `-exploreDiag` / `-exploreDetail` | 发现页诊断（分类/列表/详情/目录/正文写 explore-diag.txt） |
+| `-readerDiag` | 阅读链路自检（搜索→详情→目录→正文，写 reader-diag.txt） |
 | `-showShelfLayout` | 打开书架布局设置 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |
