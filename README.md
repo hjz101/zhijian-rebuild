@@ -12,6 +12,7 @@
 
 | 模块 | 状态 | 说明 |
 |---|---|---|
+| WebDAV 增量镜像 | ✅ | 目录递归 PROPFIND 比对大小/时间，只传变化文件；冲突保护 + 可选删除远端多余文件；`-webdavMirrorDiffTest` |
 | iCloud 备份 | ✅ | 自动备份（退出/每天/每周）+ iCloud Drive 镜像 + 云端列表/恢复；未签名落本地 Documents/ZhijianAutoBackup；`-autoBackupTest` |
 | 凭据安全 | ✅ | WebDAV 密码 / TTS 登录 Header 迁移 iOS Keychain；未签名环境回退明文并提示；`-keychainTest` 自检 |
 | 书源登录/鉴权 | ✅ | loginUrl 自动调用 `login()`；loginUi 按钮执行源内 action（`login(true)`/`fq_login()`/`sethost()`…）；表单 POST 自动 `x-www-form-urlencoded`；后端 `{"error":"访问被拒绝"}` 映射为 -12 并给登录引导 |

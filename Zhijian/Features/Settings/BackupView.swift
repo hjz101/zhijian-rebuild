@@ -224,6 +224,10 @@ private struct BackupContent: View {
                 QiDivider()
                 actionRow("下载最新备份", icon: "icloud.and.arrow.down") { downloadLatestBackup(active) }
                 QiDivider()
+                actionRow("镜像备份目录到 WebDAV（增量）", icon: "arrow.triangle.2.circlepath") {
+                    mirrorDirectoryToWebDAV(active)
+                }
+                QiDivider()
                 actionRow("测试 WebDAV 连接", icon: "network") { testWebDAV(active) }
                 QiDivider()
                 QiRow(icon: "clock.arrow.circlepath", title: "最近上传", value: displayDate(backup.lastWebDAVUploadAt))
@@ -417,6 +421,26 @@ private struct BackupContent: View {
                 presentAlert("恢复完成", summary?.localizedDescription ?? "已恢复")
             } catch {
                 presentAlert("恢复失败", error.localizedDescription)
+            }
+        }
+    }
+
+    private func mirrorDirectoryToWebDAV(_ config: WebDAVConfig) {
+        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ZhijianAutoBackup", isDirectory: true)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: root.path, isDirectory: &isDir), isDir.boolValue else {
+            presentAlert("没有可镜像的目录", "请先在 iCloud 同步页开启自动备份生成 .zjbk，或手动备份后重试。")
+            return
+        }
+        busyMessage = "正在镜像目录…"
+        Task {
+            defer { busyMessage = nil }
+            do {
+                let result = try await WebDAVMirrorService.mirror(localRoot: root, config: config, deleteRemote: false)
+                presentAlert("镜像完成", result.summary)
+            } catch {
+                presentAlert("镜像失败", error.localizedDescription)
             }
         }
     }

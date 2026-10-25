@@ -241,6 +241,30 @@ final class AppEnvironment: ObservableObject {
                 try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("explore-diag.txt"), atomically: true, encoding: .utf8)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-webdavMirrorDiffTest") {
+            // 离线 diff 自检：验证「只传变化文件」与冲突判定
+            let now = Date()
+            let local: [String: (size: Int64, mtime: Date)] = [
+                "a.zjbk": (100, now),
+                "b.zjbk": (200, now),
+                "c.zjbk": (300, now)
+            ]
+            let remote: [String: (size: Int64?, mtime: Date?)] = [
+                "a.zjbk": (100, now),                                  // 相同 → unchanged
+                "b.zjbk": (201, now.addingTimeInterval(-3600)),        // 大小不同且远端较旧 → upload
+                "c.zjbk": (333, now.addingTimeInterval(7200)),         // 大小不同且远端较新 → conflict
+                "d.zjbk": (400, now)                                   // 本地没有 → delete
+            ]
+            let diff = WebDAVMirrorService.diff(local: local, remote: remote)
+            let lines = [
+                "upload=\(diff.upload.sorted())",
+                "unchanged=\(diff.unchanged.sorted())",
+                "conflicts=\(diff.conflicts.sorted())",
+                "delete=\(diff.delete.sorted())"
+            ]
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webdav-mirror-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
         if ProcessInfo.processInfo.arguments.contains("-autoBackupTest") {
             Task { @MainActor in
                 let store = AutoBackupStore.shared

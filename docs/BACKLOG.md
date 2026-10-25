@@ -318,12 +318,18 @@
   - 实测：未签名环境自动落到 Documents/ZhijianAutoBackup/zhijian-*.zjbk；签名构建走 iCloud Drive；
   - 调试：`-autoBackupTest`。
 
-### [P2-02] WebDAV 目录增量镜像
+### [P2-02] ✅ 已完成 · WebDAV 目录增量镜像
 - **对应差距**：栖阅 `mirrorDirectory/needsCopy`；我们只传单个 `.zjbk`。
 - **范围**：PROPFIND 比对大小/时间，仅上传变化文件；冲突提示。
 - **验收**：第二次上传仅传变化文件；远端目录结构与本地一致。
 - **估算**：3–5 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `WebDAVClient` 新增 `listDirectoryContents` / `putFile(相对路径, 自动建目录)` / `deleteRemoteFile`；
+  - `WebDAVMirrorService.mirror`：递归 PROPFIND 远端 ↔ 本地（大小+修改时间），只上传新增/变化文件；冲突（远端较新且大小不同）跳过并提示；可选删除远端多余文件；
+  - 备份页 WebDAV 新增「镜像备份目录到 WebDAV（增量）」，镜像 `Documents/ZhijianAutoBackup`；
+  - 纯 diff 离线自检 `-webdavMirrorDiffTest`：upload/unchanged/conflicts/delete 判定正确（远端较旧→上传，远端较新→冲突）；
+  - 注：远端递归 PROPFIND 需服务器支持 Depth:1 逐层列举（WebDAV 标准）。
 
 ### [P2-03] 备份纳入本地书正文/漫画/PDF
 - **对应差距**：栖阅可选 localBooks；我们仅元数据。

@@ -114,6 +114,55 @@ final class WebDAVClient: @unchecked Sendable {
             }
     }
 
+    /// 列出目录下的直接子项（Depth 1）。
+    func listDirectoryContents(_ url: URL) async throws -> [RemoteBackupItem] {
+        try await propfind(url: url, depth: 1)
+    }
+
+    /// 上传任意文件到相对路径（自动建目录）。
+    @discardableResult
+    func putFile(localURL: URL, remoteRelativePath: String, contentType: String = "application/octet-stream") async throws -> RemoteBackupItem {
+        var base = try directoryURL()
+        let segments = remoteRelativePath.split(separator: "/").map(String.init)
+        for segment in segments.dropLast() {
+            base.appendPathComponent(segment)
+            do {
+                _ = try await self.propfind(url: base, depth: 0)
+            } catch WebDAVError.notFound {
+                var request = makeRequest(url: base, method: "MKCOL")
+                request.setValue("0", forHTTPHeaderField: "Content-Length")
+                let (data, response) = try await perform(request)
+                if ![200, 201, 204, 405].contains(response.statusCode) {
+                    try ensureSuccess(response, data: data, url: base)
+                }
+            }
+        }
+        base.appendPathComponent(segments.last ?? localURL.lastPathComponent)
+        let data = try Data(contentsOf: localURL)
+        var request = makeRequest(url: base, method: "PUT")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue("\(data.count)", forHTTPHeaderField: "Content-Length")
+        let (responseData, response) = try await session.upload(for: request, from: data)
+        guard let http = response as? HTTPURLResponse else {
+            throw WebDAVError.invalidResponse("上传没有收到 HTTP 响应")
+        }
+        try ensureSuccess(http, data: responseData, url: base)
+        return RemoteBackupItem(fileName: segments.last ?? localURL.lastPathComponent,
+                                href: base.absoluteString, size: Int64(data.count),
+                                modifiedAt: Date(), isDirectory: false)
+    }
+
+    func deleteRemoteFile(remoteRelativePath: String) async throws {
+        var url = try directoryURL()
+        for segment in remoteRelativePath.split(separator: "/").map(String.init) {
+            url.appendPathComponent(segment)
+        }
+        let request = makeRequest(url: url, method: "DELETE")
+        let (data, response) = try await perform(request)
+        if response.statusCode == 404 { return }
+        try ensureSuccess(response, data: data, url: url)
+    }
+
     @discardableResult
     func upload(fileURL: URL, fileName: String? = nil) async throws -> RemoteBackupItem {
         try await ensureDirectory()
