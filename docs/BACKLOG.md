@@ -447,6 +447,14 @@
 
 ## P4 · 发布与合规
 
+### [THEME-V2] ✅ 已完成（阶段一）· 主题系统 v2（借鉴 origo-x / 栖阅）
+- 内置阅读主题扩到 6 套：米宣纸 / 深墨 / 护眼绿 / 羊皮纸 / 暗夜青 / 素白；
+- 阅读 chrome 色：`ReaderTheme.surface`（控制栏/卡片），正文与 chrome 分离（origo 理念）；
+- 自定义配色编辑器：5 色（背景/正文/次级/强调/chrome）+ hex 规范化 + 深浅开关 + 实时预览；
+- `ReaderCustomPalette` 覆盖内置主题，阅读页/正文/背景/控制栏同步生效；
+- 实测：暗色自定义配色 `#2B2B33/#E6E1D8` 端到端生效；选择器 6 套 + 自定义 + 清除入口；
+- 方案文档 `docs/THEME-V2.md`（阶段二 App 强调色色盘待做）。
+
 ### [R2-04] ✅ 已完成 · 长章稳定性（滚动自动分页）
 - 滚动模式超长章节（>6 万字）自动切分页（`longChapterAutoPaged` 开关，默认开）；
 - ScrollReaderView 复用 textStorage 避免整章重建；

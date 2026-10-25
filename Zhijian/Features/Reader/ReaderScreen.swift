@@ -125,6 +125,10 @@ private struct ReaderSurface: View {
         }
     }
     private var theme: ReaderTheme { settings.theme }
+    /// THEME-V2：自定义配色优先
+    private var palette: (background: Color, text: Color, secondary: Color, accent: Color, surface: Color, isDark: Bool) {
+        settings.resolvedPalette(theme)
+    }
     private var horizontalPadding: CGFloat { CGFloat(settings.horizontalPadding) }
 
     var body: some View {
@@ -138,7 +142,7 @@ private struct ReaderSurface: View {
             )
 
             ZStack {
-                ReaderPaperBackground(theme: theme)
+                ReaderPaperBackground(background: palette.background)
                     .ignoresSafeArea()
 
                 readerContent(pageSize: pageSize)
@@ -397,11 +401,11 @@ private struct ReaderSurface: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.book.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.text)
+                    .foregroundStyle(palette.text)
                     .lineLimit(1)
                 Text(subtitle)
                     .font(.system(size: 10))
-                    .foregroundStyle(theme.secondary)
+                    .foregroundStyle(palette.secondary)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -434,10 +438,10 @@ private struct ReaderSurface: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.text)
+                    .foregroundStyle(palette.text)
                     .frame(width: 34, height: 34)
                     .background(Circle().fill(Color.white.opacity(theme.isDark ? 0.06 : 0.32)))
-                    .overlay(Circle().strokeBorder(Color.white.opacity(theme.isDark ? 0.08 : 0.55), lineWidth: 0.5))
+                    .overlay(Circle().strokeBorder(Color.white.opacity(palette.isDark ? 0.08 : 0.55), lineWidth: 0.5))
                     .contentShape(Circle())
             }
 
@@ -449,9 +453,9 @@ private struct ReaderSurface: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.white.opacity(theme.isDark ? 0.09 : 0.45), lineWidth: 0.5)
+                .strokeBorder(Color.white.opacity(palette.isDark ? 0.09 : 0.45), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(theme.isDark ? 0.30 : 0.10), radius: 14, y: 5)
+        .shadow(color: .black.opacity(palette.isDark ? 0.30 : 0.10), radius: 14, y: 5)
     }
 
     private var subtitle: String {
@@ -470,10 +474,10 @@ private struct ReaderSurface: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(theme.text)
+                .foregroundStyle(palette.text)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(Color.white.opacity(theme.isDark ? 0.06 : 0.32)))
-                .overlay(Circle().strokeBorder(Color.white.opacity(theme.isDark ? 0.08 : 0.55), lineWidth: 0.5))
+                .overlay(Circle().strokeBorder(Color.white.opacity(palette.isDark ? 0.08 : 0.55), lineWidth: 0.5))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -491,13 +495,13 @@ private struct ReaderSurface: View {
                 .background(
                     Circle().fill(
                         model.isCurrentChapterBookmarked
-                            ? theme.accent.opacity(0.16)
+                            ? palette.accent.opacity(0.16)
                             : Color.white.opacity(theme.isDark ? 0.06 : 0.32)
                     )
                 )
                 .overlay(
                     Circle().strokeBorder(
-                        Color.white.opacity(theme.isDark ? 0.08 : 0.55), lineWidth: 0.5
+                        Color.white.opacity(palette.isDark ? 0.08 : 0.55), lineWidth: 0.5
                     )
                 )
                 .contentShape(Circle())
@@ -525,13 +529,13 @@ private struct ReaderSurface: View {
                 .background(
                     Circle().fill(
                         tts.isSpeaking
-                            ? theme.accent.opacity(0.16)
+                            ? palette.accent.opacity(0.16)
                             : Color.white.opacity(theme.isDark ? 0.06 : 0.32)
                     )
                 )
                 .overlay(
                     Circle().strokeBorder(
-                        tts.isSpeaking ? theme.accent.opacity(0.35) : Color.white.opacity(theme.isDark ? 0.08 : 0.55),
+                        tts.isSpeaking ? palette.accent.opacity(0.35) : Color.white.opacity(palette.isDark ? 0.08 : 0.55),
                         lineWidth: 0.5
                     )
                 )
@@ -551,12 +555,12 @@ private struct ReaderSurface: View {
                 HStack(spacing: 6) {
                     Text(pageInfoText)
                         .font(.system(size: 10, weight: .medium).monospacedDigit())
-                        .foregroundStyle(theme.secondary)
+                        .foregroundStyle(palette.secondary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
                 .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().strokeBorder(theme.text.opacity(0.06), lineWidth: 0.5))
+                .overlay(Capsule().strokeBorder(palette.text.opacity(0.06), lineWidth: 0.5))
                 .padding(.bottom, 4)
             }
             .allowsHitTesting(false)
@@ -606,33 +610,33 @@ private struct ReaderSurface: View {
     private var loadingCard: some View {
         HStack(spacing: 10) {
             ProgressView()
-                .tint(theme.accent)
+                .tint(palette.accent)
                 .scaleEffect(0.85)
             Text(loadingText)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(theme.secondary)
+                .foregroundStyle(palette.secondary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(theme.text.opacity(0.06), lineWidth: 0.5))
+        .overlay(Capsule().strokeBorder(palette.text.opacity(0.06), lineWidth: 0.5))
     }
 
     private var transitionLoadingPill: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 ProgressView()
-                    .tint(theme.accent)
+                    .tint(palette.accent)
                     .scaleEffect(0.75)
                 Text("正在加载 \(model.pendingChapterTitle ?? "章节")…")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(theme.secondary)
+                    .foregroundStyle(palette.secondary)
                     .lineLimit(1)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(theme.text.opacity(0.06), lineWidth: 0.5))
+            .overlay(Capsule().strokeBorder(palette.text.opacity(0.06), lineWidth: 0.5))
             .padding(.top, 64)
             Spacer(minLength: 0)
         }
@@ -642,16 +646,16 @@ private struct ReaderSurface: View {
 
     private func errorOverlay(_ message: String) -> some View {
         ZStack {
-            theme.background.opacity(0.94)
+            palette.background.opacity(0.94)
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
                 Image(systemName: "book.closed")
                     .font(.system(size: 30, weight: .light))
-                    .foregroundStyle(theme.accent)
+                    .foregroundStyle(palette.accent)
                 Text(message)
                     .font(.system(size: 14))
-                    .foregroundStyle(theme.text)
+                    .foregroundStyle(palette.text)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
@@ -661,11 +665,11 @@ private struct ReaderSurface: View {
                         } label: {
                             Text("换源")
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(theme.text)
+                                .foregroundStyle(palette.text)
                                 .padding(.horizontal, 18)
                                 .frame(height: 38)
-                                .background(Capsule().fill(theme.text.opacity(0.08)))
-                                .overlay(Capsule().strokeBorder(theme.text.opacity(0.12), lineWidth: 0.5))
+                                .background(Capsule().fill(palette.text.opacity(0.08)))
+                                .overlay(Capsule().strokeBorder(palette.text.opacity(0.12), lineWidth: 0.5))
                         }
                         .buttonStyle(.plain)
                     }
@@ -677,18 +681,18 @@ private struct ReaderSurface: View {
                             .foregroundStyle(Color.white)
                             .padding(.horizontal, 22)
                             .frame(height: 38)
-                            .background(Capsule().fill(theme.accent))
+                            .background(Capsule().fill(palette.accent))
                     }
                     .buttonStyle(.plain)
 
                     Button(action: onClose) {
                         Text("返回")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(theme.text)
+                            .foregroundStyle(palette.text)
                             .padding(.horizontal, 22)
                             .frame(height: 38)
-                            .background(Capsule().fill(theme.text.opacity(0.08)))
-                            .overlay(Capsule().strokeBorder(theme.text.opacity(0.12), lineWidth: 0.5))
+                            .background(Capsule().fill(palette.text.opacity(0.08)))
+                            .overlay(Capsule().strokeBorder(palette.text.opacity(0.12), lineWidth: 0.5))
                     }
                     .buttonStyle(.plain)
                 }
@@ -702,7 +706,7 @@ private struct ReaderSurface: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(theme.text.opacity(0.08), lineWidth: 0.5)
+                    .strokeBorder(palette.text.opacity(0.08), lineWidth: 0.5)
             )
             .padding(.horizontal, 28)
         }
@@ -773,10 +777,9 @@ private struct NoteEditorSheet: View {
 // MARK: - 纸面背景
 
 private struct ReaderPaperBackground: View {
-    let theme: ReaderTheme
-    @ObservedObject private var background = ReaderBackgroundStore.shared
+    let background: Color
     var body: some View {
-        ReaderBackgroundView(theme: theme)
+        ReaderBackgroundView(theme: nil, customBackground: background)
     }
 }
 

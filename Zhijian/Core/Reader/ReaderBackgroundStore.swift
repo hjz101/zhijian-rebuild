@@ -67,19 +67,22 @@ final class ReaderBackgroundStore: ObservableObject {
 
 /// 阅读背景视图：主题底色 + 可选背景图（模糊 + 遮罩）。
 struct ReaderBackgroundView: View {
-    let theme: ReaderTheme
+    let theme: ReaderTheme?
+    var customBackground: Color? = nil
     @ObservedObject private var store = ReaderBackgroundStore.shared
+
+    private var baseBackground: Color { customBackground ?? (theme?.background ?? Color.white) }
 
     var body: some View {
         ZStack {
-            theme.background
+            baseBackground
             if store.enabled, let image = store.image {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
                     .blur(radius: store.blur)
                     .opacity(store.opacity)
-                    .overlay(theme.background.opacity(1 - store.opacity * 1.4))
+                    .overlay(baseBackground.opacity(1 - store.opacity * 1.4))
                     .ignoresSafeArea()
                     .clipped()
             }

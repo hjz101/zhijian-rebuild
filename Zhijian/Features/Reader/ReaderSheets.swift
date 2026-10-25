@@ -254,6 +254,7 @@ struct ReaderSettingsSheet: View {
     @State private var showBackground = false
     @State private var showThemePackages = false
     @State private var showBubbleImport = false
+    @State private var showCustomTheme = false
 
     private var theme: ReaderTheme { settingsStore.settings.theme }
     private var settings: ReadingSettings { settingsStore.settings }
@@ -308,41 +309,82 @@ struct ReaderSettingsSheet: View {
 
     private var themeSection: some View {
         section("主题") {
-            HStack(spacing: ZJ.s3) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)], spacing: 14) {
                 ForEach(ReaderTheme.allCases) { candidate in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            settingsStore.settings.theme = candidate
-                        }
-                    } label: {
-                        VStack(spacing: 6) {
-                            ZStack {
-                                Circle()
-                                    .fill(candidate.background)
-                                    .frame(width: 40, height: 40)
-                                Circle()
-                                    .strokeBorder(
-                                        candidate == theme ? candidate.accent : candidate.text.opacity(0.12),
-                                        lineWidth: candidate == theme ? 2 : 0.5
-                                    )
-                                    .frame(width: 40, height: 40)
-                                if candidate == theme {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundStyle(candidate.accent)
-                                }
-                            }
-                            Text(candidate.name)
-                                .font(.system(size: 11, weight: candidate == theme ? .semibold : .regular))
-                                .foregroundStyle(candidate == theme ? ZJ.accent : ZJ.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    themeDot(candidate)
                 }
+                // 自定义配色入口
+                Button {
+                    showCustomTheme = true
+                } label: {
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(colors: [ZJ.bgElev2, ZJ.textTertiary.opacity(0.4)],
+                                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "paintpalette")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(ZJ.accent)
+                        }
+                        Text("自定义")
+                            .font(.system(size: 11, weight: settings.customPalette != nil ? .semibold : .regular))
+                            .foregroundStyle(settings.customPalette != nil ? ZJ.accent : ZJ.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            if settings.customPalette != nil {
+                Button {
+                    settingsStore.settings.customPalette = nil
+                } label: {
+                    HStack {
+                        Text("清除自定义配色").font(.system(size: 12)).foregroundStyle(ZJ.error)
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    private func themeDot(_ candidate: ReaderTheme) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                settingsStore.settings.customPalette = nil
+                settingsStore.settings.theme = candidate
+            }
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(candidate.background)
+                        .frame(width: 40, height: 40)
+                    Circle()
+                        .strokeBorder(
+                            (settings.customPalette == nil && candidate == theme)
+                                ? candidate.accent : candidate.text.opacity(0.12),
+                            lineWidth: (settings.customPalette == nil && candidate == theme) ? 2 : 0.5
+                        )
+                        .frame(width: 40, height: 40)
+                    if settings.customPalette == nil, candidate == theme {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(candidate.accent)
+                    }
+                }
+                Text(candidate.name)
+                    .font(.system(size: 11, weight: (settings.customPalette == nil && candidate == theme) ? .semibold : .regular))
+                    .foregroundStyle((settings.customPalette == nil && candidate == theme) ? ZJ.accent : ZJ.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: 字体 / 字号
@@ -721,5 +763,114 @@ private struct BubbleImportSheet: View {
                 Button("好", role: .cancel) { alert = nil }
             }
         }
+    }
+}
+
+// MARK: - 自定义阅读配色编辑器（THEME-V2 阶段一）
+
+private struct CustomThemeEditor: View {
+    let settingsStore: SettingsStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: ReaderCustomPalette
+
+    init(settingsStore: SettingsStore) {
+        self.settingsStore = settingsStore
+        _draft = State(initialValue: settingsStore.settings.customPalette
+            ?? ReaderCustomPalette(backgroundHex: settingsStore.settings.theme.backgroundHex,
+                                   textHex: settingsStore.settings.theme.textHex,
+                                   secondaryHex: settingsStore.settings.theme.secondaryHex,
+                                   accentHex: settingsStore.settings.theme.accentHex,
+                                   surfaceHex: settingsStore.settings.theme.surfaceHex,
+                                   isDark: settingsStore.settings.theme.isDark))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    previewCard
+                    colorSection
+                    Toggle("深色模式", isOn: $draft.isDark)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 20)
+                }
+                .padding(.vertical, 16)
+            }
+            .background(QiBackground())
+            .navigationTitle("自定义配色")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("应用") {
+                        settingsStore.settings.customPalette = draft
+                        dismiss()
+                    }.fontWeight(.semibold)
+                }
+            }
+        }
+        .preferredColorScheme(draft.isDark ? .dark : .light)
+    }
+
+    private var previewCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("第一章 入山").font(.system(size: 17, weight: .bold)).foregroundStyle(draft.text)
+            Text("清晨的雾还没有散，山道两旁的松针上挂着水珠。").font(.system(size: 13)).foregroundStyle(draft.secondary)
+            HStack(spacing: 6) {
+                Text("强调").font(.system(size: 11, weight: .semibold)).foregroundStyle(draft.accent)
+                Spacer()
+                Text("chrome").font(.system(size: 11)).foregroundStyle(draft.surface)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18).fill(draft.background))
+        .padding(.horizontal, 20)
+    }
+
+    private var colorSection: some View {
+        VStack(spacing: 0) {
+            colorRow("背景", hex: $draft.backgroundHex, color: Binding(get: { draft.background }, set: { draft.backgroundHex = $0.hexString }))
+            Divider().padding(.leading, 56)
+            colorRow("正文", hex: $draft.textHex, color: Binding(get: { draft.text }, set: { draft.textHex = $0.hexString }))
+            Divider().padding(.leading, 56)
+            colorRow("次级文字", hex: $draft.secondaryHex, color: Binding(get: { draft.secondary }, set: { draft.secondaryHex = $0.hexString }))
+            Divider().padding(.leading, 56)
+            colorRow("强调色", hex: $draft.accentHex, color: Binding(get: { draft.accent }, set: { draft.accentHex = $0.hexString }))
+            Divider().padding(.leading, 56)
+            colorRow("控制栏/卡片", hex: $draft.surfaceHex, color: Binding(get: { draft.surface }, set: { draft.surfaceHex = $0.hexString }))
+        }
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
+        .padding(.horizontal, 20)
+    }
+
+    private func colorRow(_ title: String, hex: Binding<String>, color: Binding<Color>) -> some View {
+        HStack(spacing: 12) {
+            ColorPicker("", selection: color).labelsHidden()
+            Text(title).font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+            Spacer()
+            TextField("#RRGGBB", text: hex)
+                .font(.system(size: 12, design: .monospaced))
+                .multilineTextAlignment(.trailing)
+                .frame(width: 90)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onChange(of: hex.wrappedValue) { _, _ in
+                    // 规范化 hex（#AARRGGBB → #RRGGBB）
+                    hex.wrappedValue = ExternalThemeImporter.normalizeHex(hex.wrappedValue)
+                }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+    }
+}
+
+private extension Color {
+    var hexString: String {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }

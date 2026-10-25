@@ -9,16 +9,26 @@ enum ReaderFontFamily: String, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
-    case paper, ink, moss
+    case paper, ink, moss, parchment, nightTeal, plainWhite
     var id: String { rawValue }
     var name: String {
-        switch self { case .paper: return "米宣纸"; case .ink: return "深墨"; case .moss: return "护眼绿" }
+        switch self {
+        case .paper: return "米宣纸"
+        case .ink: return "深墨"
+        case .moss: return "护眼绿"
+        case .parchment: return "羊皮纸"
+        case .nightTeal: return "暗夜青"
+        case .plainWhite: return "素白"
+        }
     }
     var background: Color {
         switch self {
         case .paper: return Color(hex: 0xF4EFE4)
         case .ink: return Color(hex: 0x12161C)
         case .moss: return Color(hex: 0xE6EDDF)
+        case .parchment: return Color(hex: 0xF1E8D8)
+        case .nightTeal: return Color(hex: 0x0E1B22)
+        case .plainWhite: return Color(hex: 0xFBFCFD)
         }
     }
     var text: Color {
@@ -26,6 +36,9 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return Color(hex: 0x1F1C17)
         case .ink: return Color(hex: 0xC9C6BF)
         case .moss: return Color(hex: 0x26301F)
+        case .parchment: return Color(hex: 0x3A2F22)
+        case .nightTeal: return Color(hex: 0xC8DCE5)
+        case .plainWhite: return Color(hex: 0x1B1E24)
         }
     }
     var secondary: Color {
@@ -33,6 +46,9 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return Color(hex: 0x6B6459)
         case .ink: return Color(hex: 0x8A8F99)
         case .moss: return Color(hex: 0x5E6B52)
+        case .parchment: return Color(hex: 0x7C6F5C)
+        case .nightTeal: return Color(hex: 0x6E8A98)
+        case .plainWhite: return Color(hex: 0x5A6472)
         }
     }
     var backgroundHex: String {
@@ -40,6 +56,9 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return "#F4EFE4"
         case .ink: return "#12161C"
         case .moss: return "#E6EDDF"
+        case .parchment: return "#F1E8D8"
+        case .nightTeal: return "#0E1B22"
+        case .plainWhite: return "#FBFCFD"
         }
     }
     var textHex: String {
@@ -47,6 +66,9 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return "#1F1C17"
         case .ink: return "#C9C6BF"
         case .moss: return "#26301F"
+        case .parchment: return "#3A2F22"
+        case .nightTeal: return "#C8DCE5"
+        case .plainWhite: return "#1B1E24"
         }
     }
     var secondaryHex: String {
@@ -54,6 +76,9 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return "#6B6459"
         case .ink: return "#8A8F99"
         case .moss: return "#5E6B52"
+        case .parchment: return "#7C6F5C"
+        case .nightTeal: return "#6E8A98"
+        case .plainWhite: return "#5A6472"
         }
     }
     var accentHex: String {
@@ -61,6 +86,9 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return "#C2552E"
         case .ink: return "#E8663D"
         case .moss: return "#4E8F86"
+        case .parchment: return "#B08968"
+        case .nightTeal: return "#4F9FBF"
+        case .plainWhite: return "#3B82C4"
         }
     }
     var accent: Color {
@@ -68,9 +96,33 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .paper: return Color(hex: 0xC2552E)
         case .ink: return ZJ.accent
         case .moss: return Color(hex: 0x4E7A45)
+        case .parchment: return Color(hex: 0xB08968)
+        case .nightTeal: return Color(hex: 0x4F9FBF)
+        case .plainWhite: return Color(hex: 0x3B82C4)
         }
     }
-    var isDark: Bool { self == .ink }
+    /// 阅读器 chrome 色：控制栏/卡片背景（origo-x 的 surface/controlBar 思路）
+    var surface: Color {
+        switch self {
+        case .paper: return Color(hex: 0xEDE5D6)
+        case .ink: return Color(hex: 0x1D2530)
+        case .moss: return Color(hex: 0xDCE6D4)
+        case .parchment: return Color(hex: 0xE5D9C4)
+        case .nightTeal: return Color(hex: 0x152630)
+        case .plainWhite: return Color(hex: 0xEFF2F6)
+        }
+    }
+    var surfaceHex: String {
+        switch self {
+        case .paper: return "#EDE5D6"
+        case .ink: return "#1D2530"
+        case .moss: return "#DCE6D4"
+        case .parchment: return "#E5D9C4"
+        case .nightTeal: return "#152630"
+        case .plainWhite: return "#EFF2F6"
+        }
+    }
+    var isDark: Bool { self == .ink || self == .nightTeal }
 }
 
 struct Book: Codable, Hashable, Identifiable, Sendable {
@@ -202,6 +254,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var httpsFirst: Bool = true
     /// R2-04：超长章节在滚动模式下自动切分页（缓解长章卡顿）
     var longChapterAutoPaged: Bool = true
+    /// THEME-V2：自定义阅读配色（启用时覆盖内置主题的画布/正文/强调/chrome 色）
+    var customPalette: ReaderCustomPalette? = nil
     /// P2-09：段评气泡样式（颜色 hex / 圆角 / 图标）
     var bubbleColorHex: String = "#E8663D"
     var bubbleCornerRadius: Double = 16
@@ -264,6 +318,7 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         mangaScrollMode = try container.decodeIfPresent(Bool.self, forKey: .mangaScrollMode) ?? false
         httpsFirst = try container.decodeIfPresent(Bool.self, forKey: .httpsFirst) ?? true
         longChapterAutoPaged = try container.decodeIfPresent(Bool.self, forKey: .longChapterAutoPaged) ?? true
+        customPalette = try container.decodeIfPresent(ReaderCustomPalette.self, forKey: .customPalette)
         bubbleColorHex = try container.decodeIfPresent(String.self, forKey: .bubbleColorHex) ?? "#E8663D"
         bubbleCornerRadius = try container.decodeIfPresent(Double.self, forKey: .bubbleCornerRadius) ?? 16
         bubbleIcon = try container.decodeIfPresent(String.self, forKey: .bubbleIcon) ?? "💬"

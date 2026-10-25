@@ -633,6 +633,13 @@ final class AppEnvironment: ObservableObject {
         if ProcessInfo.processInfo.arguments.contains("-epubPaged") {
             settings.settings.pageMode = .paged
         }
+        if ProcessInfo.processInfo.arguments.contains("-customPaletteTest") {
+            var settings2 = settings.settings
+            settings2.customPalette = ReaderCustomPalette(
+                backgroundHex: "#2B2B33", textHex: "#E6E1D8", secondaryHex: "#9A9388",
+                accentHex: "#C9A227", surfaceHex: "#3A3A46", isDark: true)
+            settings.settings = settings2
+        }
         if ProcessInfo.processInfo.arguments.contains("-scrollMode") {
             settings.settings.pageMode = .scroll
         }

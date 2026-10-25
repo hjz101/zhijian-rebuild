@@ -26,8 +26,9 @@ enum ReaderTextBuilder {
     ) -> NSAttributedString {
         let fontSize = CGFloat(settings.fontSize)
         let baseFont = ZJFont.reader(settings.fontFamily, size: fontSize, customName: settings.customFontName)
-        let textColor = UIColor(theme.text)
-        let titleColor = UIColor(theme.text)
+        let palette = settings.resolvedPalette(theme)
+        let textColor = UIColor(palette.text)
+        let titleColor = UIColor(palette.text)
 
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var lines = body
@@ -100,7 +101,7 @@ enum ReaderTextBuilder {
                 let decorationSize = max(fontSize * 0.62, 11)
                 result.append(NSAttributedString(string: decoration + "\n", attributes: [
                     .font: UIFont.systemFont(ofSize: decorationSize, weight: .light),
-                    .foregroundColor: UIColor(theme.accent).withAlphaComponent(0.75),
+                    .foregroundColor: UIColor(palette.accent).withAlphaComponent(0.75),
                     .paragraphStyle: decorationParagraph,
                     .kern: 3.0
                 ]))
