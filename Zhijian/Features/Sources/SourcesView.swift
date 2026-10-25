@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SourcesView: View {
     enum Mode: String, CaseIterable { case search = "搜索", sources = "书源" }
+    var initialKeyword: String? = nil
+    @Environment(\.dismiss) private var dismiss
 
     @EnvironmentObject private var env: AppEnvironment
     @State private var mode: Mode = .search
@@ -27,12 +29,26 @@ struct SourcesView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("模式", selection: $mode) {
-                    ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                HStack(spacing: 4) {
+                    ForEach(Mode.allCases, id: \.self) { item in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.18)) { mode = item }
+                        } label: {
+                            Text(item.rawValue)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(mode == item ? .white : ZJ.textSecondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(mode == item ? ZJ.accent : Color.clear,
+                                            in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .pickerStyle(.segmented)
+                .padding(4)
+                .background(.ultraThinMaterial, in: Capsule())
                 .padding(.horizontal, ZJ.pageMargin)
-                .padding(.top, 4)
+                .padding(.top, 6)
 
                 Group {
                     if mode == .search { searchPane } else { sourcesPane }
@@ -41,7 +57,12 @@ struct SourcesView: View {
             .background(QiBackground())
             .navigationTitle(mode == .search ? "搜索" : "书源")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbar }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("完成") { dismiss() }
+                }
+                toolbar
+            }
             .sheet(item: $detail) { hit in BookDetailView(book: hit.book, source: hit.source) }
             .sheet(isPresented: $showHealth) { SourceHealthView() }
             .sheet(item: $loginTarget) { target in
@@ -242,6 +263,11 @@ struct SourcesView: View {
     // MARK: - Actions
 
     private func handleLaunchArgs() {
+        if let initialKeyword, !initialKeyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            keyword = initialKeyword
+            mode = .search
+            runSearch()
+        }
         for arg in ProcessInfo.processInfo.arguments {
             if arg.hasPrefix("-autoSearch=") {
                 keyword = String(arg.dropFirst(12)); mode = .search; runSearch()

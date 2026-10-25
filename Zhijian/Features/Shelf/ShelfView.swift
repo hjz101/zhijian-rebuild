@@ -10,6 +10,9 @@ struct ShelfView: View {
     @State private var showExplore = false
     @State private var editing = false
     @State private var query = ""
+    @State private var sourceSearchKeyword = ""
+    @AppStorage("shelf.listMode") private var listMode = false
+    @AppStorage("shelf.columns") private var columns = 3
 
     private var importTypes: [UTType] {
         var types: [UTType] = [.plainText, .text, .pdf]
@@ -36,6 +39,8 @@ struct ShelfView: View {
                     searchBar
                     if books.isEmpty {
                         emptyState
+                    } else if listMode {
+                        bookList
                     } else {
                         grid
                     }
@@ -48,7 +53,7 @@ struct ShelfView: View {
             .navigationBarHidden(true)
             .onAppear(perform: handleLaunchArgs)
             .sheet(isPresented: $showSources) {
-                SourcesView().environmentObject(env)
+                SourcesView(initialKeyword: sourceSearchKeyword).environmentObject(env)
             }
             .fullScreenCover(isPresented: $showExplore) {
                 ExploreView().environmentObject(env)
@@ -136,9 +141,7 @@ struct ShelfView: View {
     }
 
     private var grid: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16)], spacing: 22) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: max(2, min(5, columns))), spacing: 20) {
             ForEach(books) { book in
                 ZStack(alignment: .topTrailing) {
                     Button {
@@ -169,6 +172,60 @@ struct ShelfView: View {
         }
     }
 
+    private var bookList: some View {
+        LazyVStack(spacing: 10) {
+            ForEach(books) { book in
+                Button {
+                    if !editing { opening = book }
+                } label: {
+                    HStack(spacing: 14) {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(ZJ.bgElev2)
+                            .frame(width: 52, height: 72)
+                            .overlay {
+                                if let cover = book.coverURL, let url = URL(string: cover) {
+                                    AsyncImage(url: url) { phase in
+                                        if case .success(let image) = phase {
+                                            image.resizable().scaledToFill()
+                                        } else {
+                                            Text(String(book.title.prefix(1)))
+                                                .font(.system(size: 22, design: .serif))
+                                                .foregroundStyle(ZJ.textSecondary)
+                                        }
+                                    }
+                                } else {
+                                    Text(String(book.title.prefix(1)))
+                                        .font(.system(size: 22, design: .serif))
+                                        .foregroundStyle(ZJ.textSecondary)
+                                }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(book.title).font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(ZJ.textPrimary).lineLimit(1)
+                            Text(book.author).font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
+                            Text(book.lastChapter ?? "尚未开始").font(.system(size: 10)).foregroundStyle(ZJ.textTertiary).lineLimit(1)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(ZJ.textTertiary)
+                    }
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.6), lineWidth: 0.8)
+                    )
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button(role: .destructive) { env.books.remove(book) } label: {
+                        Label("移出书架", systemImage: "trash")
+                    }
+                }
+            }
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "books.vertical")
@@ -177,9 +234,22 @@ struct ShelfView: View {
             Text(query.isEmpty ? "书架是空的" : "没有匹配的书籍")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(ZJ.textPrimary)
-            Text(query.isEmpty ? "去搜索添加一些书籍吧" : "换个关键词试试")
+            Text(query.isEmpty ? "去搜索添加一些书籍吧" : "本地书架没有匹配，试试在线书源")
                 .font(.system(size: 13))
                 .foregroundStyle(ZJ.textSecondary)
+            if !query.isEmpty {
+                Button {
+                    sourceSearchKeyword = query
+                    showSources = true
+                } label: {
+                    Label("在书源中搜索「\(query)」", systemImage: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        .background(ZJ.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 150)
@@ -198,7 +268,7 @@ struct ShelfView: View {
             opening = book
         }
         if let arg = args.first(where: { $0.hasPrefix("-autoOpenBookTitle=") }) {
-            let title = String(arg.dropFirst(20))
+            let title = String(arg.dropFirst(19))
             if let book = env.books.books.first(where: { $0.title == title }) { opening = book }
         }
     }

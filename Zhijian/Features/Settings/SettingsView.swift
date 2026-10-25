@@ -9,6 +9,9 @@ struct SettingsView: View {
     @State private var showSources = false
     @State private var placeholder: String?
     @State private var showAppearance = false
+    @State private var showShelfLayout = false
+    @AppStorage("shelf.listMode") private var shelfListMode = false
+    @AppStorage("shelf.columns") private var shelfColumns = 3
 
     private var version: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1"
@@ -52,6 +55,7 @@ struct SettingsView: View {
                 ReaderSettingsSheet(settingsStore: env.settings)
             }
             .sheet(isPresented: $showAppearance) { AppearanceSettingsView() }
+            .sheet(isPresented: $showShelfLayout) { ShelfLayoutSettingsView() }
             .sheet(isPresented: $showSources) {
                 SourcesView().environmentObject(env)
             }
@@ -84,8 +88,8 @@ struct SettingsView: View {
         sectionCard("界面与布局") {
             row("paintbrush.fill", "外观 / 配色", value: ZJPaletteStore.current.name) { showAppearance = true }
             row("circle.lefthalf.filled", "深浅色", value: ZJPaletteStore.current.isDark ? "深色" : "浅色") { showAppearance = true }
-            row("rectangle.grid.3x2", "书架布局", value: "3 列网格") {
-                placeholder = "列表/网格切换与列数设置将在 P0-07 上线。"
+            row("rectangle.grid.3x2", "书架布局", value: shelfListMode ? "列表" : "\(shelfColumns) 列网格") {
+                showShelfLayout = true
             }
         }
     }
@@ -195,6 +199,7 @@ struct SettingsView: View {
         if args.contains("-autoOpenReplaceRules") { path = [.replaceRules] }
         if args.contains("-autoOpenChapterRules") { path = [.chapterRules] }
         if args.contains("-autoOpenChapterCache") { path = [.chapterCache] }
+        if args.contains("-showShelfLayout") { showShelfLayout = true }
         if args.contains("-showReaderSettings") { showReaderSettings = true }
         if args.contains("-showAppearance") { showAppearance = true }
     }

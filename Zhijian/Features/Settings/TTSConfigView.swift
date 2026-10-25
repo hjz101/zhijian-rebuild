@@ -48,6 +48,9 @@ private struct TTSConfigContent: View {
             cacheSection
             helpSection
         }
+        .scrollContentBackground(.hidden)
+        .background(QiBackground())
+        .tint(ZJ.accent)
         .navigationTitle("朗读 / TTS")
         .onAppear {
             if voices.isEmpty { voices = TTSVoiceCatalog.chineseVoices() }

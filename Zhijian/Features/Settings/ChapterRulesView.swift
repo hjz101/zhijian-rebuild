@@ -79,6 +79,9 @@ struct ChapterRulesView: View {
         }
         .scrollContentBackground(.hidden)
         .background(QiBackground())
+        .scrollContentBackground(.hidden)
+        .background(QiBackground())
+        .tint(ZJ.accent)
         .navigationTitle("目录规则")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

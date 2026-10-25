@@ -56,6 +56,9 @@ struct CookieManageView: View {
         }
         .scrollContentBackground(.hidden)
         .background(ZJ.bgBase.ignoresSafeArea())
+        .scrollContentBackground(.hidden)
+        .background(QiBackground())
+        .tint(ZJ.accent)
         .navigationTitle("Cookie 管理")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -99,6 +99,9 @@ struct CloudSyncView: View {
         }
         .scrollContentBackground(.hidden)
         .background(ZJ.bgBase.ignoresSafeArea())
+        .scrollContentBackground(.hidden)
+        .background(QiBackground())
+        .tint(ZJ.accent)
         .navigationTitle("iCloud 同步")
         .navigationBarTitleDisplayMode(.inline)
         .alert(message ?? "", isPresented: $showMessage) {

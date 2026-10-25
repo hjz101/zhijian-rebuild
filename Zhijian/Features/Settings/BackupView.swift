@@ -48,6 +48,9 @@ private struct BackupContent: View {
             }
             infoSection
         }
+        .scrollContentBackground(.hidden)
+        .background(QiBackground())
+        .tint(ZJ.accent)
         .navigationTitle("备份与同步")
         .fileImporter(
             isPresented: $showImporter,
