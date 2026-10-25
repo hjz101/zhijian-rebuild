@@ -141,8 +141,12 @@ final class CookieJar: @unchecked Sendable {
         guard !host.isEmpty else { return "" }
         lock.lock()
         defer { lock.unlock() }
+        let hostETLD1 = PublicSuffixList.eTLDPlusOne(host: host)
         var parts: [String] = []
-        for (domain, cookies) in storage where host == domain || host.hasSuffix("." + domain) {
+        for (domain, cookies) in storage {
+            let domainETLD1 = PublicSuffixList.eTLDPlusOne(host: domain)
+            // 同一 eTLD+1 内共享 Cookie（a.example.com 与 b.example.com）
+            guard hostETLD1 == domainETLD1 else { continue }
             for (name, value) in cookies.sorted(by: { $0.key < $1.key }) {
                 parts.append("\(name)=\(value)")
             }

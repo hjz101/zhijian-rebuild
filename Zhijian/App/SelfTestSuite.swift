@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 enum SelfTestSuite {
     static func run() -> String {
+        // 纯函数部分
         var failures: [String] = []
         var passed = 0
 
@@ -83,6 +84,12 @@ enum SelfTestSuite {
         // 9) parseTOCNumber
         check("TOCNum-arabic", SourcePipeline.parseTOCNumber("12") == 12)
         check("TOCNum-chinese", SourcePipeline.parseTOCNumber("十二") == 12)
+
+        // 10) PSL eTLD+1
+        check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
+        check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
+        check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")
+              && !PublicSuffixList.shouldShare("a.example.com", "a.other.org"))
 
         let summary = "自检完成：通过 \(passed) 项，失败 \(failures.count) 项"
         let lines = [summary] + (failures.isEmpty ? ["全部通过 ✅"] : failures.map { "✗ \($0)" })

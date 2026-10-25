@@ -447,6 +447,17 @@
 
 ## P4 · 发布与合规
 
+### [R2-01] ✅ 已完成 · Cookie eTLD+1（精简 PSL）
+- `PublicSuffixList`：多段后缀（com.cn/co.uk 等）+ 常见单段后缀；`CookieJar.header` 改为按 eTLD+1 共享 Cookie（a.example.com 与 b.example.com 不再串）。
+
+### [R2-02] ✅ 已完成 · 真实书源回归矩阵
+- `-selfTestSuite -sourceRegression`：对已导入书源执行搜索+发现真实回归写 `source-regression-report.txt`；
+- 实测：关于小说搜索 100 本；书山聚合 jsLib 正常、215 类、个性推荐 30 本、搜索 200 本。
+
+### [R2-03] ✅ 已完成 · 压缩包导入回归
+- `-archiveImportTest`：图片包→漫画（2 页）、txt 包→分章（2 章）均通过；
+- 注：本机无合法 RAR 样本，RAR 真机回归留待用户提供（libarchive 已支持）。
+
 ### [R1-01] ✅ 已完成 · 文档纠偏
 - `QIREADER-COMPARISON.md` 重写：130 文件 / 35,445 行，P0–P3 逐项 ✅/🟡，综合对齐度约 85%。
 

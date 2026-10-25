@@ -265,11 +265,41 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webdav-mirror-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if ProcessInfo.processInfo.arguments.contains("-archiveImportTest") {
+            let fm = FileManager.default
+            let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            var lines: [String] = []
+            for name in ["archive-imgs.zip", "archive-txt.zip"] {
+                let src = URL(fileURLWithPath: "/tmp/\(name)")
+                if fm.fileExists(atPath: src.path) {
+                    let dest = docs.appendingPathComponent(name)
+                    try? fm.copyItem(at: src, to: dest)
+                    do {
+                        let book = try LocalImportService.shared.importArchive(url: dest, into: self.books)
+                        lines.append("\(name) -> \(book.title) chapters=\(book.totalChapters)")
+                    } catch {
+                        lines.append("\(name) -> ✗ \(error.localizedDescription)")
+                    }
+                } else {
+                    lines.append("\(name) -> 样本缺失（本机无）")
+                }
+            }
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("archive-import-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+            NSLog("[ArchiveImport] %@", lines.joined(separator: " | "))
+        }
         if ProcessInfo.processInfo.arguments.contains("-selfTestSuite") {
             let report = SelfTestSuite.run()
             try? report.write(to: AppData.root.appendingPathComponent("self-test-report.txt"),
                               atomically: true, encoding: .utf8)
             NSLog("[SelfTest] %@", report.replacingOccurrences(of: "\n", with: " | "))
+            if ProcessInfo.processInfo.arguments.contains("-sourceRegression") {
+                Task { @MainActor in
+                    let lines = await self.runSourceRegression()
+                    try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("source-regression-report.txt"),
+                                                              atomically: true, encoding: .utf8)
+                }
+            }
         }
         if ProcessInfo.processInfo.arguments.contains("-pcmPlayerTest") {
             Task { @MainActor in
@@ -1081,3 +1111,45 @@ enum WebDAVCommentDebugTest {
     }
 }
 #endif
+
+// MARK: - 真实书源回归（R2，extension）
+
+@MainActor
+extension AppEnvironment {
+    /// 对已导入书源执行搜索 + 发现真实回归，返回报告行。
+    func runSourceRegression() async -> [String] {
+        var lines: [String] = []
+        let enabled = engines.enabledSources()
+        guard !enabled.isEmpty else {
+            return ["无已启用书源（先导入书源再回归）"]
+        }
+        lines.append("书源数：\(enabled.count)")
+        for source in enabled.prefix(3) {
+            let pipeline = engines.makePipeline(source: source)
+            var entry = source.bookSourceName
+            if let status = pipeline.jsLibStatus { entry += " jsLib=\(status)" }
+            if !(source.exploreUrl ?? "").isEmpty {
+                do {
+                    let categories = try await pipeline.exploreCategories()
+                    entry += " 发现=\(categories.count)类"
+                    if let first = categories.first {
+                        let books = try await pipeline.explore(category: first, page: 1)
+                        entry += " \(first.title)=\(books.count)本"
+                    }
+                } catch {
+                    entry += " 发现✗=\(error.localizedDescription.prefix(40))"
+                }
+            }
+            if !(source.searchUrl ?? "").isEmpty {
+                do {
+                    let books = try await pipeline.search("剑来", page: 1)
+                    entry += " 搜索=\(books.count)本"
+                } catch {
+                    entry += " 搜索✗=\(error.localizedDescription.prefix(40))"
+                }
+            }
+            lines.append(entry)
+        }
+        return lines
+    }
+}
