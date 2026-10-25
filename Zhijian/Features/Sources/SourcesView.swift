@@ -19,6 +19,10 @@ struct SourcesView: View {
     @State private var showHealth = false
     @State private var loginTarget: LoginTarget?
     @State private var exploreSource: BookSource?
+    @State private var editingSource: BookSource?
+    @State private var sourceGroupFilter: String?
+    @State private var exportURL: URL?
+    @State private var showExport = false
     @State private var page = 1
     @State private var hasMore = false
     @State private var loadingMore = false
@@ -71,6 +75,28 @@ struct SourcesView: View {
             }
             .fullScreenCover(item: $exploreSource) { source in
                 ExploreView(initialSource: source).environmentObject(env)
+            }
+            .sheet(item: $editingSource) { source in
+                SourceEditorView(source: source).environmentObject(env)
+            }
+            .sheet(isPresented: $showExport) {
+                if let url = exportURL {
+                    NavigationStack {
+                        VStack(spacing: 16) {
+                            Image(systemName: "doc.badge.arrow.up")
+                                .font(.system(size: 44)).foregroundStyle(ZJ.accent)
+                            Text("已生成 \(env.sources.sources.count) 个书源 JSON")
+                                .font(.system(size: 13)).foregroundStyle(ZJ.textSecondary)
+                            ShareLink(item: url) {
+                                Label("分享 / 存储", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.borderedProminent).tint(ZJ.accent)
+                            Button("完成") { showExport = false }.foregroundStyle(.secondary)
+                        }
+                        .padding(24)
+                        .navigationTitle("导出书源")
+                    }
+                }
             }
             .sheet(isPresented: $showImport) { importSheet }
             .alert("从 URL 导入", isPresented: $showURLImport) {
@@ -198,6 +224,9 @@ struct SourcesView: View {
     private var sourcesPane: some View {
         ScrollView {
             VStack(spacing: 12) {
+                if !env.sources.groups.isEmpty {
+                    groupChips
+                }
                 if env.sources.sources.isEmpty {
                     VStack(spacing: 10) {
                         Image(systemName: "antenna.radiowaves.left.and.right")
@@ -211,7 +240,7 @@ struct SourcesView: View {
                     .padding(.vertical, 70)
                 }
 
-                ForEach(env.sources.sources) { source in
+                ForEach(filteredSources) { source in
                     sourceCard(source)
                 }
 
@@ -288,10 +317,43 @@ struct SourcesView: View {
                 .strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8)
         )
         .contextMenu {
+            Button { editingSource = source } label: {
+                Label("编辑", systemImage: "pencil")
+            }
             Button(role: .destructive) { env.sources.remove(source) } label: {
                 Label("删除书源", systemImage: "trash")
             }
         }
+        .onTapGesture { editingSource = source }
+    }
+
+    private var filteredSources: [BookSource] {
+        guard let group = sourceGroupFilter else { return env.sources.sources }
+        return env.sources.sources.filter { $0.bookSourceGroup == group }
+    }
+
+    private var groupChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                groupChip("全部", active: sourceGroupFilter == nil) { sourceGroupFilter = nil }
+                ForEach(env.sources.groups, id: \.self) { group in
+                    groupChip(group, active: sourceGroupFilter == group) { sourceGroupFilter = group }
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+    }
+
+    private func groupChip(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: active ? .semibold : .regular))
+                .foregroundStyle(active ? .white : ZJ.textSecondary)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(active ? ZJ.accent : Color.white.opacity(0.5), in: Capsule())
+                .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.7))
+        }
+        .buttonStyle(.plain)
     }
 
     private func chipButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -318,6 +380,12 @@ struct SourcesView: View {
                 Button { importFromClipboard() } label: { Label("从剪贴板导入", systemImage: "clipboard") }
                 Divider()
                 Button { showHealth = true } label: { Label("书源体检 / 诊断", systemImage: "stethoscope") }
+                Divider()
+                Button { exportAll() } label: { Label("导出全部书源", systemImage: "square.and.arrow.up") }
+                Button {
+                    let removed = env.sources.deduplicate()
+                    message = removed > 0 ? "已去重 \(removed) 个书源" : "没有重复书源"
+                } label: { Label("去重", systemImage: "rectangle.stack.badge.minus") }
             } label: { Image(systemName: "plus") }
         }
     }
@@ -353,6 +421,10 @@ struct SourcesView: View {
             }
             if arg == "-showHealth" { showHealth = true }
             if arg == "-showSourceList" { mode = .sources }
+            if arg == "-editFirstSource" {
+                mode = .sources
+                editingSource = env.sources.sources.first
+            }
             if arg == "-showSourceLogin" {
                 if let source = env.sources.sources.first(where: {
                     ($0.loginUrl ?? "").isEmpty == false && ($0.loginUi ?? "").isEmpty == false
@@ -361,6 +433,15 @@ struct SourcesView: View {
                 } else {
                 }
             }
+        }
+    }
+
+    private func exportAll() {
+        do {
+            exportURL = try env.sources.exportJSON()
+            showExport = true
+        } catch {
+            message = "导出失败：\(error.localizedDescription)"
         }
     }
 

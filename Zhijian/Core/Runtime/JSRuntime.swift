@@ -38,6 +38,8 @@ final class JSRuntime: RuleJSEvaluating {
     let jsoupStore = JsoupDOMStore()
     /// 兼容层脚本是否成功注入（诊断用）
     var compatibilityLayerError: String?
+    /// jsLib 共享脚本加载状态（诊断用）
+    var jsLibStatus: String?
 
     /// 本源的默认 UA（与 Legado `getWebViewUA` 对齐）
     static let defaultUserAgent = HTTPClient.defaultUserAgent
@@ -49,7 +51,38 @@ final class JSRuntime: RuleJSEvaluating {
         self.context = JSContext(virtualMachine: JSVirtualMachine())
         queue.setSpecific(key: queueKey, value: 1)
         installAPIs()
+        installJsLibIfNeeded()
         installExecutionTimeLimit(seconds: 12)
+    }
+
+    /// P0-10：执行书源的共享脚本 `jsLib`（远程 URL 或内联 JS），失败写入诊断。
+    private func installJsLibIfNeeded() {
+        guard let raw = source.jsLib?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return }
+        var code = raw
+        var loadedURL: String?
+        if raw.lowercased().hasPrefix("http://") || raw.lowercased().hasPrefix("https://") {
+            let json = SharedJsLibCache.shared.load(url: raw)
+            code = json ?? ""
+            loadedURL = raw
+        }
+        if code.lowercased().hasPrefix("@js:") { code = String(code.dropFirst(4)) }
+        if code.hasPrefix("<js>"), code.hasSuffix(">") { code = String(code.dropFirst(4).dropLast(4)) }
+        guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            jsLibStatus = "jsLib 加载失败：\(loadedURL ?? "内联脚本为空")"
+            appendLog("jsLib", jsLibStatus ?? "")
+            return
+        }
+        context.exception = nil
+        context.evaluateScript(code, withSourceURL: URL(fileURLWithPath: loadedURL ?? "jsLib.js"))
+        if let exception = context.exception {
+            let message = exception.toString() ?? "未知异常"
+            context.exception = nil
+            jsLibStatus = "jsLib 执行失败：\(message)"
+            appendLog("jsLib", jsLibStatus ?? "")
+        } else {
+            jsLibStatus = loadedURL == nil ? "jsLib 已加载（内联）" : "jsLib 已加载（\(loadedURL!)）"
+            appendLog("jsLib", jsLibStatus ?? "")
+        }
     }
 
     // MARK: 对外求值

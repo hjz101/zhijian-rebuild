@@ -89,6 +89,31 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-jsLibTest") {
+            let script = """
+            function sharedGreeting(name) { return '你好，' + name + '（jsLib）'; }
+            var sharedVersion = 'v1';
+            """
+            var source = BookSource()
+            source.bookSourceUrl = "http://localhost/jslib-demo"
+            source.bookSourceName = "jsLib 测试源"
+            source.enabled = true
+            source.jsLib = script
+            sources.update(source)
+            Task { @MainActor in
+                var lines: [String] = []
+                let imported = self.sources.sources.contains { $0.bookSourceUrl == "http://localhost/jslib-demo" }
+                lines.append("imported=\(imported)")
+                if let stored = self.sources.sources.first(where: { $0.bookSourceUrl == "http://localhost/jslib-demo" }) {
+                    let pipeline = self.engines.makePipeline(source: stored)
+                    let value = try? pipeline.testJsLib()
+                    lines.append("jsLibValue=\(value ?? "-")")
+                    lines.append("jsLibStatus=\(pipeline.jsLibStatus ?? "-")")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("jslib-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-searchPageTest") {
             Task { @MainActor in
                 var lines: [String] = []
@@ -372,6 +397,57 @@ final class SourceStore: ObservableObject {
         persist()
     }
     func replaceAll(_ list: [BookSource]) { sources = list; persist() }
+
+    func update(_ source: BookSource) {
+        guard let idx = sources.firstIndex(where: { $0.bookSourceUrl == source.bookSourceUrl }) else {
+            sources.append(source)
+            persist()
+            return
+        }
+        sources[idx] = source
+        persist()
+    }
+
+    func setGroup(_ group: String?, for source: BookSource) {
+        guard let idx = sources.firstIndex(where: { $0.bookSourceUrl == source.bookSourceUrl }) else { return }
+        let value = group?.trimmingCharacters(in: .whitespacesAndNewlines)
+        sources[idx].bookSourceGroup = (value?.isEmpty == false) ? value : nil
+        persist()
+    }
+
+    func setEnabled(_ enabled: Bool, for source: BookSource) {
+        guard let idx = sources.firstIndex(where: { $0.bookSourceUrl == source.bookSourceUrl }) else { return }
+        sources[idx].enabled = enabled
+        persist()
+    }
+
+    var groups: [String] {
+        Array(Set(sources.compactMap { $0.bookSourceGroup }.filter { !$0.isEmpty })).sorted()
+    }
+
+    func deduplicate() -> Int {
+        var seen = Set<String>()
+        var removed = 0
+        var kept: [BookSource] = []
+        for source in sources {
+            if seen.contains(source.bookSourceUrl) { removed += 1; continue }
+            seen.insert(source.bookSourceUrl)
+            kept.append(source)
+        }
+        if removed > 0 { sources = kept; persist() }
+        return removed
+    }
+
+    func exportJSON(only source: BookSource? = nil) throws -> URL {
+        let list = source.map { [$0] } ?? sources
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys]
+        let data = try encoder.encode(list)
+        let name = source.map { "\($0.bookSourceName).json" } ?? "zhijian-sources.json"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        try data.write(to: url, options: .atomic)
+        return url
+    }
     private func persist() { AppData.save(sources, file) }
 }
 

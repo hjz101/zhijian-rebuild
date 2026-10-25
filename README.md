@@ -24,7 +24,9 @@
 | 目录规则 | ✅ | 去重/去空/卷名识别/自动纠正倒序/编号排序/标题清理正则；全局 + 按书源覆盖；示例预览 |
 | 替换净化 | ✅ | `ReplaceRule`（正则/字面量、正文/标题、顺序、1s 超时）；导入/导出 JSON、清洗预览；正文与标题清洗接入远程/本地书 |
 | 发现 / Explore | ✅ | `exploreUrl`（JS/JSON/行文本）+ `ruleExplore`；书源/分类横滑、列表分页、详情、登录态徽标；书架「✨」入口 |
-| 阅读统计 | ✅ | 今日/本周/连续天数、7 日柱状图、总时长/活跃天/日均、书架/书源计数；阅读页停留自动计时 |
+| 阅读统计 | ✅ | 日/年目标与进度、今日卡、本周/连续/书籍、7 日柱状、30 日趋势、年度目标、总时长/活跃天/日均；阅读页自动计时并按书记录 |
+| 书源管理 | ✅ | 单条编辑（JSON/分组/启停）、分组筛选 chip、导入导出、去重、点击进入编辑 |
+| jsLib 共享脚本 | ✅ | 内联或远程（磁盘缓存 24h）；注入失败写入诊断与 JS console |
 | 书源体检 | ✅ | 逐源四阶段（搜索/详情/目录/正文）耗时与错误、批量体检、HTTP 流水 + JS console 诊断、一键复制；结果持久化；内置「引擎自检」 |
 | 引擎兼容补强 | ✅ | fastjson、Gson；`java.getZipStringContent/getZipByteArrayContent/unzipFile` 支持 ZIP **以及 RAR/7z（iOS SDK libarchive 弱链接）**；JSC 执行超时中断（12s，可测试 2s） |
 | **WebView 兜底** | ✅ | 离屏 WKWebView：`@webjs:` 规则、`java.webView/webViewGetSource/webViewGetOverrideUrl`、`ruleContent.webJs`；**网络拦截**（XHR/fetch → `ruleContent.sourceRegex` 匹配响应体/URL）；引擎自检 13/13 |

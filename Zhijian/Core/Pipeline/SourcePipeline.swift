@@ -1218,6 +1218,15 @@ final class SourcePipeline {
         return books
     }
 
+    var jsLibStatus: String? { js.jsLibStatus }
+
+    /// 自检：调用 jsLib 中定义的函数，验证共享脚本已注入。
+    func testJsLib() throws -> String {
+        let code = "typeof sharedGreeting === 'function' ? sharedGreeting('阅读') : ('未定义: ' + (typeof sharedGreeting))"
+        let value = try js.evaluateJS(code, bindings: RuleBindings())
+        return RuleEngine.text(value)
+    }
+
     /// 诊断快照：UI 可直接展示（书源名、最近 HTTP、JS console、请求流水）
     var diagnosticsSnapshot: [String] {
         var lines: [String] = []
@@ -1226,6 +1235,7 @@ final class SourcePipeline {
         lines.append("限速：\(rateLimitDescription)")
         if let contentType = lastContentType { lines.append("Content-Type：\(contentType)") }
         if let error = js.compatibilityLayerError { lines.append("JS 兼容层：\(error)") }
+        if let jsLib = js.jsLibStatus { lines.append("jsLib：\(jsLib)") }
         let requestLines = http.log
         if !requestLines.isEmpty {
             lines.append("--- HTTP 流水（最近 20 条）---")

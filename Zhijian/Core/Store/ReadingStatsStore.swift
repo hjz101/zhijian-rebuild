@@ -1,13 +1,21 @@
-// ReadingStatsStore.swift — 阅读时长统计（按日）
+// ReadingStatsStore.swift — 阅读统计（时长/书籍/连续天数/目标）
 import Foundation
 import Combine
+
+struct ReadingStatsData: Codable {
+    var secondsByDay: [String: Double] = [:]
+    var booksByDay: [String: [String]] = [:]
+    var dailyGoalMinutes: Int = 30
+    var yearlyGoalBooks: Int = 24
+}
 
 @MainActor
 final class ReadingStatsStore: ObservableObject {
     static let shared = ReadingStatsStore()
 
-    @Published private(set) var secondsByDay: [String: Double] = [:]
+    @Published private(set) var data = ReadingStatsData()
     private let file = "reading_stats.json"
+    private let legacyFile = "reading_stats.json"
     private let formatter: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
@@ -17,18 +25,75 @@ final class ReadingStatsStore: ObservableObject {
     }()
 
     private init() {
-        secondsByDay = AppData.load([String: Double].self, file) ?? [:]
+        if let payload = AppData.load(ReadingStatsData.self, file) {
+            data = payload
+        } else if let legacy = AppData.load([String: Double].self, legacyFile) {
+            // 从旧版「纯时长」结构迁移
+            data.secondsByDay = legacy
+            persist()
+        }
     }
 
-    func add(seconds: Double) {
+    // MARK: - 写入
+
+    func add(seconds: Double, bookId: String? = nil) {
         guard seconds >= 1 else { return }
         let key = formatter.string(from: Date())
-        secondsByDay[key, default: 0] += seconds
-        AppData.save(secondsByDay, file)
+        data.secondsByDay[key, default: 0] += seconds
+        if let bookId {
+            var books = data.booksByDay[key] ?? []
+            if !books.contains(bookId) { books.append(bookId) }
+            data.booksByDay[key] = books
+        }
+        persist()
     }
 
+    // MARK: - 目标
+
+    var dailyGoalMinutes: Int {
+        get { data.dailyGoalMinutes }
+        set { data.dailyGoalMinutes = max(5, min(600, newValue)); persist() }
+    }
+
+    var yearlyGoalBooks: Int {
+        get { data.yearlyGoalBooks }
+        set { data.yearlyGoalBooks = max(1, min(999, newValue)); persist() }
+    }
+
+    var dailyGoalSeconds: Double { Double(data.dailyGoalMinutes) * 60 }
+
+    var todayProgress: Double {
+        guard dailyGoalSeconds > 0 else { return 0 }
+        return min(1, todaySeconds / dailyGoalSeconds)
+    }
+
+    var todayRemainingText: String {
+        let remaining = dailyGoalSeconds - todaySeconds
+        return remaining <= 0 ? "今日目标已达成" : "还差 \(Self.text(remaining))"
+    }
+
+    /// 年度已读书籍数（本年度内出现过阅读记录的书籍去重）
+    var booksThisYear: Int {
+        let calendar = Calendar.current
+        let year = calendar.component(.year, from: Date())
+        var ids = Set<String>()
+        for (day, books) in data.booksByDay {
+            guard let date = formatter.date(from: day),
+                  calendar.component(.year, from: date) == year else { continue }
+            ids.formUnion(books)
+        }
+        return ids.count
+    }
+
+    var yearlyProgress: Double {
+        guard data.yearlyGoalBooks > 0 else { return 0 }
+        return min(1, Double(booksThisYear) / Double(data.yearlyGoalBooks))
+    }
+
+    // MARK: - 读取
+
     func seconds(on date: Date) -> Double {
-        secondsByDay[formatter.string(from: date)] ?? 0
+        data.secondsByDay[formatter.string(from: date)] ?? 0
     }
 
     var todaySeconds: Double { seconds(on: Date()) }
@@ -41,13 +106,19 @@ final class ReadingStatsStore: ObservableObject {
         }
     }
 
-    var totalSeconds: Double { secondsByDay.values.reduce(0, +) }
+    var totalSeconds: Double { data.secondsByDay.values.reduce(0, +) }
 
-    var activeDays: Int { secondsByDay.values.filter { $0 >= 60 }.count }
+    var activeDays: Int { data.secondsByDay.values.filter { $0 >= 60 }.count }
 
     var dailyAverage: Double {
         guard activeDays > 0 else { return 0 }
         return totalSeconds / Double(activeDays)
+    }
+
+    var booksTouched: Int {
+        var ids = Set<String>()
+        for books in data.booksByDay.values { ids.formUnion(books) }
+        return ids.count
     }
 
     var streak: Int {
@@ -78,15 +149,38 @@ final class ReadingStatsStore: ObservableObject {
         }
     }
 
+    /// 最近 N 天趋势
+    func recentTrend(days: Int = 30) -> [(date: Date, seconds: Double)] {
+        let calendar = Calendar.current
+        return (0..<days).reversed().compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: Date()) else { return nil }
+            return (date, seconds(on: date))
+        }
+    }
+
+    func clearAll() {
+        data = ReadingStatsData()
+        persist()
+    }
+
+    private func persist() {
+        AppData.save(data, file)
+    }
+
     #if DEBUG
     func seedDemo() {
         let calendar = Calendar.current
-        let values: [Double] = [420, 900, 1500, 600, 2400, 1800, 3000]
+        let values: [Double] = [420, 900, 1500, 600, 2400, 1800, 3000, 1200, 0, 780, 2100, 1500, 900, 2400, 600]
+        let bookIds = ["demo-local-001", "demo-pdf-001", "demo-manga-001", "demo-epub-001"]
         for (offset, seconds) in values.enumerated() {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { continue }
-            secondsByDay[formatter.string(from: day)] = seconds
+            let key = formatter.string(from: day)
+            data.secondsByDay[key] = seconds
+            if seconds > 0 {
+                data.booksByDay[key] = Array(bookIds.prefix((offset % bookIds.count) + 1))
+            }
         }
-        AppData.save(secondsByDay, file)
+        persist()
     }
     #endif
 

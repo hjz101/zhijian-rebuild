@@ -42,7 +42,7 @@ struct ReaderScreen: View {
 
     private func flushReadingTime() {
         let elapsed = Date().timeIntervalSince(sessionStart)
-        if elapsed >= 5 { ReadingStatsStore.shared.add(seconds: elapsed) }
+        if elapsed >= 5 { ReadingStatsStore.shared.add(seconds: elapsed, bookId: book.id) }
         sessionStart = Date()
     }
 

@@ -1,26 +1,41 @@
-// StatsView.swift — 阅读统计（栖阅式浅色玻璃）
+// StatsView.swift — 阅读统计（时长/目标/趋势，栖阅式玻璃）
 import SwiftUI
 
 struct StatsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @ObservedObject private var stats = ReadingStatsStore.shared
+    @State private var showGoalSheet = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("阅读统计")
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(ZJ.textPrimary)
-                        .padding(.top, 6)
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("阅读统计")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(ZJ.textPrimary)
+                        Spacer()
+                        Button { showGoalSheet = true } label: {
+                            Image(systemName: "target")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(ZJ.textSecondary)
+                                .frame(width: 34, height: 34)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    todayGoalCard
 
                     HStack(spacing: 12) {
-                        metricCard(title: "今日合计", value: ReadingStatsStore.text(stats.todaySeconds), icon: "book")
                         metricCard(title: "本周", value: ReadingStatsStore.text(stats.weekSeconds), icon: "clock")
                         metricCard(title: "连续", value: "\(stats.streak)天", icon: "flame")
+                        metricCard(title: "书籍", value: "\(stats.booksTouched)本", icon: "books.vertical")
                     }
 
                     weekCard
+                    trendCard
+                    yearlyCard
                     summaryCard
                 }
                 .padding(.horizontal, 20)
@@ -28,7 +43,38 @@ struct StatsView: View {
             }
             .background(QiBackground())
             .navigationBarHidden(true)
+            .sheet(isPresented: $showGoalSheet) {
+                StatsGoalSheet()
+            }
         }
+    }
+
+    private var todayGoalCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("今日合计").font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
+                    Text(ReadingStatsStore.text(stats.todaySeconds))
+                        .font(.system(size: 28, weight: .bold).monospacedDigit())
+                        .foregroundStyle(ZJ.textPrimary)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("目标 \(stats.dailyGoalMinutes) 分").font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
+                    Text(stats.todayRemainingText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(stats.todayProgress >= 1 ? ZJ.celadon : ZJ.accent)
+                }
+            }
+            ProgressView(value: stats.todayProgress)
+                .tint(stats.todayProgress >= 1 ? ZJ.celadon : ZJ.accent)
+                .scaleEffect(x: 1, y: 1.6, anchor: .center)
+            Text("\(Int(stats.todayProgress * 100))% 完成")
+                .font(.system(size: 10))
+                .foregroundStyle(ZJ.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .qiCard()
     }
 
     private func metricCard(title: String, value: String, icon: String) -> some View {
@@ -37,7 +83,7 @@ struct StatsView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(ZJ.textSecondary)
             Text(value)
-                .font(.system(size: 22, weight: .bold).monospacedDigit())
+                .font(.system(size: 20, weight: .bold).monospacedDigit())
                 .foregroundStyle(ZJ.textPrimary)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
@@ -77,6 +123,48 @@ struct StatsView: View {
         .qiCard()
     }
 
+    private var trendCard: some View {
+        let trend = stats.recentTrend(days: 30)
+        let maxValue = max(trend.map(\.seconds).max() ?? 0, 60)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("近 30 日").font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Text("共 \(ReadingStatsStore.text(trend.reduce(0) { $0 + $1.seconds }))")
+                    .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
+            }
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(Array(trend.enumerated()), id: \.offset) { _, item in
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(item.seconds > 0 ? ZJ.accent.opacity(0.75) : ZJ.textTertiary.opacity(0.12))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: max(3, CGFloat(item.seconds / maxValue) * 78))
+                }
+            }
+            .frame(height: 80, alignment: .bottom)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .qiCard()
+    }
+
+    private var yearlyCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("年度目标").font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Text("\(stats.booksThisYear) / \(stats.yearlyGoalBooks) 本")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(ZJ.textSecondary)
+            }
+            ProgressView(value: stats.yearlyProgress).tint(ZJ.celadon)
+            Text("今年读过 \(stats.booksTouched) 本书，年度目标 \(stats.yearlyGoalBooks) 本")
+                .font(.system(size: 10))
+                .foregroundStyle(ZJ.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .qiCard()
+    }
+
     private var summaryCard: some View {
         VStack(spacing: 14) {
             HStack {
@@ -107,5 +195,69 @@ struct StatsView: View {
             Text(title).font(.system(size: 10)).foregroundStyle(ZJ.textSecondary)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+struct StatsGoalSheet: View {
+    @ObservedObject private var stats = ReadingStatsStore.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var dailyMinutes = 30
+    @State private var yearlyBooks = 24
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    QiSettingsSection(title: "每日目标") {
+                        QiSliderRow(title: "阅读时长", value: Binding(
+                            get: { Double(dailyMinutes) },
+                            set: { dailyMinutes = Int($0) }
+                        ), range: 10...180, step: 5) { "\(Int($0)) 分" }
+                    }
+                    QiSettingsSection(title: "年度目标") {
+                        QiSliderRow(title: "每年读完", value: Binding(
+                            get: { Double(yearlyBooks) },
+                            set: { yearlyBooks = Int($0) }
+                        ), range: 5...200, step: 5) { "\(Int($0)) 本" }
+                    }
+                    QiSettingsSection(title: "数据") {
+                        QiRow(icon: "chart.bar", title: "今年已读", value: "\(stats.booksThisYear) 本")
+                        QiDivider()
+                        Button(role: .destructive) {
+                            stats.clearAll()
+                            dismiss()
+                        } label: {
+                            Text("清空统计数据")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(ZJ.error)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .background(QiBackground())
+            .navigationTitle("阅读目标")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("保存") {
+                        stats.dailyGoalMinutes = dailyMinutes
+                        stats.yearlyGoalBooks = yearlyBooks
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+                ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() } }
+            }
+            .onAppear {
+                dailyMinutes = stats.dailyGoalMinutes
+                yearlyBooks = stats.yearlyGoalBooks
+            }
+        }
     }
 }
