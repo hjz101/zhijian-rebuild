@@ -499,12 +499,16 @@ final class ReaderViewModel {
             var iterator = images.makeIterator()
             for _ in 0..<min(3, images.count) {
                 if let item = iterator.next() {
-                    group.addTask { _ = await ReaderImageCache.store.image(for: item.url) }
+                    group.addTask { _ = await ReaderImageCache.store.image(for: item.url,
+                                                                               headers: item.headers,
+                                                                               imageDecode: item.imageDecode) }
                 }
             }
             while await group.next() != nil {
                 if let item = iterator.next() {
-                    group.addTask { _ = await ReaderImageCache.store.image(for: item.url) }
+                    group.addTask { _ = await ReaderImageCache.store.image(for: item.url,
+                                                                           headers: item.headers,
+                                                                           imageDecode: item.imageDecode) }
                 }
             }
         }

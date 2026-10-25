@@ -265,6 +265,27 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webdav-mirror-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if ProcessInfo.processInfo.arguments.contains("-webViewJSExecTest") {
+            Task {
+                let executor = WebViewJSExecutor()
+                var lines: [String] = []
+                do {
+                    let sum = try await Task.detached { try executor.evaluate("1+2*3") }.value
+                    lines.append("sum=\(sum) (期望 7)")
+                } catch {
+                    lines.append("sum=✗ \(error.localizedDescription)")
+                }
+                do {
+                    let obj = try await Task.detached { try executor.evaluate("JSON.stringify({a:1,b:'x'})") }.value
+                    lines.append("json=\(obj) (期望 {\"a\":1,\"b\":\"x\"})")
+                } catch {
+                    lines.append("json=✗ \(error.localizedDescription)")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webview-js-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+                NSLog("[WebViewJS] %@", lines.joined(separator: " | "))
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-archiveImportTest") {
             let fm = FileManager.default
             let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]

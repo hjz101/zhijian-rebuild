@@ -96,6 +96,10 @@ struct SettingsView: View {
                 showShelfLayout = true
             }
             QiDivider()
+            row("globe", "语言 / Language", value: LocalizationManager.shared.language.name) {
+                LocalizationManager.shared.language = LocalizationManager.shared.language == .zh ? .en : .zh
+            }
+            QiDivider()
             row("network.slash", "网络代理",
                 value: ProxySettingsStore.shared.enabled ? ProxySettingsStore.shared.host : "未启用") {
                 showProxy = true

@@ -16,6 +16,7 @@ struct ExploreView: View {
     @State private var error: String?
     @State private var hasMore = true
     @State private var detail: SourceHit?
+    @State private var layoutMode: Int = 0 // 0 列表 / 1 网格
     @State private var notice: String?
     var initialSource: BookSource? = nil
 
@@ -71,36 +72,49 @@ struct ExploreView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(books, id: \.bookUrl) { book in
-                            Button {
-                                detail = SourceHit(book: book, source: selectedSource ?? BookSource())
-                            } label: {
-                                exploreCard(book)
-                            }
-                            .buttonStyle(QiPressStyle())
-                        }
-
-                        if hasMore {
-                            Button {
-                                loadMore()
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    if loadingMore { ProgressView() }
-                                    else { Text("加载更多").font(.system(size: 13, weight: .medium)).foregroundStyle(ZJ.accent) }
-                                    Spacer()
+                    if layoutMode == 0 {
+                        LazyVStack(spacing: 12) {
+                            ForEach(books, id: \.bookUrl) { book in
+                                Button {
+                                    detail = SourceHit(book: book, source: selectedSource ?? BookSource())
+                                } label: {
+                                    exploreCard(book)
                                 }
-                                .padding(.vertical, 12)
-                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .buttonStyle(QiPressStyle())
                             }
-                            .buttonStyle(.plain)
-                            .disabled(loadingMore)
+                        }
+                    } else {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                                  spacing: 16) {
+                            ForEach(books, id: \.bookUrl) { book in
+                                Button {
+                                    detail = SourceHit(book: book, source: selectedSource ?? BookSource())
+                                } label: {
+                                    exploreGridCard(book)
+                                }
+                                .buttonStyle(QiPressStyle())
+                            }
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
+                    if hasMore {
+                        Button {
+                            loadMore()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                if loadingMore { ProgressView() }
+                                else { Text("加载更多").font(.system(size: 13, weight: .medium)).foregroundStyle(ZJ.accent) }
+                                Spacer()
+                            }
+                            .padding(.vertical, 12)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(loadingMore)
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
         }
         .background(QiBackground().ignoresSafeArea())
@@ -120,35 +134,49 @@ struct ExploreView: View {
     }
 
     private var sourceBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(exploreSources) { source in
-                    Button {
-                        selectedSource = source
-                        Task { await loadCategories() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(source.bookSourceName).font(.system(size: 12, weight: .medium))
-                            if loginStore.state(for: source.bookSourceUrl) != nil {
-                                Image(systemName: "person.crop.circle.badge.checkmark").font(.system(size: 9))
-                            }
-                        }
-                        .padding(.horizontal, 11).padding(.vertical, 7)
-                        .foregroundStyle(selectedSource?.bookSourceUrl == source.bookSourceUrl ? .white : ZJ.textSecondary)
-                        .background {
-                            ZStack {
-                                Capsule().fill(.ultraThinMaterial)
-                                if selectedSource?.bookSourceUrl == source.bookSourceUrl {
-                                    Capsule().fill(ZJ.accent)
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(exploreSources) { source in
+                        Button {
+                            selectedSource = source
+                            Task { await loadCategories() }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(source.bookSourceName).font(.system(size: 12, weight: .medium))
+                                if loginStore.state(for: source.bookSourceUrl) != nil {
+                                    Image(systemName: "person.crop.circle.badge.checkmark").font(.system(size: 9))
                                 }
                             }
+                            .padding(.horizontal, 11).padding(.vertical, 7)
+                            .foregroundStyle(selectedSource?.bookSourceUrl == source.bookSourceUrl ? .white : ZJ.textSecondary)
+                            .background {
+                                ZStack {
+                                    Capsule().fill(.ultraThinMaterial)
+                                    if selectedSource?.bookSourceUrl == source.bookSourceUrl {
+                                        Capsule().fill(ZJ.accent)
+                                    }
+                                }
+                            }
+                            .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
                         }
-                        .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, ZJ.pageMargin)
             }
-            .padding(.horizontal, ZJ.pageMargin)
+            Button {
+                layoutMode = layoutMode == 0 ? 1 : 0
+            } label: {
+                Image(systemName: layoutMode == 0 ? "square.grid.2x2" : "list.bullet")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ZJ.textPrimary)
+                    .frame(width: 36, height: 30)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 12)
         }
         .padding(.vertical, 6)
     }
@@ -181,6 +209,35 @@ struct ExploreView: View {
             .padding(.horizontal, ZJ.pageMargin)
         }
         .padding(.bottom, 6)
+    }
+
+    private func exploreGridCard(_ book: SourceBook) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(ZJ.bgElev2)
+                AsyncImage(url: coverURL(book)) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "book.closed")
+                            .font(.system(size: 26))
+                            .foregroundStyle(ZJ.textTertiary)
+                    }
+                }
+            }
+            .frame(height: 170)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Text(book.name)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(ZJ.textPrimary)
+                .lineLimit(1)
+            Text(book.author.isEmpty ? (book.kind ?? "未知") : book.author)
+                .font(.system(size: 10))
+                .foregroundStyle(ZJ.textTertiary)
+                .lineLimit(1)
+        }
+        .contentShape(Rectangle())
     }
 
     private func exploreCard(_ book: SourceBook) -> some View {

@@ -35,6 +35,9 @@ enum ReaderTextBuilder {
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .components(separatedBy: "\n")
+        if settings.traditional {
+            lines = lines.map { TraditionalConverter.toTraditional($0) }
+        }
 
         // 去掉正文开头与章节标题重复的一行。
         if !normalizedTitle.isEmpty,

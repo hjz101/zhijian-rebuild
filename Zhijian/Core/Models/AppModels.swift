@@ -256,6 +256,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var longChapterAutoPaged: Bool = true
     /// THEME-V2：自定义阅读配色（启用时覆盖内置主题的画布/正文/强调/chrome 色）
     var customPalette: ReaderCustomPalette? = nil
+    /// qysg 启发：正文简体转繁体
+    var traditional: Bool = false
     /// P2-09：段评气泡样式（颜色 hex / 圆角 / 图标）
     var bubbleColorHex: String = "#E8663D"
     var bubbleCornerRadius: Double = 16
@@ -319,6 +321,7 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         httpsFirst = try container.decodeIfPresent(Bool.self, forKey: .httpsFirst) ?? true
         longChapterAutoPaged = try container.decodeIfPresent(Bool.self, forKey: .longChapterAutoPaged) ?? true
         customPalette = try container.decodeIfPresent(ReaderCustomPalette.self, forKey: .customPalette)
+        traditional = try container.decodeIfPresent(Bool.self, forKey: .traditional) ?? false
         bubbleColorHex = try container.decodeIfPresent(String.self, forKey: .bubbleColorHex) ?? "#E8663D"
         bubbleCornerRadius = try container.decodeIfPresent(Double.self, forKey: .bubbleCornerRadius) ?? 16
         bubbleIcon = try container.decodeIfPresent(String.self, forKey: .bubbleIcon) ?? "💬"

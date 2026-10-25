@@ -497,6 +497,13 @@ struct ReaderSettingsSheet: View {
             }
             .tint(ZJ.accent)
 
+            Toggle(isOn: bind(\.traditional)) {
+                Text("正文繁体")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textPrimary)
+            }
+            .tint(ZJ.accent)
+
             Toggle(isOn: bind(\.longChapterAutoPaged)) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("长章自动分页")

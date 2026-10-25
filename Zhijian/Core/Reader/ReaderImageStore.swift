@@ -109,13 +109,33 @@ final class ReaderImageStore: ObservableObject {
 
     // MARK: - 内部
 
-    private func download(url: String) async -> UIImage? {
+    /// 带自定义 header / 解密选项的下载（qysg 图片协议）
+    func image(for url: String, headers: [String: String] = [:], imageDecode: Bool = false) async -> UIImage? {
+        if let hit = memory[url] { touchMemory(url); return hit }
+        if let cached = loadFromDisk(url) { cacheMemory(url, cached); return cached }
+        guard let image = await download(url: url, extraHeaders: headers) else { return nil }
+        if imageDecode {
+            // 解密占位：需要书源解密函数（js），当前先返回原图；js 执行在后续扩展
+        }
+        return image
+    }
+
+    private func loadFromDisk(_ url: String) -> UIImage? {
+        let file = path(for: url)
+        if let data = try? Data(contentsOf: file), let image = UIImage(data: data) {
+            return image
+        }
+        return nil
+    }
+
+    private func download(url: String, extraHeaders: [String: String] = [:]) async -> UIImage? {
         guard let remote = URL(string: url) else { return nil }
         var request = URLRequest(url: remote)
         request.timeoutInterval = 20
         request.setValue("image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
         request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("https://\(remote.host ?? "")/", forHTTPHeaderField: "Referer")
+        for (key, value) in extraHeaders { request.setValue(value, forHTTPHeaderField: key) }
         guard let (data, response) = try? await URLSession.shared.data(for: request) else { return nil }
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) { return nil }
         guard let image = UIImage(data: data), image.size.width > 1 else { return nil }

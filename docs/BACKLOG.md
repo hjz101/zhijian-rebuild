@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [QYSG-INSPIRED] ✅ 已完成 · 借鉴 qysg/origo-x/栖阅 五项
+- **③ 简繁转换**：`TraditionalConverter` 内嵌常用字表 + 阅读设置「正文繁体」开关 + 正文渲染转换；
+- **① 图片 json 协议**：`<img src="url,{json}">` 单引号 JSON 解析（headers/js/imageDecode）→ ExtractedReaderImage，下载应用自定义 headers（imageDecode 解密函数待书源 JS 执行扩展）；
+- **⑨ 发现网格**：ExploreView 列表/网格（2 列）切换 + 网格卡片；**⑦ 统计**：已有 30 日柱状图，JSON 数据量小不迁 SQLite（文档化）；
+- **④ WebView 执行器**：`WebViewJSExecutor`（离屏 WKWebView + 同步信号量 + 8s 超时）+ `RuleJSSyncExecutor` 协议；`-webViewJSExecTest` 验证 sum=7 / JSON 序列化；正式管线默认 JSC（切换需异步化，文档化）；
+- **⑤ 自检基线 + ⑥ i18n 骨架**：自检扩到 40 项（含简繁/图片协议）；`LocalizationManager`（中/英切换 + 文案表）+ 设置入口；XCTest target 迁移路径文档化（开源后社区补）。
+
 ### [THEME-V2] ✅ 已完成（阶段三）· .qitheme 外部主题包映射
 - `.qitheme`（栖阅 AppTheme ZIP）：解析 AppTheme JSON 54 字段子集（primary/secondary/accent/defaultBackground/readerThemeLight）→ ReaderThemePreset；
 - chrome 色 surface 由背景色亮度自动生成；`ReaderThemePreset.surfaceHex` 新增（含编解码）；

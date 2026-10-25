@@ -119,7 +119,17 @@ enum SelfTestSuite {
                 check("QITheme-import", false, "解析失败")
             }
 
-        // 12) PSL eTLD+1
+        // 12) 简繁转换 + 图片 json 协议
+        check("Traditional", TraditionalConverter.toTraditional("这说时") == "這說時")
+        let (imgURL, imgOpts) = ReaderImageExtractor.splitOptions("http://x.com/a.jpg,{'headers':{'a':'b'},'imageDecode':true}")
+        check("ImageOptions-url", imgURL == "http://x.com/a.jpg", imgURL)
+        check("ImageOptions-headers", (imgOpts["headers"] as? [String: String])?["a"] == "b",
+              "opts=\(imgOpts) url=\(imgURL)")
+        check("ImageOptions-decode", (imgOpts["imageDecode"] as? Bool) == true,
+              "decode=\(imgOpts["imageDecode"] ?? "nil")")
+        check("ImageOptions-plain", ReaderImageExtractor.splitOptions("http://x.com/b.jpg").options.isEmpty)
+
+        // 13) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

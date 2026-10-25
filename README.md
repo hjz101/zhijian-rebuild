@@ -25,6 +25,11 @@
 | 网络代理 | ✅ | HTTP/SOCKS5 代理（仅本 App） |
 | 稳定坐标 | ✅ | 批注前文锚点，重排后重定位 |
 | 外观系统 | ✅ | origo-x seed 方案：任意强调色（色盘/hex/18 色快捷/5 预设）驱动整套色板；外观模式（系统/浅/深） |
+| 简繁转换 | ✅ | 阅读正文一键繁体（内嵌字表） |
+| 图片 json 协议 | ✅ | `<img src="url,{headers,js,imageDecode}">` 单引号 JSON 解析 + 自定义请求头 |
+| 发现网格 | ✅ | 发现页列表/网格切换 |
+| WebView JS 执行器 | ✅ | 离屏 WKWebView 执行书源 JS（JSC 补充模式，`-webViewJSExecTest` 验证） |
+| i18n 骨架 | ✅ | LocalizationManager 中/英切换 + 文案表 |
 | 主题生态 | ✅ | `.zjtheme` / `.red` / `.qitheme` / `.qibubble` 导入；.qitheme 含 chrome 色映射 |
 | 主题系统 v2 | ✅ | 阅读主题 6 套 + 自定义配色编辑器（5 色 + chrome + hex + 深浅）；方案见 docs/THEME-V2.md |
 | 长章稳定性 | ✅ | 滚动模式超长章节自动切分页（>6 万字，可关）；textStorage 复用；`-seedLongTxt` 调试 |
