@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules }
+    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules }
     @EnvironmentObject private var env: AppEnvironment
     @State private var path: [Route] = []
     @State private var showReaderSettings = false
@@ -44,6 +44,7 @@ struct SettingsView: View {
                 case .cookies: CookieManageView()
                 case .cloud: CloudSyncView()
                 case .replaceRules: ReplaceRulesView()
+                case .chapterRules: ChapterRulesView()
                 }
             }
             .sheet(isPresented: $showReaderSettings) {
@@ -95,9 +96,7 @@ struct SettingsView: View {
                 showSources = true
             }
             row("wand.and.stars", "替换净化", value: "\(ReplaceRuleStore.shared.rules.count) 条", route: .replaceRules)
-            row("list.bullet.indent", "目录规则", value: "未接入") {
-                placeholder = "目录规则将随 P0-04 上线：去重、排序、卷名识别。"
-            }
+            row("list.bullet.indent", "目录规则", value: "去重/排序/卷名", route: .chapterRules)
         }
     }
 
@@ -195,6 +194,7 @@ struct SettingsView: View {
         if args.contains("-autoOpenCookies") { path = [.cookies] }
         if args.contains("-autoOpenCloud") { path = [.cloud] }
         if args.contains("-autoOpenReplaceRules") { path = [.replaceRules] }
+        if args.contains("-autoOpenChapterRules") { path = [.chapterRules] }
         if args.contains("-showReaderSettings") { showReaderSettings = true }
         if args.contains("-showAppearance") { showAppearance = true }
     }

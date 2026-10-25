@@ -901,9 +901,9 @@ final class SourcePipeline {
             }
             chapters.append(chapter)
         }
-        // 目录归一化：服务端可能「最新章在前」或多页拼接导致顺序倒置，
-        // 按 (卷号, 章号) 升序稳定排序；卷标题保持原插入位置。
-        return Self.normalizedTOC(chapters)
+        // P0-04 章节规则：去空/去重/卷名识别/倒序/标题清理，再做编号排序。
+        let ruleConfig = await MainActor.run { ChapterRuleStore.shared.config(for: source.bookSourceUrl) }
+        return ChapterRuleEngine.apply(chapters, config: ruleConfig).chapters
     }
 
     // MARK: 阶段 4：正文

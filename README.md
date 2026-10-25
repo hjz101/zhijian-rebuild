@@ -18,6 +18,7 @@
 | 备份/同步 | ✅ | `.zjbk`（ZIP + `manifest.json`，bookshelf/sources/settings/tts_sources/**annotations/paragraph_comments**）导出/恢复；WebDAV（PROPFIND/MKCOL/PUT/GET + Basic Auth）上传/下载/列表；**加密备份**（PBKDF2-SHA256 120k + AES-GCM）；**Cookie 持久化**（`cookies.json`）与 **iCloud KVS** 设置/进度/段评/章末评论/批注同步（未签名时本地镜像降级） |
 | 本地书 | ✅ | TXT 导入（UTF-8/GB18030 探测）+ 自动分章；**EPUB 导入**（ZIP → container/OPF/spine → nav/ncx 标题）与 **EPUB 富文本阅读**（解包原始 XHTML/CSS/图片，WKWebView 渲染 + 主题注入 + 目录/章节切换/进度 + **分页模式**）；**PDF 导入与阅读**（PDFKit）；**漫画 CBZ/ZIP 导入**（横向分页 / 纵向长图、缩放、页码、进度） |
 | 阅读增强 | ✅ | 书签、划线、笔记（分页/滚动均可选中 → 划线/笔记）、笔记列表、目录/书签/笔记三 Tab、换源；**章节标题设计器**（对齐/大小/分隔线·花饰）；**自动高亮规则**（关键词/正则 + 颜色）；**段评**（分页段落气泡 + 整章侧栏）与**章末评论**（章尾按钮/菜单入口，列表/发表、分页加载、点赞/回复/@、时间戳冲突处理）；**段评同能力**；**WebDAV 独立评论同步**（`zhijian-comments.json`，下载→合并→回传）；**EPUB 图片查看器**（点击图片全屏、缩放/双击、分享）；本地 JSON 持久化 |
+| 目录规则 | ✅ | 去重/去空/卷名识别/自动纠正倒序/编号排序/标题清理正则；全局 + 按书源覆盖；示例预览 |
 | 替换净化 | ✅ | `ReplaceRule`（正则/字面量、正文/标题、顺序、1s 超时）；导入/导出 JSON、清洗预览；正文与标题清洗接入远程/本地书 |
 | 发现 / Explore | ✅ | `exploreUrl`（JS/JSON/行文本）+ `ruleExplore`；书源/分类横滑、列表分页、详情、登录态徽标；书架「✨」入口 |
 | 阅读统计 | ✅ | 今日/本周/连续天数、7 日柱状图、总时长/活跃天/日均、书架/书源计数；阅读页停留自动计时 |
@@ -80,6 +81,7 @@ xcrun simctl launch booted com.zhijian.reader
 | `-showAppearance` / `-palette=qingbai\|yuebai\|wulan\|nuansha\|anmo` | 打开外观页 / 切换配色 |
 | `-seedReplaceRules` / `-autoOpenReplaceRules` | 种入示例替换规则 / 打开替换净化 |
 | `-replaceRuleTest` | 替换引擎自检（写 replace-rule-test.txt） |
+| `-chapterRuleTest` / `-autoOpenChapterRules` | 目录规则自检 / 打开目录规则页 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |
 | `-engineSelfTest` | 打开引擎自检（fastjson/Gson/ZIP/WebView） |

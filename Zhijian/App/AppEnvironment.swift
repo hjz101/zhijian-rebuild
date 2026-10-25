@@ -89,6 +89,27 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-chapterRuleTest") {
+            var config = ChapterRuleConfig()
+            config.titleCleanupRegex = "^(正文|最新章节)\\s*"
+            let sample = [
+                SourceChapter(index: 0, title: "第3章 风起", url: "3", updateTime: "", isVolume: false),
+                SourceChapter(index: 1, title: "第1章 入山", url: "1", updateTime: "", isVolume: false),
+                SourceChapter(index: 2, title: "第2章 书庐", url: "2", updateTime: "", isVolume: false),
+                SourceChapter(index: 3, title: "第2章 书庐", url: "2", updateTime: "", isVolume: false),
+                SourceChapter(index: 4, title: "", url: "empty", updateTime: "", isVolume: false),
+                SourceChapter(index: 5, title: "第二卷 远行", url: "v2", updateTime: "", isVolume: false),
+                SourceChapter(index: 6, title: "正文 第4章 夜宿", url: "4", updateTime: "", isVolume: false)
+            ]
+            let result = ChapterRuleEngine.apply(sample, config: config)
+            let lines = [
+                "count=\(result.chapters.count)",
+                "ordered=\(result.chapters.map { ($0.isVolume ? "[卷]" : "") + $0.title }.joined(separator: ","))",
+                "duplicates=\(result.removedDuplicates) empty=\(result.removedEmpty) volumes=\(result.detectedVolumes) reversed=\(result.reversed)"
+            ]
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("chapter-rule-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
         if ProcessInfo.processInfo.arguments.contains("-replaceRuleTest") {
             let rules = [
                 ReplaceRule(name: "删除广告行", pattern: "【广告】.*", replacement: "", isRegex: true, scope: .content),
