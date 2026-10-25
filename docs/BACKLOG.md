@@ -47,6 +47,7 @@
   - POST body 为 JSON 且未声明 Content-Type 时自动补 `application/json`；
   - 发现页分类失败自动跳到下一个分类并顶部提示，不再整页报错；
   - 实测：215 个分类、个性推荐 30 本书、详情页解析成功；目录需番茄账号登录（后端返回「访问被拒绝」）。
+  - 后续（同日）：`java.ajax` 记录末次响应，后端鉴权失败映射为 `-12`；详情页给出「登录该书源」入口；loginUrl 自动 `login()`；loginUi 按钮逐个执行源内 action；表单 POST 补 `application/x-www-form-urlencoded`；JS 错误不再把所有 `is not an object` 误判为「缺失 JS API」。
 - **对应差距**：栖阅 `ExploreFilterEngine` + 分类/筛选/信息流/网格；我们完全缺失。
 - **范围**：
   - 解析 `exploreUrl` / `ruleExplore`（分类、筛选、列表、书籍字段）。

@@ -302,7 +302,7 @@ final class HTTPClient: @unchecked Sendable {
     var onCookiesChanged: (([String: [String: String]]) -> Void)?
 
     private let session: URLSession
-    private let sourceHeaders: [String: String]
+    private var sourceHeaders: [String: String]
     private let logLock = NSLock()
     private var records: [String] = []
 
@@ -321,6 +321,11 @@ final class HTTPClient: @unchecked Sendable {
 
     deinit {
         session.finishTasksAndInvalidate()
+    }
+
+    /// 动态 header 规则（书源 `header` 为 `@js:`/`<js>` 时由 pipeline 求值后回填）
+    func setSourceHeaders(_ headers: [String: String]) {
+        sourceHeaders = headers
     }
 
     /// 请求流水（调试入口展示用）
@@ -437,10 +442,14 @@ final class HTTPClient: @unchecked Sendable {
         // （源里常用 `URL,{method:"POST", body:{...}}`，后端会因此返回 400）
         if let body,
            !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           !mergedHeaders.keys.contains(where: { $0.lowercased() == "content-type" }),
-           let data = body.data(using: .utf8),
-           (try? JSONSerialization.jsonObject(with: data)) != nil {
-            mergedHeaders["Content-Type"] = "application/json; charset=utf-8"
+           !mergedHeaders.keys.contains(where: { $0.lowercased() == "content-type" }) {
+            if let data = body.data(using: .utf8),
+               (try? JSONSerialization.jsonObject(with: data)) != nil {
+                mergedHeaders["Content-Type"] = "application/json; charset=utf-8"
+            } else if body.contains("="), !body.contains("\n"), !body.contains("<") {
+                // 表单登录：email=..&password=..
+                mergedHeaders["Content-Type"] = "application/x-www-form-urlencoded; charset=utf-8"
+            }
         }
 
         return Prepared(
@@ -469,8 +478,13 @@ final class HTTPClient: @unchecked Sendable {
                 note("\(prepared.method) \(prepared.url) → \(response.status) \(response.body.utf8.count)B \(elapsed)ms")
                 onCookiesChanged?(jar.export())
                 if response.isOK { return response }
-                // 4xx 不重试（429 除外）
+                // 4xx 不重试（429 除外）；429 按 Retry-After 或 2.5s 退避
                 if (400..<500).contains(response.status), response.status != 429 { return response }
+                if response.status == 429 {
+                    let retryAfter = response.headers.first { $0.key.lowercased() == "retry-after" }
+                        .flatMap { TimeInterval($0.value) }
+                    Thread.sleep(forTimeInterval: min(8, max(1.5, retryAfter ?? 2.5)))
+                }
                 lastError = SourceEngineError.from(response: response)
             } catch let error as SourceEngineError {
                 let elapsed = Int(Date().timeIntervalSince(started) * 1000)
@@ -763,6 +777,26 @@ final class SourcePipeline {
         let runtime = JSRuntime(source: source, http: client, jar: jar)
         runtime.loginInfo = loginInfo.reduce(into: [:]) { $0[$1.key] = $1.value }
         self.js = runtime
+
+        // 书源 `header` 可以是 JS（很多聚合源用 @js: getSecretKey() 生成签名头），
+        // jsLib 在 runtime 初始化时已注入，这里求值一次并回填到 HTTPClient。
+        if let rawHeader = source.header?.textValue,
+           !rawHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let trimmed = rawHeader.trimmingCharacters(in: .whitespacesAndNewlines)
+            if JSBlock.isScript(trimmed) {
+                let code = JSBlock.unwrap(trimmed)
+                if let value = try? runtime.evaluateJS(code, bindings: RuleBindings()) {
+                    let text = RuleEngine.text(value)
+                    if let parsed = LenientJSON.parse(text) as? [String: Any] {
+                        var dynamic = headers
+                        for (key, item) in parsed { dynamic[key] = RuleEngine.text(item) }
+                        client.setSourceHeaders(dynamic)
+                    } else {
+                        runtime.appendLog("header", "header 规则返回的不是 JSON 对象：\(text.prefix(120))")
+                    }
+                }
+            }
+        }
     }
 
     /// 站点根地址（bookSourceUrl 去掉 `#fragment`）
@@ -920,7 +954,12 @@ final class SourcePipeline {
         guard let listRule = source.ruleToc?.chapterList?.ruleString else {
             throw SourceEngineError.ruleNoResult("ruleToc.chapterList 为空")
         }
-        let items = try rule { try analyzer.analyzeList(listRule, input: content) }
+        let items: [Any]
+        do {
+            items = try rule { try analyzer.analyzeList(listRule, input: content) }
+        } catch {
+            throw rethrowIfAuthRejected(error)
+        }
         guard !items.isEmpty else {
             throw SourceEngineError.emptyContent("目录为空（chapterList 无结果）")
         }
@@ -998,7 +1037,12 @@ final class SourcePipeline {
             throw SourceEngineError.ruleNoResult("ruleContent.content 为空")
         }
         let analyzer = makeAnalyzer(result: response.body, baseURL: response.finalURL, book: book, chapter: chapter)
-        var raw = try rule { try analyzer.analyze(contentRule, input: response.body, asList: false) }
+        var raw: Any
+        do {
+            raw = try rule { try analyzer.analyze(contentRule, input: response.body, asList: false) }
+        } catch {
+            throw rethrowIfAuthRejected(error)
+        }
         if let array = raw as? [Any] {
             raw = array.map { JSONValueUtil.text($0) }.joined(separator: "\n")
         }
@@ -1038,6 +1082,20 @@ final class SourcePipeline {
             isPaywall: paywall,
             paywallHint: paywall ? "站点返回登录/付费提示：规则链路正常，正文被站点拦截" : nil
         )
+    }
+
+    /// 后端用 200 + `{"error":"访问被拒绝"}` 表示未登录：映射为 -12 需要登录。
+    static func authRejected(body: String) -> Bool {
+        guard body.count < 600 else { return false }
+        let markers = ["访问被拒绝", "未登录", "请先登录", "登录已过期", "token", "登录失效", "unauthorized"]
+        return markers.contains { body.lowercased().contains($0.lowercased()) }
+    }
+
+    private func rethrowIfAuthRejected(_ error: Error) -> Error {
+        if case SourceEngineError.jsError = error, Self.authRejected(body: js.lastAjaxBody) {
+            return SourceEngineError.needLogin
+        }
+        return error
     }
 
     /// 严格模式：正文命中付费墙时直接抛 `-12`，方便调用方统一弹登录界面
@@ -1146,8 +1204,34 @@ final class SourcePipeline {
         var bindings = RuleBindings()
         bindings.result = loginInfo
         bindings.sourceName = source.bookSourceName
-        let value = try js.evaluateJS(code, bindings: bindings)
+        // Legado 约定：loginUrl 里只放函数定义，执行时再调用 login()
+        let invocation = "\n;if (typeof login === 'function') { login.apply(this); }"
+        let value = try js.evaluateJS(code + invocation, bindings: bindings)
         var headers = js.loginHeaders
+        if let dictionary = value as? [String: Any] {
+            for (key, item) in dictionary { headers[key] = RuleEngine.text(item) }
+        } else if let text = value as? String,
+                  let parsed = LenientJSON.parse(text) as? [String: Any] {
+            for (key, item) in parsed { headers[key] = RuleEngine.text(item) }
+        }
+        return headers
+    }
+
+    /// 执行 loginUi 里按钮的 action（`login(true)` / `fq_login()` / `sethost()` …），
+    /// 复用 loginUrl 里的函数定义，并把 `java.putLoginHeader` 的结果带回来。
+    func runLoginAction(_ action: String, loginInfo: [String: String]) async throws -> [String: String] {
+        let raw = source.loginUrl?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !raw.isEmpty, !action.isEmpty else { return [:] }
+        let base = Self.loginCode(from: raw)
+        var bindings = RuleBindings()
+        bindings.result = loginInfo
+        bindings.sourceName = source.bookSourceName
+        let value = try js.evaluateJS(base + "\n;" + action, bindings: bindings)
+        return Self.headers(from: value, runtime: js)
+    }
+
+    private static func headers(from value: Any?, runtime: JSRuntime) -> [String: String] {
+        var headers = runtime.loginHeaders
         if let dictionary = value as? [String: Any] {
             for (key, item) in dictionary { headers[key] = RuleEngine.text(item) }
         } else if let text = value as? String,
@@ -1295,6 +1379,8 @@ final class SourcePipeline {
     }
 
     var jsLibStatus: String? { js.jsLibStatus }
+    var lastJSAjaxStatus: Int { js.lastAjaxStatus }
+    var lastJSAjaxBody: String { js.lastAjaxBody }
 
     /// 自检：调用 jsLib 中定义的函数，验证共享脚本已注入。
     func testJsLib() throws -> String {

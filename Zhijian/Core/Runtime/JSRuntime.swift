@@ -27,6 +27,9 @@ final class JSRuntime: RuleJSEvaluating {
     var loginInfo: [String: Any] = [:]
     /// 登录头（java.putLoginHeader 写入；下次请求由 SourcePipeline 合并）。
     var loginHeaders: [String: String] = [:]
+    /// 最近一次 java.ajax 的状态码与响应体（用于把「访问被拒绝」映射为需要登录）。
+    private(set) var lastAjaxStatus: Int = 0
+    private(set) var lastAjaxBody: String = ""
     private var logLines: [String] = []
     /// 当前 JS 求值注入的规则解析器（只在 js 队列内存取）
     private var currentResolver: RuleResolver?
@@ -240,6 +243,8 @@ final class JSRuntime: RuleJSEvaluating {
             guard !url.isEmpty else { return JSValue(nullIn: self.context) }
             do {
                 let response = try self.http.requestSync(url, timeout: 15)
+                self.lastAjaxStatus = response.status
+                self.lastAjaxBody = response.body
                 guard response.isOK else {
                     self.appendLog("java.ajax", "HTTP \(response.status) \(url)")
                     return JSValue(nullIn: self.context)
@@ -1170,10 +1175,9 @@ final class JSRuntime: RuleJSEvaluating {
         let missingMarkers = [
             "unsupportedapi",
             "is not a function",
-            "is not an object",
             "can't find variable",
-            "undefined is not",
-            "referenceerror: can't find"
+            "referenceerror: can't find",
+            "undefined is not a function"
         ]
         if missingMarkers.contains(where: { lowered.contains($0) }) {
             return SourceEngineError.missingAPI(message)

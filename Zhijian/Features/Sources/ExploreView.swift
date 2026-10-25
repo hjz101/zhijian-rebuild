@@ -307,6 +307,11 @@ struct ExploreView: View {
                 }
                 hasMore = !result.isEmpty
                 error = nil
+                if attempts == 0,
+                   ProcessInfo.processInfo.arguments.contains("-exploreOpenFirst"),
+                   let first = result.first {
+                    detail = SourceHit(book: first, source: source)
+                }
                 return
             } catch {
                 // 分类接口失效（站点改版/未登录）时自动尝试后面的分类，避免整页报错。

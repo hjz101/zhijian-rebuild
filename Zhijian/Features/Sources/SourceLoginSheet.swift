@@ -161,12 +161,7 @@ struct SourceLoginSheet: View {
             }
         case "button":
             Button(row.title) {
-                if let action = row.action, action.lowercased().hasPrefix("http"),
-                   let url = URL(string: action) {
-                    UIApplication.shared.open(url)
-                } else {
-                    submit()
-                }
+                performAction(row.action)
             }
         default:
             TextField(row.title, text: Binding(
@@ -214,6 +209,38 @@ struct SourceLoginSheet: View {
                        loginInfo: info,
                        loginHeader: existingHeader,
                        onCookiesChanged: { CookieStore.onChange($0) })
+    }
+
+    /// loginUi 按钮：执行源里的 JS action（HTTP 链接则外部打开）。
+    private func performAction(_ action: String?) {
+        guard let action = action?.trimmingCharacters(in: .whitespacesAndNewlines), !action.isEmpty else {
+            submit()
+            return
+        }
+        if action.lowercased().hasPrefix("http"), let url = URL(string: action) {
+            UIApplication.shared.open(url)
+            return
+        }
+        busy = true
+        Task {
+            defer { busy = false }
+            SourceLoginStore.shared.save(sourceUrl: source.bookSourceUrl,
+                                         loginInfo: info, loginHeader: existingHeader)
+            do {
+                let pipeline = makePipeline()
+                let headers = try await pipeline.runLoginAction(action, loginInfo: info)
+                var merged = existingHeader
+                for (key, value) in headers where !value.isEmpty { merged[key] = value }
+                if merged != existingHeader {
+                    existingHeader = merged
+                    SourceLoginStore.shared.save(sourceUrl: source.bookSourceUrl,
+                                                 loginInfo: info, loginHeader: merged)
+                }
+                present("已执行：\(action)")
+            } catch {
+                present("执行失败：\(error.localizedDescription)")
+            }
+        }
     }
 
     private func submit() {

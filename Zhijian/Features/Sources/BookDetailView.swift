@@ -11,6 +11,8 @@ struct BookDetailView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var added = false
+    @State private var showLogin = false
+    @State private var needsLogin = false
 
     var body: some View {
         NavigationStack {
@@ -37,7 +39,26 @@ struct BookDetailView: View {
                         Text(introText).font(.system(size: 14)).foregroundStyle(ZJ.textSecondary).lineSpacing(4)
                     }
                     if loading { ProgressView().frame(maxWidth: .infinity) }
-                    if let error { Text(error).font(.system(size: 13)).foregroundStyle(.red) }
+                    if let error {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(error).font(.system(size: 13)).foregroundStyle(.red)
+                            if needsLogin {
+                                Text("该书源的目录/正文接口需要账号登录（例如番茄账号）。登录后重新加载即可。")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(ZJ.textSecondary)
+                                Button {
+                                    showLogin = true
+                                } label: {
+                                    Label("登录该书源", systemImage: "person.badge.key")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 14).padding(.vertical, 8)
+                                        .background(ZJ.accent, in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
                     if !chapters.isEmpty {
                         Text("目录（\(chapters.count) 章）").font(.system(size: 16, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
                         ForEach(chapters.prefix(30), id: \.url) { c in
@@ -49,7 +70,7 @@ struct BookDetailView: View {
                     }
                 }.padding(ZJ.pageMargin)
             }
-            .background(ZJ.bgBase.ignoresSafeArea())
+            .background(QiBackground())
             .navigationTitle("书籍详情")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -60,10 +81,18 @@ struct BookDetailView: View {
             }
             .task {
                 await load()
+                if ProcessInfo.processInfo.arguments.contains("-detailShowLogin") {
+                    showLogin = true
+                }
                 if ProcessInfo.processInfo.arguments.contains("-autoAddHit"), !chapters.isEmpty {
                     addToShelf()
                 }
             }
+        }
+        .fullScreenCover(isPresented: $showLogin, onDismiss: {
+            Task { await load() }
+        }) {
+            SourceLoginSheet(source: source)
         }
     }
 
@@ -90,6 +119,9 @@ struct BookDetailView: View {
             info = i; chapters = toc
         } catch {
             self.error = error.localizedDescription
+            let text = error.localizedDescription
+            needsLogin = text.contains("[-12]") || text.contains("需要登录")
+                || text.contains("访问被拒绝") || text.contains("登录")
         }
         loading = false
     }

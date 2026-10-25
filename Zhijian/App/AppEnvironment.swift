@@ -172,6 +172,37 @@ final class AppEnvironment: ObservableObject {
                 try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("explore-diag.txt"), atomically: true, encoding: .utf8)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-sourceLoginTest") {
+            Task { @MainActor in
+                var lines: [String] = []
+                guard let source = self.sources.sources.first(where: { ($0.bookSourceUrl).contains("shushan") || $0.bookSourceName.contains("书山") }) else {
+                    lines.append("no shushan source")
+                    try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("source-login-test.txt"), atomically: true, encoding: .utf8)
+                    return
+                }
+                lines.append("source=\(source.bookSourceName) loginUi=\((source.loginUi ?? "").isEmpty ? "nil" : "yes")")
+                let pipeline = SourcePipeline(source: source,
+                                              initialCookies: CookieStore.shared.snapshot(),
+                                              loginInfo: ["邮箱": "demo@example.com", "密码": "wrong-pass"],
+                                              loginHeader: [:],
+                                              onCookiesChanged: { CookieStore.onChange($0) })
+                do {
+                    let headers = try await pipeline.runLoginScript()
+                    lines.append("headers=\(headers.keys.sorted().joined(separator: ","))")
+                } catch {
+                    lines.append("login error=\(error.localizedDescription)")
+                }
+                lines.append("ajaxStatus=\(pipeline.lastJSAjaxStatus)")
+                lines.append("ajaxBody=\(pipeline.lastJSAjaxBody.prefix(120))")
+                do {
+                    let headers = try await pipeline.runLoginAction("get_cx()", loginInfo: ["邮箱": "demo@example.com", "密码": "wrong-pass"])
+                    lines.append("action headers=\(headers.keys.joined(separator: ","))")
+                } catch {
+                    lines.append("action error=\(error.localizedDescription)")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("source-login-test.txt"), atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-themePackageTest") {
             Task { @MainActor in
                 var lines: [String] = []
