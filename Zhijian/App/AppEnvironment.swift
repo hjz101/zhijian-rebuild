@@ -312,6 +312,28 @@ final class BookStore: ObservableObject {
         guard let idx = books.firstIndex(where: { $0.id == book.id }) else { return }
         books[idx] = book; persist()
     }
+    func setGroup(_ id: String, group: String?) {
+        guard let idx = books.firstIndex(where: { $0.id == id }) else { return }
+        books[idx].groupName = (group?.isEmpty == false) ? group : nil
+        persist()
+    }
+
+    func renameGroup(from old: String, to new: String) {
+        let value = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        for idx in books.indices where books[idx].groupName == old {
+            books[idx].groupName = value
+        }
+        persist()
+    }
+
+    func deleteGroup(_ name: String) {
+        for idx in books.indices where books[idx].groupName == name {
+            books[idx].groupName = nil
+        }
+        persist()
+    }
+
     func markRead(_ id: String, chapter: Int, page: Int, ratio: Double) {
         guard let idx = books.firstIndex(where: { $0.id == id }) else { return }
         books[idx].currentChapterIndex = chapter

@@ -13,6 +13,10 @@ struct ShelfView: View {
     @State private var sourceSearchKeyword = ""
     @AppStorage("shelf.listMode") private var listMode = false
     @AppStorage("shelf.columns") private var columns = 3
+    @State private var selectedGroup: String? = nil
+    @State private var showGroupSheet = false
+    @State private var moveTarget: Book?
+    @AppStorage("shelf.sort") private var sortKey = "recent"
 
     private var importTypes: [UTType] {
         var types: [UTType] = [.plainText, .text, .pdf]
@@ -22,12 +26,31 @@ struct ShelfView: View {
         return types
     }
 
+    private var allGroups: [String] {
+        Array(Set(env.books.books.compactMap { $0.groupName }.filter { !$0.isEmpty })).sorted()
+    }
+
     private var books: [Book] {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !keyword.isEmpty else { return env.books.books }
-        return env.books.books.filter {
-            $0.title.localizedCaseInsensitiveContains(keyword)
-                || $0.author.localizedCaseInsensitiveContains(keyword)
+        var list = env.books.books
+        if let group = selectedGroup {
+            list = list.filter { $0.groupName == group }
+        }
+        if !keyword.isEmpty {
+            list = list.filter {
+                $0.title.localizedCaseInsensitiveContains(keyword)
+                    || $0.author.localizedCaseInsensitiveContains(keyword)
+            }
+        }
+        switch sortKey {
+        case "added":
+            return list.sorted { $0.addedAt > $1.addedAt }
+        case "title":
+            return list.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        default:
+            return list.sorted {
+                ($0.lastReadAt ?? $0.addedAt) > ($1.lastReadAt ?? $1.addedAt)
+            }
         }
     }
 
@@ -37,6 +60,7 @@ struct ShelfView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     searchBar
+                    groupBar
                     if books.isEmpty {
                         emptyState
                     } else if listMode {
@@ -52,6 +76,12 @@ struct ShelfView: View {
             .background(QiBackground())
             .navigationBarHidden(true)
             .onAppear(perform: handleLaunchArgs)
+            .sheet(isPresented: $showGroupSheet) {
+                ShelfGroupSheet().environmentObject(env)
+            }
+            .sheet(item: $moveTarget) { book in
+                GroupPickerSheet(book: book).environmentObject(env)
+            }
             .sheet(isPresented: $showSources) {
                 SourcesView(initialKeyword: sourceSearchKeyword).environmentObject(env)
             }
@@ -89,6 +119,19 @@ struct ShelfView: View {
                 .font(.system(size: 36, weight: .bold))
                 .foregroundStyle(ZJ.textPrimary)
             Spacer()
+            Menu {
+                Picker("排序", selection: $sortKey) {
+                    Text("最近阅读").tag("recent")
+                    Text("添加时间").tag("added")
+                    Text("书名").tag("title")
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ZJ.textSecondary)
+                    .frame(width: 34, height: 34)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
             Button(editing ? "完成" : "编辑") {
                 withAnimation(.easeInOut(duration: 0.2)) { editing.toggle() }
             }
@@ -151,6 +194,14 @@ struct ShelfView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
+                        Button { moveTarget = book } label: {
+                            Label("移动到分组", systemImage: "folder")
+                        }
+                        if book.groupName != nil {
+                            Button { env.books.setGroup(book.id, group: nil) } label: {
+                                Label("移出分组", systemImage: "folder.badge.minus")
+                            }
+                        }
                         Button(role: .destructive) { env.books.remove(book) } label: {
                             Label("移出书架", systemImage: "trash")
                         }
@@ -170,6 +221,37 @@ struct ShelfView: View {
                 }
             }
         }
+    }
+
+    private var groupBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip("全部", active: selectedGroup == nil) { selectedGroup = nil }
+                ForEach(allGroups, id: \.self) { group in
+                    chip(group, active: selectedGroup == group) { selectedGroup = group }
+                }
+                Button { showGroupSheet = true } label: {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(ZJ.textSecondary)
+                        .padding(.horizontal, 9).padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func chip(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: active ? .semibold : .regular))
+                .foregroundStyle(active ? .white : ZJ.textSecondary)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(active ? ZJ.accent : Color.white.opacity(0.55), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.6), lineWidth: 0.6))
+        }
+        .buttonStyle(.plain)
     }
 
     private var bookList: some View {
@@ -218,6 +300,14 @@ struct ShelfView: View {
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
+                    Button { moveTarget = book } label: {
+                        Label("移动到分组", systemImage: "folder")
+                    }
+                    if book.groupName != nil {
+                        Button { env.books.setGroup(book.id, group: nil) } label: {
+                            Label("移出分组", systemImage: "folder.badge.minus")
+                        }
+                    }
                     Button(role: .destructive) { env.books.remove(book) } label: {
                         Label("移出书架", systemImage: "trash")
                     }

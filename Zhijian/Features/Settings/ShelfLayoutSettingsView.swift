@@ -4,6 +4,7 @@ import SwiftUI
 struct ShelfLayoutSettingsView: View {
     @AppStorage("shelf.listMode") private var listMode = false
     @AppStorage("shelf.columns") private var columns = 3
+    @AppStorage("shelf.sort") private var sortKey = "recent"
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var paletteObserver = PaletteObserver.shared
 
@@ -34,6 +35,17 @@ struct ShelfLayoutSettingsView: View {
                             ), in: 2...5, step: 1)
                             .tint(ZJ.accent)
                         }
+                    }
+                    .qiCard()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("默认排序").font(.system(size: 13, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                        Picker("排序", selection: $sortKey) {
+                            Text("最近阅读").tag("recent")
+                            Text("添加时间").tag("added")
+                            Text("书名").tag("title")
+                        }
+                        .pickerStyle(.segmented)
                     }
                     .qiCard()
 
