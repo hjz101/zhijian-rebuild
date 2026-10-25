@@ -17,6 +17,7 @@ struct ReaderThemePackageView: View {
     private var types: [UTType] {
         var result: [UTType] = [.json, .zip, .data]
         if let zj = UTType(filenameExtension: "zjtheme") { result.append(zj) }
+        if let red = UTType(filenameExtension: "red") { result.append(red) }
         return result
     }
 
@@ -61,9 +62,20 @@ struct ReaderThemePackageView: View {
                           allowsMultipleSelection: false) { result in
                 do {
                     guard let url = try result.get().first else { return }
-                    let preset = try store.importPackage(url: url)
-                    store.apply(preset, to: env.settings)
-                    present("已导入并应用：\(preset.name)")
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let data = try Data(contentsOf: url)
+                    if url.pathExtension.lowercased() == "red" {
+                        let preset = try ExternalThemeImporter.importRed(data: data,
+                                                                          fallbackName: url.deletingPathExtension().lastPathComponent)
+                        store.upsert(preset)
+                        store.apply(preset, to: env.settings)
+                        present("已导入 .red 主题并应用：\(preset.name)")
+                    } else {
+                        let preset = try store.importPackage(url: url)
+                        store.apply(preset, to: env.settings)
+                        present("已导入并应用：\(preset.name)")
+                    }
                 } catch {
                     present("导入失败：\(error.localizedDescription)")
                 }

@@ -447,6 +447,11 @@
 
 ## P4 · 发布与合规
 
+### [R2-05] ✅ 已完成 · 外部主题/气泡格式导入
+- `.red`（Red App 主题归档，裸 JSON 或 ZIP theme.json）→ ReaderThemePreset（light 侧映射 + `#AARRGGBB` 归一）；
+- `.qibubble` JSON → ReadingSettings 气泡颜色/圆角/图标；阅读设置「段评气泡」新增导入入口；
+- 自检 29 项全通过（含 Red-normalize / Bubble-color/corner/icon）。
+
 ### [R2-01] ✅ 已完成 · Cookie eTLD+1（精简 PSL）
 - `PublicSuffixList`：多段后缀（com.cn/co.uk 等）+ 常见单段后缀；`CookieJar.header` 改为按 eTLD+1 共享 Cookie（a.example.com 与 b.example.com 不再串）。
 

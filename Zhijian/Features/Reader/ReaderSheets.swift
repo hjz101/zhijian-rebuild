@@ -253,6 +253,7 @@ struct ReaderSettingsSheet: View {
     @State private var showTitleDesigner = false
     @State private var showBackground = false
     @State private var showThemePackages = false
+    @State private var showBubbleImport = false
 
     private var theme: ReaderTheme { settingsStore.settings.theme }
     private var settings: ReadingSettings { settingsStore.settings }
@@ -536,9 +537,16 @@ struct ReaderSettingsSheet: View {
         }
     }
 
-    // MARK: 气泡样式（P2-09）
+    // MARK: 气泡样式（P2-09 / R2-05）
 
     private var bubbleSection: some View {
+        bubbleSectionBody
+            .sheet(isPresented: $showBubbleImport) {
+                BubbleImportSheet(settingsStore: settingsStore)
+            }
+    }
+
+    private var bubbleSectionBody: some View {
         section("段评气泡") {
             HStack {
                 Text("颜色").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
@@ -582,6 +590,17 @@ struct ReaderSettingsSheet: View {
                 }
             }
             .padding(.vertical, 4)
+
+            Button {
+                showBubbleImport = true
+            } label: {
+                HStack {
+                    Text("导入 .qibubble 样式").font(.system(size: 12, weight: .medium)).foregroundStyle(ZJ.accent)
+                    Spacer()
+                    Image(systemName: "square.and.arrow.down").font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -633,5 +652,62 @@ struct ReaderSettingsSheet: View {
             get: { settingsStore.settings[keyPath: keyPath] },
             set: { settingsStore.settings[keyPath: keyPath] = $0 }
         )
+    }
+}
+
+// MARK: - .qibubble 导入（R2-05）
+
+private struct BubbleImportSheet: View {
+    let settingsStore: SettingsStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var showImporter = false
+    @State private var alert: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.system(size: 40)).foregroundStyle(ZJ.accent)
+                Text("导入栖阅/第三方 .qibubble 段评气泡样式 JSON")
+                    .font(.system(size: 13)).foregroundStyle(ZJ.textSecondary)
+                Button {
+                    showImporter = true
+                } label: {
+                    Label("选择 .qibubble 文件", systemImage: "doc.badge.plus")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(ZJ.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(QiBackground())
+            .navigationTitle("导入气泡样式")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("完成") { dismiss() } } }
+            .fileImporter(isPresented: $showImporter,
+                          allowedContentTypes: [.json, .data],
+                          allowsMultipleSelection: false) { result in
+                do {
+                    guard let url = try result.get().first else { return }
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let data = try Data(contentsOf: url)
+                    let style = try ExternalThemeImporter.importBubble(data: data)
+                    var settings = settingsStore.settings
+                    settings.bubbleColorHex = style.colorHex
+                    settings.bubbleCornerRadius = style.corner
+                    settings.bubbleIcon = style.icon
+                    settingsStore.settings = settings
+                    dismiss()
+                } catch {
+                    alert = error.localizedDescription
+                }
+            }
+            .alert(alert ?? "", isPresented: Binding(get: { alert != nil }, set: { if !$0 { alert = nil } })) {
+                Button("好", role: .cancel) { alert = nil }
+            }
+        }
     }
 }

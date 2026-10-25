@@ -85,7 +85,25 @@ enum SelfTestSuite {
         check("TOCNum-arabic", SourcePipeline.parseTOCNumber("12") == 12)
         check("TOCNum-chinese", SourcePipeline.parseTOCNumber("十二") == 12)
 
-        // 10) PSL eTLD+1
+        // 10) 外部格式导入（.red / .qibubble）
+        let redJSON = "{\"name\":\"墨夜红\",\"light\":{\"backgroundColor\":\"#FF1A1A\",\"textColor\":\"#FFFFFF\",\"accentColor\":\"#FFD700\"},\"dark\":{\"backgroundColor\":\"#0A0A0A\"}}"
+        if let red = try? ExternalThemeImporter.importRed(data: Data(redJSON.utf8), fallbackName: "red") {
+            check("Red-normalize", ExternalThemeImporter.normalizeHex("#A0FF1A1A") == "#FF1A1A")
+            check("Red-name", red.name == "墨夜红")
+            check("Red-bg", red.backgroundHex == "#FF1A1A")
+        } else {
+            check("Red-import", false, "解析失败")
+        }
+        let bubbleJSON = "{\"colorHex\":\"#5C6BC0\",\"cornerRadius\":20,\"icon\":\"💭\"}"
+        if let bubble = try? ExternalThemeImporter.importBubble(data: Data(bubbleJSON.utf8)) {
+            check("Bubble-color", bubble.colorHex == "#5C6BC0")
+            check("Bubble-corner", bubble.corner == 20)
+            check("Bubble-icon", bubble.icon == "💭")
+        } else {
+            check("Bubble-import", false, "解析失败")
+        }
+
+        // 11) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

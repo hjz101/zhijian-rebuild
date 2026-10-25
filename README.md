@@ -24,6 +24,7 @@
 | 源速度统计 | ✅ | 搜索耗时均值持久化，换源排序 |
 | 网络代理 | ✅ | HTTP/SOCKS5 代理（仅本 App） |
 | 稳定坐标 | ✅ | 批注前文锚点，重排后重定位 |
+| 外部主题格式 | ✅ | `.red` 主题归档导入（裸 JSON/ZIP）、`.qibubble` 气泡样式导入 |
 | Cookie eTLD+1 | ✅ | 精简 PSL 公共后缀，同站子域共享、跨站不串 Cookie |
 | 凭据安全 | ✅ | WebDAV 密码 / TTS 登录 Header 迁移 iOS Keychain；未签名环境回退明文并提示；`-keychainTest` 自检 |
 | 书源登录/鉴权 | ✅ | loginUrl 自动调用 `login()`；loginUi 按钮执行源内 action（`login(true)`/`fq_login()`/`sethost()`…）；表单 POST 自动 `x-www-form-urlencoded`；后端 `{"error":"访问被拒绝"}` 映射为 -12 并给登录引导 |
