@@ -37,16 +37,37 @@ struct RootView: View {
             paletteID = ZJPaletteStore.currentID
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            if UserDefaults.standard.object(forKey: "appIcon.followPalette") == nil {
-                UserDefaults.standard.set(true, forKey: "appIcon.followPalette")
+            switch phase {
+            case .active:
+                if UserDefaults.standard.object(forKey: "appIcon.followPalette") == nil {
+                    UserDefaults.standard.set(true, forKey: "appIcon.followPalette")
+                }
+                let enabled = UserDefaults.standard.bool(forKey: "appIcon.followPalette")
+                if !appIconApplied {
+                    appIconApplied = true
+                    AppIconController.apply(paletteID: ZJPaletteStore.currentID, enabled: enabled)
+                }
+                _ = enabled
+                // P2-01：daily / weekly 周期到达时补跑自动备份
+                if AutoBackupStore.shared.shouldRunNow() {
+                    let backup = AppEnvironment.shared.backup
+                    Task {
+                        let result = await AutoBackupRunner.runNow(backup: backup)
+                        NSLog("[AutoBackup] %@", result)
+                    }
+                }
+            case .background:
+                // P2-01：退出 App 时自动备份
+                if AutoBackupStore.shared.frequency == .onExit {
+                    let backup = AppEnvironment.shared.backup
+                    Task {
+                        let result = await AutoBackupRunner.runNow(backup: backup)
+                        NSLog("[AutoBackup] %@", result)
+                    }
+                }
+            default:
+                break
             }
-            let enabled = UserDefaults.standard.bool(forKey: "appIcon.followPalette")
-            if !appIconApplied {
-                appIconApplied = true
-                AppIconController.apply(paletteID: ZJPaletteStore.currentID, enabled: enabled)
-            }
-            _ = enabled
         }
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)

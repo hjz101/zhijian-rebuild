@@ -9,6 +9,9 @@ struct CloudSyncView: View {
     @State private var working = false
     @State private var syncingComments = false
     @State private var commentSyncMessage = "尚未同步"
+    @ObservedObject private var autoBackup = AutoBackupStore.shared
+    @State private var remoteFiles: [URL] = []
+    @State private var restoringFile: URL?
 
     var body: some View {
         ScrollView {
@@ -69,6 +72,41 @@ struct CloudSyncView: View {
                     footer("上传/下载 zhijian-comments.json；合并按 updatedAt 新版本优先，删除以墓碑同步。")
                 }
 
+                QiSettingsSection(title: "自动备份") {
+                    QiToggleRow(icon: "clock.badge.checkmark", title: "自动备份", isOn: Binding(
+                        get: { autoBackup.frequency != .never },
+                        set: { on in autoBackup.frequency = on ? .daily : .never }
+                    ))
+                    QiDivider()
+                    HStack(spacing: 8) {
+                        Text("频率").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                        Spacer()
+                        ForEach([AutoBackupFrequency.daily, AutoBackupFrequency.weekly, AutoBackupFrequency.onExit], id: \.self) { f in
+                            Button(f.name) { autoBackup.frequency = f }
+                                .font(.system(size: 11, weight: autoBackup.frequency == f ? .semibold : .regular))
+                                .foregroundStyle(autoBackup.frequency == f ? .white : ZJ.textSecondary)
+                                .padding(.horizontal, 9).padding(.vertical, 4)
+                                .background(autoBackup.frequency == f ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
+                                .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    QiDivider()
+                    actionRow("立即备份一次", icon: "bolt", disabled: working) {
+                        Task {
+                            let result = await AutoBackupRunner.runNow(backup: env.backup)
+                            present(result)
+                        }
+                    }
+                    if let last = autoBackup.lastAutoBackupAt {
+                        QiDivider()
+                        QiRow(icon: "clock", title: "上次自动备份",
+                              value: last.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    footer("退出 App、每天或每周自动导出 .zjbk 到 iCloud Drive；iCloud 不可用时报到本地 Documents/ZhijianAutoBackup。")
+                }
+
                 QiSettingsSection(title: "iCloud Drive 备份") {
                     QiRow(icon: "externaldrive.badge.icloud", title: "iCloud Drive",
                           value: cloud.driveAvailable ? "可用" : "不可用")
@@ -77,6 +115,34 @@ struct CloudSyncView: View {
                               icon: "arrow.up.doc.on.clipboard",
                               disabled: working) {
                         mirrorBackup()
+                    }
+                    QiDivider()
+                    actionRow(remoteFiles.isEmpty ? "查看云端备份" : "云端备份（\(remoteFiles.count)）",
+                              icon: "externaldrive", disabled: !cloud.driveAvailable) {
+                        refreshRemoteFiles()
+                    }
+                    ForEach(remoteFiles, id: \.absoluteString) { url in
+                        QiDivider()
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(url.lastPathComponent).font(.system(size: 12)).foregroundStyle(ZJ.textPrimary).lineLimit(1)
+                                if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                                   let date = attrs[.modificationDate] as? Date {
+                                    Text(date.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.system(size: 10)).foregroundStyle(ZJ.textTertiary)
+                                }
+                            }
+                            Spacer()
+                            Button {
+                                restoringFile = url
+                            } label: {
+                                Image(systemName: "arrow.counterclockwise.circle")
+                                    .font(.system(size: 16)).foregroundStyle(ZJ.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
                     }
                     footer(cloud.driveAvailable
                            ? "备份文件会写入 iCloud Drive/指尖阅读/Documents。"
@@ -92,6 +158,16 @@ struct CloudSyncView: View {
         .navigationBarTitleDisplayMode(.inline)
         .alert(message ?? "", isPresented: $showMessage) {
             Button("好", role: .cancel) {}
+        }
+        .confirmationDialog("从云端恢复会覆盖当前书架/书源/设置，确定？",
+                            isPresented: Binding(get: { restoringFile != nil },
+                                                 set: { if !$0 { restoringFile = nil } }),
+                            titleVisibility: .visible) {
+            Button("恢复", role: .destructive) {
+                if let url = restoringFile { restoreFromCloud(url) }
+                restoringFile = nil
+            }
+            Button("取消", role: .cancel) { restoringFile = nil }
         }
     }
 
@@ -158,6 +234,27 @@ struct CloudSyncView: View {
             } catch {
                 commentSyncMessage = "失败：\(error.localizedDescription)"
                 present("评论同步失败：\(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func refreshRemoteFiles() {
+        guard let dir = cloud.driveDirectory() else { remoteFiles = []; return }
+        let items = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        remoteFiles = items.filter { $0.pathExtension.lowercased() == "zjbk" }
+            .sorted { (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                > (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast }
+    }
+
+    private func restoreFromCloud(_ url: URL) {
+        working = true
+        Task {
+            defer { working = false }
+            do {
+                try await env.backup.restore(url: url)
+                present("已从 iCloud 备份恢复")
+            } catch {
+                present("恢复失败：\(error.localizedDescription)")
             }
         }
     }

@@ -303,12 +303,20 @@
 
 ## P2 · 同步、数据完整性与安全
 
-### [P2-01] iCloud 文档容器 + 自动备份
+### [P2-01] ✅ 已完成 · iCloud 文档容器 + 自动备份
 - **对应差距**：栖阅文档容器 + never/onExit/daily/weekly；我们仅 KVS。
 - **范围**：ubiquity 容器、备份镜像、自动备份调度、恢复入口。
 - **验收**：签名构建下 iCloud Drive 可见备份；自动备份按频率执行。
 - **估算**：3–5 天
 - **依赖**：Apple 签名/容器
+- **完成情况（2026-10-25）**：
+  - `AutoBackupStore`：频率 never/onExit/daily/weekly + 上次备份时间 + 结果记录；
+  - `AutoBackupRunner`：导出 .zjbk 到 iCloud Drive（不可用时落 Documents/ZhijianAutoBackup）；
+  - 挂接 `scenePhase`：进入前台按 daily/weekly 周期补跑；退后台 onExit 触发；
+  - iCloud 恢复入口：列出云端 .zjbk（按时间倒序），确认后 `BackupService.restore` 整体恢复；
+  - 设置页 iCloud：自动备份开关 + 频率 chip + 立即备份 + 上次时间；云端备份查看/恢复；
+  - 实测：未签名环境自动落到 Documents/ZhijianAutoBackup/zhijian-*.zjbk；签名构建走 iCloud Drive；
+  - 调试：`-autoBackupTest`。
 
 ### [P2-02] WebDAV 目录增量镜像
 - **对应差距**：栖阅 `mirrorDirectory/needsCopy`；我们只传单个 `.zjbk`。

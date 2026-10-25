@@ -241,6 +241,28 @@ final class AppEnvironment: ObservableObject {
                 try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("explore-diag.txt"), atomically: true, encoding: .utf8)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-autoBackupTest") {
+            Task { @MainActor in
+                let store = AutoBackupStore.shared
+                store.frequency = .daily
+                let result = await AutoBackupRunner.runNow(backup: self.backup)
+                var lines = [
+                    "result=\(result)",
+                    "last=\(store.lastAutoBackupAt?.formatted() ?? "nil")",
+                    "driveAvailable=\(CloudSyncService.shared.driveAvailable)"
+                ]
+                if let dir = CloudSyncService.shared.driveDirectory() {
+                    let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+                    lines.append("cloudFiles=\(files.map(\.lastPathComponent))")
+                }
+                let fallback = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("ZhijianAutoBackup", isDirectory: true)
+                let fbFiles = (try? FileManager.default.contentsOfDirectory(at: fallback, includingPropertiesForKeys: nil)) ?? []
+                lines.append("fallbackFiles=\(fbFiles.map(\.lastPathComponent))")
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("auto-backup-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-keychainTest") {
             var lines: [String] = []
             KeychainStore.set("secret-密码-123", service: "com.zhijian.test", account: "demo")
