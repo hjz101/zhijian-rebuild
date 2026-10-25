@@ -91,7 +91,14 @@ final class ReaderViewModel {
 
     var pageCount: Int { pages.count }
 
-    var isPaged: Bool { settings.pageMode == .paged }
+    /// 是否强制分页（滚动模式下超长章节自动切换）
+    private(set) var forcedPagedForLongChapter = false
+    private static let longChapterThreshold = 60_000
+
+    var isPaged: Bool {
+        if settings.pageMode == .scroll, forcedPagedForLongChapter { return true }
+        return settings.pageMode == .paged
+    }
 
     var previousChapterTitle: String? {
         chapters.indices.contains(currentChapterIndex - 1) ? chapters[currentChapterIndex - 1].title : nil
@@ -225,8 +232,12 @@ final class ReaderViewModel {
             var layoutSize = pageSize
             if isTwoPage { layoutSize.width = columnSize(for: pageSize).width }
             columnWidth = layoutSize.width
+            // R2-04：滚动模式下超长章节自动切分页
+            forcedPagedForLongChapter = settings.pageMode == .scroll
+                && settings.longChapterAutoPaged
+                && content.text.count > Self.longChapterThreshold
             var newPages: [ReaderPage] = []
-            if settings.pageMode == .paged, layoutSize.width > 1, layoutSize.height > 1 {
+            if isPaged, layoutSize.width > 1, layoutSize.height > 1 {
                 isPaginating = true
                 let result = await paginator.paginate(
                     bookId: book.id,
@@ -250,7 +261,7 @@ final class ReaderViewModel {
             pendingChapterPosition = nil
             pendingChapterTitle = nil
 
-            if settings.pageMode == .scroll {
+            if settings.pageMode == .scroll && !forcedPagedForLongChapter {
                 switch landing {
                 case .last:
                     scrollRatio = 1

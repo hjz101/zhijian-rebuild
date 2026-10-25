@@ -666,6 +666,20 @@ final class AppEnvironment: ObservableObject {
            !books.books.contains(where: { $0.title == "长章测试" }) {
             _ = try? LocalImportService.shared.importEPUB(url: url, into: books)
         }
+        if ProcessInfo.processInfo.arguments.contains("-seedLongTxt") {
+            let longBody = String(repeating: "山雾未散。阿禾在山道边等我。我数着石阶，一步，两步，风从谷底翻上来。\n", count: 3000)
+            let record = LocalBookRecord(bookId: "demo-long-txt", chapters: [
+                LocalChapterRecord(index: 0, title: "第一章 长卷", text: longBody)
+            ])
+            LocalLibrary.shared.save(record)
+            if !books.books.contains(where: { $0.id == "demo-long-txt" }) {
+                var book = Book.local(title: "长章TXT测试", author: "指尖示例", fileName: "长章TXT测试.txt")
+                book.id = "demo-long-txt"
+                book.totalChapters = 1
+                book.lastChapter = "第一章 长卷"
+                books.add(book)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-seedEpub"),
            let url = Bundle.main.url(forResource: "demo", withExtension: "epub"),
            !books.books.contains(where: { $0.title == "指尖测试书" }) {

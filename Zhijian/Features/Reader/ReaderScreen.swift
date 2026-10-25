@@ -220,6 +220,9 @@ private struct ReaderSurface: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: chromeVisible)
+        .onChange(of: model.forcedPagedForLongChapter) { _, forced in
+            if forced { showToast("长章已自动切换分页模式（可在设置关闭）") }
+        }
         .onChange(of: tts.currentSegmentRange) { _, range in
             updateTTSHighlight(range)
         }

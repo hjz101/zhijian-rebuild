@@ -77,7 +77,8 @@ struct ScrollReaderView: UIViewRepresentable {
             currentResetKey = resetKey
             currentRenderVersion = renderVersion
             ignoreProgressUntil = Date().addingTimeInterval(0.2)
-            textView.attributedText = attributed
+            // 复用 textStorage 避免整章重建（长章滚动更稳）
+            textView.textStorage.setAttributedString(attributed)
             lastTTSRange = nil
             restore(offsetRatio: ratio, in: textView)
         }
@@ -108,7 +109,7 @@ struct ScrollReaderView: UIViewRepresentable {
                                      value: UIColor(red: 0.85, green: 0.64, blue: 0.25, alpha: 0.36),
                                      range: range)
             }
-            textView.attributedText = mutable
+            textView.textStorage.setAttributedString(mutable)
             textView.setContentOffset(offset, animated: false)
             if let range, range.location != NSNotFound, range.length > 0,
                range.location + range.length <= textView.textStorage.length {

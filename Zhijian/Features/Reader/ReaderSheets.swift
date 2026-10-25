@@ -455,6 +455,18 @@ struct ReaderSettingsSheet: View {
             }
             .tint(ZJ.accent)
 
+            Toggle(isOn: bind(\.longChapterAutoPaged)) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("长章自动分页")
+                        .font(.system(size: 13))
+                        .foregroundStyle(ZJ.textPrimary)
+                    Text("滚动模式下超长章节（>6 万字）自动切分页，缓解卡顿")
+                        .font(.system(size: 10))
+                        .foregroundStyle(ZJ.textTertiary)
+                }
+            }
+            .tint(ZJ.accent)
+
             Divider().opacity(0.5)
 
             HStack {

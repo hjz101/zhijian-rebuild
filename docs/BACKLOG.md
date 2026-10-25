@@ -447,6 +447,12 @@
 
 ## P4 · 发布与合规
 
+### [R2-04] ✅ 已完成 · 长章稳定性（滚动自动分页）
+- 滚动模式超长章节（>6 万字）自动切分页（`longChapterAutoPaged` 开关，默认开）；
+- ScrollReaderView 复用 textStorage 避免整章重建；
+- 实测：9 万字 TXT 章节滚动模式下自动切成 376 页分页，避免整章 UITextView 卡顿；
+- 调试：`-scrollMode -seedLongTxt -autoOpenBookTitle=长章TXT测试`。
+
 ### [R2-05] ✅ 已完成 · 外部主题/气泡格式导入
 - `.red`（Red App 主题归档，裸 JSON 或 ZIP theme.json）→ ReaderThemePreset（light 侧映射 + `#AARRGGBB` 归一）；
 - `.qibubble` JSON → ReadingSettings 气泡颜色/圆角/图标；阅读设置「段评气泡」新增导入入口；
