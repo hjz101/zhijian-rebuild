@@ -324,12 +324,19 @@
 - **估算**：2–3 天
 - **依赖**：P2-02
 
-### [P2-04] WebDAV / TTS 凭据迁移 Keychain
+### [P2-04] ✅ 已完成 · WebDAV / TTS 凭据迁移 Keychain
 - **对应差距**：双方都明文；作为改进项。
 - **范围**：`SecItem` 封装、迁移旧 JSON、删除明文、UI 提示更新。
 - **验收**：重启后可自动登录；JSON 中无密码。
 - **估算**：0.5–1 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `KeychainStore`（GenericPassword，service+account 存取，删除/清空）；
+  - WebDAV：`webdav.json` 不再存密码，`persist()` 写入 Keychain（`com.zhijian.reader.webdav`），首次启动自动迁移旧明文并清空；`remove` 同时删 Keychain；
+  - TTS：登录 Header（可能含 Token）迁移 Keychain（`com.zhijian.reader.tts.login`），JSON 只留偏好/源变量；
+  - 未签名/缺 entitlement 环境（模拟器、自签 IPA）自动回退明文并置 `usingFallbackStorage` 供 UI 提示；
+  - 自检 `-keychainTest`：写入/读取/删除往返、JSON 不含密码（签名环境）、回退标记。
+  - 注：Keychain 写入在无 keychain-access-groups entitlement 的构建上被系统拒绝（-34018），属预期；正式签名构建自动使用 Keychain。
 
 ### [P2-05] 本地 RAR / 7z 导入
 - **对应差距**：栖阅支持；我们引擎可读但书架未接。

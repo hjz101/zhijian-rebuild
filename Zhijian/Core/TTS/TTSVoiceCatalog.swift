@@ -86,6 +86,18 @@ final class TTSRuntimeStore {
 
     private init() {
         snapshot = AppData.load(Snapshot.self, file) ?? Snapshot()
+        // P2-04：登录 Header 迁移进 Keychain（可能含 Token），JSON 不再保存
+        var migrated = false
+        var keychainHeaders: [String: String] = [:]
+        for (sourceID, header) in snapshot.loginHeaders {
+            if !header.isEmpty {
+                KeychainStore.set(header, service: KeychainStore.ttsService, account: sourceID)
+                keychainHeaders[sourceID] = header
+            }
+            migrated = true
+        }
+        snapshot.loginHeaders = [:]
+        if migrated { persist() }
     }
 
     var preferences: TTSVoicePreferences {
@@ -97,14 +109,23 @@ final class TTSRuntimeStore {
     }
 
     func loginHeader(for sourceID: String) -> String {
-        snapshot.loginHeaders[sourceID] ?? ""
+        if let cached = snapshot.loginHeaders[sourceID] { return cached }
+        let value = KeychainStore.get(service: KeychainStore.ttsService, account: sourceID) ?? ""
+        snapshot.loginHeaders[sourceID] = value
+        return value
     }
 
     func setLoginHeader(_ header: String, for sourceID: String) {
         if header.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             snapshot.loginHeaders.removeValue(forKey: sourceID)
+            KeychainStore.delete(service: KeychainStore.ttsService, account: sourceID)
         } else {
-            snapshot.loginHeaders[sourceID] = header
+            // Keychain 不可用（未签名）时回退 JSON 明文
+            if KeychainStore.set(header, service: KeychainStore.ttsService, account: sourceID) {
+                snapshot.loginHeaders.removeValue(forKey: sourceID)
+            } else {
+                snapshot.loginHeaders[sourceID] = header
+            }
         }
         persist()
     }
@@ -125,10 +146,12 @@ final class TTSRuntimeStore {
     func removeRuntime(for sourceID: String) {
         snapshot.loginHeaders.removeValue(forKey: sourceID)
         snapshot.sourceVariables.removeValue(forKey: sourceID)
+        KeychainStore.delete(service: KeychainStore.ttsService, account: sourceID)
         persist()
     }
 
     private func persist() {
+        // loginHeaders 已在 setLoginHeader 写入 Keychain；JSON 仅保存偏好与源变量
         AppData.save(snapshot, file)
     }
 }

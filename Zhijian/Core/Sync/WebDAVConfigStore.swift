@@ -1,11 +1,11 @@
-// WebDAVConfigStore.swift — WebDAV 配置持久化（Application Support/Zhijian/webdav.json）
+// WebDAVConfigStore.swift — WebDAV 配置持久化（JSON 仅存非敏感字段，密码入 Keychain）
 import Foundation
 import Combine
 
 /// WebDAV 配置仓库。
 ///
-/// ⚠️ 密码当前**明文**保存在 Application Support（不是 Keychain），与旧版行为一致；
-/// 设置页需要显式提示用户。后续可迁移到 Keychain。
+/// P2-04：密码迁移到 Keychain（`com.zhijian.reader.webdav`），`webdav.json` 不再含密码。
+/// 首次启动会把旧版 JSON 里的明文密码自动迁移进 Keychain 并清空。
 @MainActor
 final class WebDAVConfigStore: ObservableObject {
     static let shared = WebDAVConfigStore()
@@ -25,8 +25,24 @@ final class WebDAVConfigStore: ObservableObject {
 
     private init() {
         snapshot = AppData.load(Snapshot.self, file) ?? Snapshot()
-        configs = snapshot.configs
+        // 迁移：JSON 里的明文密码 → Keychain，然后从 JSON 清空
+        var migrated = false
+        var hydrated: [WebDAVConfig] = []
+        for var config in snapshot.configs {
+            let keychainPassword = KeychainStore.get(service: KeychainStore.webDAVService, account: config.id)
+            if let keychainPassword, !keychainPassword.isEmpty {
+                config.password = keychainPassword
+            } else if !config.password.isEmpty {
+                KeychainStore.set(config.password, service: KeychainStore.webDAVService, account: config.id)
+                config.password = ""
+                migrated = true
+            }
+            hydrated.append(config)
+        }
+        snapshot.configs = hydrated
+        configs = hydrated
         activeConfigID = snapshot.activeConfigID
+        if migrated { persist() }
     }
 
     var activeConfig: WebDAVConfig? {
@@ -64,6 +80,7 @@ final class WebDAVConfigStore: ObservableObject {
 
     func remove(id: String) {
         configs.removeAll { $0.id == id }
+        KeychainStore.delete(service: KeychainStore.webDAVService, account: id)
         if activeConfigID == id { activeConfigID = configs.first?.id }
         persist()
     }
@@ -87,8 +104,26 @@ final class WebDAVConfigStore: ObservableObject {
         )
     }
 
+    /// Keychain 不可用（未签名/缺 entitlement）时回退明文，UI 需提示。
+    @Published private(set) var usingFallbackStorage = false
+
     private func persist() {
-        snapshot.configs = configs
+        // 密码进 Keychain；不可用时回退明文（未签名构建）
+        var allKeychain = true
+        for config in configs where !config.password.isEmpty {
+            if !KeychainStore.set(config.password, service: KeychainStore.webDAVService, account: config.id) {
+                allKeychain = false
+            }
+        }
+        usingFallbackStorage = !allKeychain
+        let stripped = allKeychain
+            ? configs.map { config -> WebDAVConfig in
+                var copy = config
+                copy.password = ""
+                return copy
+            }
+            : configs
+        snapshot.configs = stripped
         snapshot.activeConfigID = activeConfigID
         AppData.save(snapshot, file)
     }

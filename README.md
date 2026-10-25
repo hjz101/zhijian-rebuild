@@ -12,6 +12,7 @@
 
 | 模块 | 状态 | 说明 |
 |---|---|---|
+| 凭据安全 | ✅ | WebDAV 密码 / TTS 登录 Header 迁移 iOS Keychain；未签名环境回退明文并提示；`-keychainTest` 自检 |
 | 书源登录/鉴权 | ✅ | loginUrl 自动调用 `login()`；loginUi 按钮执行源内 action（`login(true)`/`fq_login()`/`sethost()`…）；表单 POST 自动 `x-www-form-urlencoded`；后端 `{"error":"访问被拒绝"}` 映射为 -12 并给登录引导 |
 | 书源兼容修复 | ✅ | 动态 `header`（`@js:` 求值后注入，如 `X-Novel-Token`/`X-Api-Key`）；`java.androidId()/deviceID()` 返回稳定 16 位 hex 设备码；429 按 `Retry-After` 退避；加密正文识别为可读错误 |
 | 书源兼容修复 | ✅ | `<js>…</js>` 正确解包；规则 JS 每次独立词法作用域（修复 `let` 重声明）；`data:detailsUrl/catalogUrl/chapterUrl` 私有协议（payload 交给规则自解析）；POST JSON body 自动补 `Content-Type` |

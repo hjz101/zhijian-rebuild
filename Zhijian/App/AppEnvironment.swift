@@ -241,6 +241,33 @@ final class AppEnvironment: ObservableObject {
                 try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("explore-diag.txt"), atomically: true, encoding: .utf8)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-keychainTest") {
+            var lines: [String] = []
+            KeychainStore.set("secret-密码-123", service: "com.zhijian.test", account: "demo")
+            let got = KeychainStore.get(service: "com.zhijian.test", account: "demo") ?? "<nil>"
+            lines.append("write=get:\(got == "secret-密码-123") value=\(got)")
+            KeychainStore.delete(service: "com.zhijian.test", account: "demo")
+            lines.append("delete=get:\(KeychainStore.get(service: "com.zhijian.test", account: "demo") == nil)")
+
+            let webdav = WebDAVConfigStore.shared
+            let blank = webdav.makeBlank()
+            var cfg = blank
+            cfg.password = "wd-pw-测试"
+            webdav.add(cfg)
+            let hydrated = webdav.config(id: cfg.id)?.password ?? ""
+            lines.append("webdavRoundtrip=\(hydrated == "wd-pw-测试")")
+            let disk = (try? String(contentsOf: AppData.root.appendingPathComponent("webdav.json"), encoding: .utf8)) ?? ""
+            lines.append("webdavPlaintextInJSON=\(disk.contains("wd-pw-测试")) (fallback=未签名构建)")
+            webdav.remove(id: cfg.id)
+            lines.append("webdavDeleted=\(KeychainStore.get(service: KeychainStore.webDAVService, account: cfg.id) == nil)")
+
+            TTSRuntimeStore.shared.setLoginHeader("Token abc123", for: "tts-demo")
+            lines.append("ttsRoundtrip=\(TTSRuntimeStore.shared.loginHeader(for: "tts-demo") == "Token abc123")")
+            TTSRuntimeStore.shared.removeRuntime(for: "tts-demo")
+            lines.append("ttsDeleted=\(TTSRuntimeStore.shared.loginHeader(for: "tts-demo").isEmpty)")
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("keychain-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
         if ProcessInfo.processInfo.arguments.contains("-sourceLoginTest") {
             Task { @MainActor in
                 var lines: [String] = []

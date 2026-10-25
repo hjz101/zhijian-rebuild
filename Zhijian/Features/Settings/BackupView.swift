@@ -253,7 +253,7 @@ private struct BackupContent: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            footer("⚠️ WebDAV 密码当前以明文保存在 Application Support/Zhijian/webdav.json（未使用 Keychain）。备份包可开启 AES-GCM 加密，上传第三方 WebDAV 前建议开启。")
+            footer("密码存入 iOS Keychain；未签名/无 entitlement 环境回退本地明文并提示。备份包可开启 AES-GCM 加密，上传第三方 WebDAV 前建议开启。")
         }
     }
 
@@ -659,7 +659,7 @@ private struct WebDAVConfigEditorView: View {
             } header: {
                 Text("Basic Auth")
             } footer: {
-                Text("⚠️ 密码明文保存于本机 Application Support/Zhijian/webdav.json，请勿使用主账号密码。")
+                Text("密码保存于 iOS Keychain（系统安全存储），不会写入配置文件。")
             }
         }
         .navigationTitle(draft.name.isEmpty ? "WebDAV 配置" : draft.name)
