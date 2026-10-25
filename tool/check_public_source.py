@@ -45,6 +45,9 @@ def main():
                 content = fh.read()
         except Exception:
             continue
+        if rel == "tool/check_public_source.py":
+            # 检查工具自身包含这些模式串作为规则，豁免
+            continue
         for pat in BANNED_PATTERNS:
             m = pat.search(content)
             if m:
