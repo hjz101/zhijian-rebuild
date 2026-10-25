@@ -95,6 +95,7 @@ private struct ReaderSurface: View {
     @State private var chromeVisible = true
     @State private var showCatalog = false
     @State private var showSettings = false
+    @State private var showTitleDesigner = false
     @State private var noteDraft: NoteDraft?
     @State private var toast: String?
     @State private var showChangeSource = false
@@ -163,6 +164,9 @@ private struct ReaderSurface: View {
         .sheet(isPresented: $showSettings) {
             ReaderSettingsSheet(settingsStore: settingsStore)
         }
+        .sheet(isPresented: $showTitleDesigner) {
+            ChapterTitleDesignerView()
+        }
         .sheet(isPresented: $showChangeSource) {
             ChangeSourceSheet(model: model, theme: theme)
         }
@@ -223,6 +227,9 @@ private struct ReaderSurface: View {
             }
             if ProcessInfo.processInfo.arguments.contains("-showReaderSettings") {
                 showSettings = true
+            }
+            if ProcessInfo.processInfo.arguments.contains("-showTitleDesigner") {
+                showTitleDesigner = true
             }
             if ProcessInfo.processInfo.arguments.contains("-showChapterComments") {
                 showChapterComments = true
@@ -388,6 +395,7 @@ private struct ReaderSurface: View {
 
             bookmarkButton
             glassButton("list.bullet", action: { showCatalog = true })
+            glassButton("textformat", action: { showTitleDesigner = true })
             glassButton("textformat.size", action: { showSettings = true })
             ttsButton
             Menu {

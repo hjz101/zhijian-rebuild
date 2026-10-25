@@ -89,6 +89,28 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-titleTemplateTest") {
+            Task { @MainActor in
+                var lines: [String] = []
+                let store = ChapterTitleTemplateStore.shared
+                store.setEnabled(true)
+                store.select("builtin-ornament")
+                lines.append("enabled=\(store.enabled) selected=\(store.selected?.name ?? "-")")
+                if let template = store.selected {
+                    let image = await ChapterTitleSnapshotService.shared.snapshot(template: template,
+                                                                                  title: "第一章 入山",
+                                                                                  width: 300)
+                    lines.append("snapshot=\(image.map { "\(Int($0.size.width))x\(Int($0.size.height))" } ?? "nil")")
+                    let html = ChapterTitleHTML.build(template: template, title: "第一章 入山", width: 300, theme: .paper)
+                    lines.append("htmlBytes=\(html.utf8.count)")
+                    let exported = try? store.exportJSON()
+                    lines.append("export=\(exported?.lastPathComponent ?? "-")")
+                    lines.append("templates=\(store.all.count)")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("title-template-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-twoPageTest") {
             var updated = settings.settings
             updated.pageMode = .paged

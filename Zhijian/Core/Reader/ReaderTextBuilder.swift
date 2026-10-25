@@ -18,7 +18,9 @@ enum ReaderTextBuilder {
         title: String,
         body: String,
         settings: ReadingSettings,
-        theme: ReaderTheme
+        theme: ReaderTheme,
+        titleImage: UIImage? = nil,
+        pageWidth: CGFloat = 0
     ) -> NSAttributedString {
         let fontSize = CGFloat(settings.fontSize)
         let baseFont = ZJFont.reader(settings.fontFamily, size: fontSize)
@@ -42,7 +44,26 @@ enum ReaderTextBuilder {
 
         let result = NSMutableAttributedString()
 
-        if !normalizedTitle.isEmpty {
+        if let titleImage, pageWidth > 1 {
+            // P1-03：HTML 标题模板快照，按页面宽度等比插入
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            paragraph.paragraphSpacing = max(fontSize * 0.4, 8)
+            paragraph.paragraphSpacingBefore = 0
+            let scale = pageWidth / max(titleImage.size.width, 1)
+            let attachment = NSTextAttachment()
+            attachment.image = titleImage
+            attachment.bounds = CGRect(x: 0, y: -4,
+                                       width: pageWidth,
+                                       height: titleImage.size.height * scale)
+            let holder = NSMutableAttributedString(attachment: attachment)
+            holder.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: holder.length))
+            result.append(holder)
+            result.append(NSAttributedString(string: "\n", attributes: [
+                .font: UIFont.systemFont(ofSize: max(fontSize * 0.3, 6)),
+                .paragraphStyle: paragraph
+            ]))
+        } else if !normalizedTitle.isEmpty {
             let titleParagraph = NSMutableParagraphStyle()
             switch settings.chapterTitleAlignment {
             case .leading: titleParagraph.alignment = .left

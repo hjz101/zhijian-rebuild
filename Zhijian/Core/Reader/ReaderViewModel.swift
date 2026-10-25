@@ -208,11 +208,15 @@ final class ReaderViewModel {
             let content = try await content(for: chapter)
             guard generation == stateGeneration else { return }
 
+            let sourceWidth = isTwoPage ? columnSize(for: pageSize).width : pageSize.width
+            let titleImage = await titleSnapshot(title: content.title, width: sourceWidth)
             let attributed = ReaderTextBuilder.build(
                 title: content.title,
                 body: content.text,
                 settings: settings,
-                theme: settings.theme
+                theme: settings.theme,
+                titleImage: titleImage,
+                pageWidth: sourceWidth
             )
             var layoutSize = pageSize
             if isTwoPage { layoutSize.width = columnSize(for: pageSize).width }
@@ -462,6 +466,26 @@ final class ReaderViewModel {
 
     // MARK: - 尺寸 / 设置
 
+    /// 章节标题快照（仅在启用模板时生成，按标题+宽度缓存）。
+    private var titleSnapshotCache: [String: UIImage] = [:]
+
+    private func titleSnapshot(title: String, width: CGFloat) async -> UIImage? {
+        let store = ChapterTitleTemplateStore.shared
+        guard store.enabled, let template = store.selected, width > 1 else { return nil }
+        let key = "\(template.id)|\(Int(width))|\(title)"
+        if let hit = titleSnapshotCache[key] { return hit }
+        guard let image = await ChapterTitleSnapshotService.shared.snapshot(template: template,
+                                                                            title: title,
+                                                                            width: width,
+                                                                            theme: settings.theme) else { return nil }
+        titleSnapshotCache[key] = image
+        if titleSnapshotCache.count > 40 {
+            titleSnapshotCache.removeAll()
+            titleSnapshotCache[key] = image
+        }
+        return image
+    }
+
     /// 双页生效条件：开关打开 + 横向（宽 > 高）+ 宽度足够。
     var isTwoPage: Bool {
         guard settings.pageMode == .paged, settings.twoPageEnabled else { return false }
@@ -515,11 +539,15 @@ final class ReaderViewModel {
         guard let content = chapterContent else { return }
 
         if newValue.pageMode == .scroll {
+            let width = pageSize.width
+            let cachedTitle = titleSnapshotCache["\(ChapterTitleTemplateStore.shared.selectedID)|\(Int(width))|\(content.title)"]
             let rebuilt = ReaderTextBuilder.build(
                 title: content.title,
                 body: content.text,
                 settings: newValue,
-                theme: newValue.theme
+                theme: newValue.theme,
+                titleImage: cachedTitle,
+                pageWidth: width
             )
             attributedChapter = rebuilt
             renderVersion += 1
@@ -536,11 +564,15 @@ final class ReaderViewModel {
         if pages.isEmpty || modeChanged || layoutChanged {
             repaginateKeepingCurrentPage(anchor: anchor)
         } else if themeChanged {
+            let width = isTwoPage ? columnSize(for: pageSize).width : pageSize.width
+            let cachedTitle = titleSnapshotCache["\(ChapterTitleTemplateStore.shared.selectedID)|\(Int(width))|\(content.title)"]
             attributedChapter = ReaderTextBuilder.build(
                 title: content.title,
                 body: content.text,
                 settings: newValue,
-                theme: newValue.theme
+                theme: newValue.theme,
+                titleImage: cachedTitle,
+                pageWidth: width
             )
             renderVersion += 1
         }

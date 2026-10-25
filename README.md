@@ -90,6 +90,8 @@ xcrun simctl launch booted com.zhijian.reader
 | `-chapterRuleTest` / `-autoOpenChapterRules` | 目录规则自检 / 打开目录规则页 |
 | `-chapterCacheTest` / `-autoOpenChapterCache` | 章节缓存自检 / 打开缓存管理 |
 | `-searchPageTest` | 搜索分页/缓存自检（写 search-page-test.txt） |
+| `-titleTemplateTest` / `-showTitleDesigner` | 标题模板快照自检 / 打开设计器 |
+| `-twoPageTest` / `-forceTwoPage` | 启用双页 / 强制双页（小屏验证） |
 | `-showShelfLayout` | 打开书架布局设置 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |

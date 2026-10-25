@@ -250,6 +250,7 @@ struct ReaderSettingsSheet: View {
     @ObservedObject var settingsStore: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @State private var showHighlightRules = false
+    @State private var showTitleDesigner = false
 
     private var theme: ReaderTheme { settingsStore.settings.theme }
     private var settings: ReadingSettings { settingsStore.settings }
@@ -282,6 +283,9 @@ struct ReaderSettingsSheet: View {
         }
         .sheet(isPresented: $showHighlightRules) {
             HighlightRulesSheet(settingsStore: settingsStore)
+        }
+        .sheet(isPresented: $showTitleDesigner) {
+            ChapterTitleDesignerView()
         }
         .presentationDetents([.height(600), .large])
         .presentationDragIndicator(.visible)
@@ -456,6 +460,19 @@ struct ReaderSettingsSheet: View {
                 .pickerStyle(.menu)
                 .tint(ZJ.accent)
             }
+
+            Button {
+                showTitleDesigner = true
+            } label: {
+                HStack {
+                    Text("章节标题设计器").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                    Spacer()
+                    Text(ChapterTitleTemplateStore.shared.enabled ? "已启用" : "未启用")
+                        .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
+                    Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(ZJ.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
 
             Toggle(isOn: bind(\.twoPageEnabled)) {
                 VStack(alignment: .leading, spacing: 1) {
