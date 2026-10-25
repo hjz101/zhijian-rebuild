@@ -12,7 +12,8 @@ enum ReaderImageExtractor {
     /// 把正文中的 `<img>` 替换为占位符，并返回图片清单（按出现顺序）。
     static func extract(from html: String, baseURL: String) -> (text: String, images: [ExtractedReaderImage]) {
         guard html.contains("<img") || html.contains("<IMG") else {
-            return (html, [])
+            // 没有图片时仍要按 HTML 规则清洗标签，否则正文会带 <div>/<p> 原始标记
+            return (HtmlFormatter.formatIfNeeded(html), [])
         }
         let document = HTMLDocument.parse(html)
         var images: [ExtractedReaderImage] = []

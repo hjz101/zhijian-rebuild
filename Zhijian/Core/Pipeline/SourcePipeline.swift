@@ -475,7 +475,8 @@ final class HTTPClient: @unchecked Sendable {
                 var response = try send(prepared)
                 let elapsed = Int(Date().timeIntervalSince(started) * 1000)
                 response.elapsedMilliseconds = elapsed
-                note("\(prepared.method) \(prepared.url) → \(response.status) \(response.body.utf8.count)B \(elapsed)ms")
+                let bodyHint = response.isOK ? "" : " | " + String(response.body.prefix(120)).replacingOccurrences(of: "\n", with: " ")
+                note("\(prepared.method) \(prepared.url) → \(response.status) \(response.body.utf8.count)B \(elapsed)ms\(bodyHint)")
                 onCookiesChanged?(jar.export())
                 if response.isOK { return response }
                 // 4xx 不重试（429 除外）；429 按 Retry-After 或 2.5s 退避
@@ -1052,6 +1053,9 @@ final class SourcePipeline {
         let extracted = ReaderImageExtractor.extract(from: rawText, baseURL: response.finalURL)
         let text = extracted.text
         let images = extracted.images
+        if Self.looksLikeCiphertext(text) {
+            throw SourceEngineError.emptyContent("站点返回的是加密正文（非可读文本），可能需要更新书源或在书源内登录后再试")
+        }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             // 站点可能把登录/付费提示放在 msg/code 等非 content 字段里（如 {"code":-1,"msg":"...上限..."}），
             // 此时应判为 -12 需要登录，而不是 -13 空正文。
@@ -1649,6 +1653,25 @@ final class SourcePipeline {
     // MARK: 付费墙识别
 
     /// 正文命中登录/付费提示时标记为 `paywall`（-12），而不是当成“空正文”（-13）。
+    /// 正文像密文/Base64 而不是中文正文时判定为「站点加密正文」。
+    static func looksLikeCiphertext(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > 400 else { return false }
+        let sample = trimmed.prefix(1200)
+        var base64Count = 0
+        var cjkCount = 0
+        for scalar in sample.unicodeScalars {
+            if (65...90).contains(scalar.value) || (97...122).contains(scalar.value)
+                || (48...57).contains(scalar.value)
+                || scalar == "+" || scalar == "/" || scalar == "=" {
+                base64Count += 1
+            }
+            if (0x4E00...0x9FFF).contains(scalar.value) { cjkCount += 1 }
+        }
+        let ratio = Double(base64Count) / Double(sample.unicodeScalars.count)
+        return ratio > 0.95 && cjkCount < 5
+    }
+
     static func detectPaywall(_ text: String) -> Bool {
         // 站点拦截提示通常很短；真正文里零星出现“VIP/购买”字样时不算付费墙
         guard text.count < 400 else { return false }

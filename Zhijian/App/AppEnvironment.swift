@@ -126,6 +126,36 @@ final class AppEnvironment: ObservableObject {
                 NSLog("[Seed] file not found %@", name)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-readerDiag") {
+            Task { @MainActor in
+                var lines: [String] = []
+                guard let source = self.sources.sources.first(where: { ($0.searchUrl ?? "").contains("rulianshi") })
+                        ?? self.sources.sources.first(where: { !($0.searchUrl ?? "").isEmpty }) else {
+                    lines.append("no searchable source")
+                    try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-diag.txt"), atomically: true, encoding: .utf8)
+                    return
+                }
+                lines.append("source=\(source.bookSourceName)")
+                let pipeline = self.engines.makePipeline(source: source)
+                do {
+                    let books = try await pipeline.search("剑来")
+                    lines.append("search=\(books.count) first=\(books.first?.name ?? "-")")
+                    if let first = books.first {
+                        let info = try await pipeline.bookInfo(first)
+                        lines.append("detail name=\(info.name) toc=\(info.tocUrl.prefix(60))")
+                        let toc = try await pipeline.toc(info)
+                        lines.append("toc=\(toc.count) first=\(toc.first?.title ?? "-")")
+                        if let ch = toc.first(where: { !$0.isVolume }) {
+                            let content = try await pipeline.content(ch, book: info)
+                            lines.append("content chars=\(content.content.count) head=\(content.content.prefix(60).replacingOccurrences(of: "\n", with: " "))")
+                        }
+                    }
+                } catch {
+                    lines.append("error=\(error.localizedDescription)")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-diag.txt"), atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-exploreDiag") {
             Task { @MainActor in
                 var lines: [String] = []

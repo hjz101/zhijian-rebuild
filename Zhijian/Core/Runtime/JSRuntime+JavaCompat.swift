@@ -153,9 +153,17 @@ extension JSRuntime {
 
         let androidId: NativeBlock0 = { [weak self] in
             guard let self else { return JSValue(undefinedIn: JSContext.current()) }
-            return JSValue(object: "zhijian-ios", in: self.context)
+            return JSValue(object: DeviceIdentity.androidId, in: self.context)
         }
         java.setObject(androidId, forKeyedSubscript: "androidId" as NSString)
+
+        // 聚合源常把 deviceID 作为设备指纹上送；返回同样的 16 位 hex，
+        // 避免被后端判为「伪造设备码」而 429。
+        let deviceId: NativeBlock0 = { [weak self] in
+            guard let self else { return JSValue(undefinedIn: JSContext.current()) }
+            return JSValue(object: DeviceIdentity.deviceId, in: self.context)
+        }
+        java.setObject(deviceId, forKeyedSubscript: "deviceID" as NSString)
 
         let currentTime: NativeBlock0 = { [weak self] in
             guard let self else { return JSValue(undefinedIn: JSContext.current()) }

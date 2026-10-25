@@ -135,10 +135,14 @@ struct ExploreView: View {
                         }
                         .padding(.horizontal, 11).padding(.vertical, 7)
                         .foregroundStyle(selectedSource?.bookSourceUrl == source.bookSourceUrl ? .white : ZJ.textSecondary)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .overlay(
-                            Capsule().fill(selectedSource?.bookSourceUrl == source.bookSourceUrl ? ZJ.accent : Color.clear)
-                        )
+                        .background {
+                            ZStack {
+                                Capsule().fill(.ultraThinMaterial)
+                                if selectedSource?.bookSourceUrl == source.bookSourceUrl {
+                                    Capsule().fill(ZJ.accent)
+                                }
+                            }
+                        }
                         .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
@@ -161,10 +165,14 @@ struct ExploreView: View {
                             .font(.system(size: 11))
                             .padding(.horizontal, 10).padding(.vertical, 6)
                             .foregroundStyle(selectedCategory?.id == category.id ? ZJ.accent : ZJ.textSecondary)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(
-                                Capsule().fill(selectedCategory?.id == category.id ? ZJ.accent.opacity(0.14) : Color.clear)
-                            )
+                            .background {
+                                ZStack {
+                                    Capsule().fill(.ultraThinMaterial)
+                                    if selectedCategory?.id == category.id {
+                                        Capsule().fill(ZJ.accent.opacity(0.14))
+                                    }
+                                }
+                            }
                             .overlay(Capsule().strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
@@ -262,7 +270,6 @@ struct ExploreView: View {
         do {
             categories = try await pipeline.exploreCategories()
             selectedCategory = categories.first
-            if selectedCategory != nil { await loadFirstPage() }
             if categories.isEmpty {
                 error = "该书源没有可用的 exploreUrl"
             }
@@ -270,6 +277,9 @@ struct ExploreView: View {
             categories = []
             self.error = error.localizedDescription
         }
+        loading = false
+        // 分类先出来，列表再单独加载（避免整屏停在「正在加载」）
+        if selectedCategory != nil { await loadFirstPage() }
     }
 
     private func loadFirstPage() async {
@@ -315,7 +325,7 @@ struct ExploreView: View {
                 return
             } catch {
                 // 分类接口失效（站点改版/未登录）时自动尝试后面的分类，避免整页报错。
-                if reset, attempts < 3,
+                if reset, attempts < 2,
                    let index = categories.firstIndex(where: { $0.id == category.id }),
                    index + 1 < categories.count {
                     attempts += 1
