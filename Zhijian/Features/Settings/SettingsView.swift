@@ -24,7 +24,7 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("设置")
+                    Text(LocalizationManager.tr("settings.title"))
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(ZJ.textPrimary)
                         .padding(.top, 6)

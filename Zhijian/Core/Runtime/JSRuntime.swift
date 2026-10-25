@@ -122,6 +122,40 @@ final class JSRuntime: RuleJSEvaluating {
         }
     }
 
+    /// 自检用：直接跑 WebView 执行器（不依赖 JSRuntime 实例）。
+    static func webViewFallbackTest(_ code: String) throws -> Any? {
+        let executor = WebViewJSExecutor()
+        let wrapped = "(function(){ try { var v = " + code + "; if (v === undefined) return ''; if (typeof v === 'object') return JSON.stringify(v); return String(v); } catch(e) { return ''; } })()"
+        guard let result = try? executor.evaluate(wrapped), !result.isEmpty else { return nil }
+        if let data = result.data(using: .utf8), let json = try? JSONSerialization.jsonObject(with: data) {
+            return json
+        }
+        return result
+    }
+
+    /// WebView 兜底：仅当脚本是「纯函数」（无沙箱依赖）时可用。
+    private func webViewFallback(_ code: String, exceptionMessage: String) throws -> Any? {
+        let dependencyTokens = ["java.", "source.", "cookie.", "cache.", "result.", "jsoup", "getString", "getInt"]
+        for token in dependencyTokens where code.contains(token) {
+            return nil
+        }
+        // 包成返回字符串的 IIFE：`(function(){ return (eval('...')) })()`，结果 stringify
+        let escaped = code
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        let wrapped = "(function(){ try { var v = eval('" + escaped + "'); if (v === undefined) return ''; if (typeof v === 'object') return JSON.stringify(v); return String(v); } catch(e) { return ''; } })()"
+        let executor = WebViewJSExecutor()
+        guard let result = try? executor.evaluate(wrapped), !result.isEmpty else {
+            return nil
+        }
+        // 尝试按 JSON 解析；失败按字符串
+        if let data = result.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) {
+            return json
+        }
+        return result
+    }
+
     /// 把规则脚本包进 `eval`，每次调用都有独立词法作用域。
     /// JSC 的顶层 `let/const` 会留在全局词法环境里，同一上下文里第二次执行
     /// 同名 `let`（书源里很常见，如 exploreUrl 与 bookList 都写 `let title`）会抛

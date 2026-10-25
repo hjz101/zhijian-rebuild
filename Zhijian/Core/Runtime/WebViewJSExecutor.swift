@@ -11,9 +11,11 @@ protocol RuleJSSyncExecutor: Sendable {
 }
 
 /// 离屏 WKWebView 执行器（同步语义：信号量等待，默认 8s 超时）。
-final class WebViewJSExecutor: NSObject, @unchecked Sendable, RuleJSSyncExecutor {
+final class WebViewJSExecutor: NSObject, @unchecked Sendable, WKNavigationDelegate, RuleJSSyncExecutor {
     private let webView: WKWebView
     private let queue = DispatchQueue(label: "zhijian.webview.js")
+    private let readySemaphore = DispatchSemaphore(value: 0)
+    private var ready = false
 
     override init() {
         let config = WKWebViewConfiguration()
@@ -22,11 +24,24 @@ final class WebViewJSExecutor: NSObject, @unchecked Sendable, RuleJSSyncExecutor
         let webView = WKWebView(frame: .zero, configuration: config)
         self.webView = webView
         super.init()
-        // 离屏加载空白页，确保 evaluateJavaScript 可用
+        webView.navigationDelegate = self
+        // 离屏加载空白页；didFinish 后置 ready
         webView.loadHTMLString("<html><head></head><body></body></html>", baseURL: nil)
+        // 给加载留时间（后台不阻塞调用方主线程）
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.ready = true
+            self?.readySemaphore.signal()
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        ready = true
+        readySemaphore.signal()
     }
 
     func evaluate(_ code: String) throws -> String {
+        // 等待就绪（最多 1s，不阻塞主线程等待信号量→由调用方决定在哪等）
+        _ = readySemaphore.wait(timeout: .now() + 1.0)
         var result: Result<String, Error>?
         let semaphore = DispatchSemaphore(value: 0)
         queue.async { [webView] in

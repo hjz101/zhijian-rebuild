@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 版本 2.3 三项深化
+- **版本号 2.3**（MARKETING_VERSION）；
+- **i18n 全量**：LocalizationManager 文案表扩到 100+ key（Tab/书架/统计/设置/阅读器/来源/发现/TTS/备份/通用），主要页面文案接入 `tr()`；
+- **imageDecode 解密**：图片 json 协议 `js` 参数 → WebViewJSExecutor 跑书源解密函数（base64→base64），下载后解密再解码；
+- **WebView 执行器接入管线**：JSRuntime.evaluateJS JSC 失败时，纯函数脚本（无 java./source. 依赖）自动 WebView 兜底重跑；
+- WebViewJSExecutor 加就绪门闩（didFinish + 0.2s 兜底）；`-webViewJSExecTest` 回归通过（sum=7/JSON）；自检 40 项通过。
+
 ### [QYSG-INSPIRED] ✅ 已完成 · 借鉴 qysg/origo-x/栖阅 五项
 - **③ 简繁转换**：`TraditionalConverter` 内嵌常用字表 + 阅读设置「正文繁体」开关 + 正文渲染转换；
 - **① 图片 json 协议**：`<img src="url,{json}">` 单引号 JSON 解析（headers/js/imageDecode）→ ExtractedReaderImage，下载应用自定义 headers（imageDecode 解密函数待书源 JS 执行扩展）；

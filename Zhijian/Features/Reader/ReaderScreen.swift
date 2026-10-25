@@ -417,12 +417,12 @@ private struct ReaderSurface: View {
             ttsButton
             Menu {
                 if !model.book.isLocal {
-                    Button { showChangeSource = true } label: { Label("换源", systemImage: "arrow.left.arrow.right") }
+                    Button { showChangeSource = true } label: { Label(LocalizationManager.tr("reader.changeSource"), systemImage: "arrow.left.arrow.right") }
                 }
                 Button {
                     let added = model.toggleBookmark()
                     showToast(added ? "已加入书签" : "已移除书签")
-                } label: { Label(model.isCurrentChapterBookmarked ? "取消书签" : "加书签", systemImage: "bookmark") }
+                } label: { Label(model.isCurrentChapterBookmarked ? LocalizationManager.tr("reader.bookmark") : LocalizationManager.tr("reader.bookmark"), systemImage: "bookmark") }
                 Button {
                     showParagraphList = true
                 } label: {
@@ -663,7 +663,7 @@ private struct ReaderSurface: View {
                         Button {
                             showChangeSource = true
                         } label: {
-                            Text("换源")
+                            Text(LocalizationManager.tr("reader.changeSource"))
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(palette.text)
                                 .padding(.horizontal, 18)

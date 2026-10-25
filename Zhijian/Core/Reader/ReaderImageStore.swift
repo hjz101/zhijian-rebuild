@@ -109,15 +109,50 @@ final class ReaderImageStore: ObservableObject {
 
     // MARK: - 内部
 
-    /// 带自定义 header / 解密选项的下载（qysg 图片协议）
-    func image(for url: String, headers: [String: String] = [:], imageDecode: Bool = false) async -> UIImage? {
+    /// 带自定义 header / 解密选项的下载（qysg 图片协议；js = 书源解密函数）
+    func image(for url: String, headers: [String: String] = [:], imageDecode: Bool = false,
+               decodeJS: String = "") async -> UIImage? {
         if let hit = memory[url] { touchMemory(url); return hit }
         if let cached = loadFromDisk(url) { cacheMemory(url, cached); return cached }
-        guard let image = await download(url: url, extraHeaders: headers) else { return nil }
-        if imageDecode {
-            // 解密占位：需要书源解密函数（js），当前先返回原图；js 执行在后续扩展
+        guard var data = await downloadData(url: url, extraHeaders: headers) else { return nil }
+        if imageDecode, !decodeJS.isEmpty {
+            // 用书源解密函数处理原始字节：JS 收 base64 返回解密后的 base64
+            let inputBase64 = data.base64EncodedString()
+            if let result = await Self.runDecodeJS(decodeJS, input: inputBase64),
+               let decoded = Data(base64Encoded: result), !decoded.isEmpty {
+                data = decoded
+            }
         }
+        guard let image = UIImage(data: data), image.size.width > 1 else { return nil }
+        try? data.write(to: path(for: url), options: .atomic)
+        cacheMemory(url, image)
+        refreshStats()
         return image
+    }
+
+    private nonisolated static func runDecodeJS(_ code: String, input: String) async -> String? {
+        // 包装：书源函数通常为 `decrypt(dataBase64)`；调用它并返回字符串
+        let wrapped = "(function(){ try { return String((" + code + ")('" + input + "')); } catch(e) { return ''; } })()"
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let executor = WebViewJSExecutor()
+                let result = try? executor.evaluate(wrapped)
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    private func downloadData(url: String, extraHeaders: [String: String]) async -> Data? {
+        guard let remote = URL(string: url) else { return nil }
+        var request = URLRequest(url: remote)
+        request.timeoutInterval = 20
+        request.setValue("image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("https://\(remote.host ?? "")/", forHTTPHeaderField: "Referer")
+        for (key, value) in extraHeaders { request.setValue(value, forHTTPHeaderField: key) }
+        guard let (data, response) = try? await URLSession.shared.data(for: request) else { return nil }
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) { return nil }
+        return data
     }
 
     private func loadFromDisk(_ url: String) -> UIImage? {

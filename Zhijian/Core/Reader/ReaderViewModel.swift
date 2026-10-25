@@ -501,14 +501,16 @@ final class ReaderViewModel {
                 if let item = iterator.next() {
                     group.addTask { _ = await ReaderImageCache.store.image(for: item.url,
                                                                                headers: item.headers,
-                                                                               imageDecode: item.imageDecode) }
+                                                                               imageDecode: item.imageDecode,
+                                                                               decodeJS: item.js) }
                 }
             }
             while await group.next() != nil {
                 if let item = iterator.next() {
                     group.addTask { _ = await ReaderImageCache.store.image(for: item.url,
                                                                            headers: item.headers,
-                                                                           imageDecode: item.imageDecode) }
+                                                                           imageDecode: item.imageDecode,
+                                                                           decodeJS: item.js) }
                 }
             }
         }

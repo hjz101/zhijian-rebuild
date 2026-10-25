@@ -129,7 +129,9 @@ enum SelfTestSuite {
               "decode=\(imgOpts["imageDecode"] ?? "nil")")
         check("ImageOptions-plain", ReaderImageExtractor.splitOptions("http://x.com/b.jpg").options.isEmpty)
 
-        // 13) PSL eTLD+1
+        // 13) WebView 兜底：由 `-webViewJSExecTest` 覆盖（主线程同步等信号量会死锁）
+
+        // 14) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

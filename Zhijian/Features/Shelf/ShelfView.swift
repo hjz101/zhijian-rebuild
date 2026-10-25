@@ -119,13 +119,13 @@ struct ShelfView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("书架")
+            Text(LocalizationManager.tr("tab.shelf"))
                 .font(.system(size: 36, weight: .bold))
                 .foregroundStyle(ZJ.textPrimary)
             Spacer()
             Menu {
                 Picker("排序", selection: $sortKey) {
-                    Text("最近阅读").tag("recent")
+                    Text(LocalizationManager.tr("shelf.recent")).tag("recent")
                     Text("添加时间").tag("added")
                     Text("书名").tag("title")
                 }

@@ -11,7 +11,7 @@ struct StatsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text("阅读统计")
+                        Text(LocalizationManager.tr("stats.title"))
                             .font(.system(size: 34, weight: .bold))
                             .foregroundStyle(ZJ.textPrimary)
                         Spacer()
@@ -28,8 +28,8 @@ struct StatsView: View {
                     todayGoalCard
 
                     HStack(spacing: 12) {
-                        metricCard(title: "本周", value: ReadingStatsStore.text(stats.weekSeconds), icon: "clock")
-                        metricCard(title: "连续", value: "\(stats.streak)天", icon: "flame")
+                        metricCard(title: LocalizationManager.tr("stats.week"), value: ReadingStatsStore.text(stats.weekSeconds), icon: "clock")
+                        metricCard(title: LocalizationManager.tr("stats.streak"), value: "\(stats.streak)天", icon: "flame")
                         metricCard(title: "书籍", value: "\(stats.booksTouched)本", icon: "books.vertical")
                     }
 
@@ -98,7 +98,7 @@ struct StatsView: View {
     private var weekCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("本周").font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                Text(LocalizationManager.tr("stats.week")).font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
                 Spacer()
                 Text(ReadingStatsStore.text(stats.weekSeconds)).font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
             }
@@ -128,7 +128,7 @@ struct StatsView: View {
         let maxValue = max(trend.map(\.seconds).max() ?? 0, 60)
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("近 30 日").font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                Text(LocalizationManager.tr("stats.trend30")).font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
                 Spacer()
                 Text("共 \(ReadingStatsStore.text(trend.reduce(0) { $0 + $1.seconds }))")
                     .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)

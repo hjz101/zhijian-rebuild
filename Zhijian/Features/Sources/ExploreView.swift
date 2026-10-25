@@ -58,7 +58,7 @@ struct ExploreView: View {
 
             if loading && books.isEmpty {
                 Spacer()
-                ProgressView("正在加载发现页…")
+                ProgressView(LocalizationManager.tr("discover.loading"))
                 Spacer()
             } else if let error, books.isEmpty {
                 Spacer()
@@ -67,7 +67,7 @@ struct ExploreView: View {
                 Spacer()
             } else if books.isEmpty {
                 Spacer()
-                ContentUnavailableView("暂无发现内容", systemImage: "square.grid.2x2",
+                ContentUnavailableView(LocalizationManager.tr("discover.empty"), systemImage: "square.grid.2x2",
                                        description: Text("选择一个有 exploreUrl 的书源和分类"))
                 Spacer()
             } else {
@@ -118,7 +118,7 @@ struct ExploreView: View {
             }
         }
         .background(QiBackground().ignoresSafeArea())
-        .navigationTitle("发现")
+        .navigationTitle(LocalizationManager.tr("discover.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
