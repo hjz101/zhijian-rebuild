@@ -26,6 +26,10 @@ struct PagedReaderView: UIViewControllerRepresentable {
     var onParagraphComment: ((Int) -> Void)? = nil
     var chapterCommentCount: Int = 0
     var onChapterComments: (() -> Void)? = nil
+    /// P2-09：气泡样式
+    var bubbleColorHex: String = "#E8663D"
+    var bubbleCornerRadius: Double = 16
+    var bubbleIcon: String = "💬"
     /// iPad / 横屏双页：一屏两栏
     var twoPage: Bool = false
     /// 翻页动画
@@ -152,7 +156,10 @@ struct PagedReaderView: UIViewControllerRepresentable {
                 let page = ReaderPageViewController(index: pageIndex, attributed: parent.pageText(pageIndex),
                                                    pageStart: pageStart, theme: parent.theme,
                                                    paragraphRanges: parent.paragraphRanges,
-                                                   commentCounts: parent.commentCounts)
+                                                   commentCounts: parent.commentCounts,
+                                                   bubbleColorHex: parent.bubbleColorHex,
+                                                   bubbleCornerRadius: parent.bubbleCornerRadius,
+                                                   bubbleIcon: parent.bubbleIcon)
                 page.onParagraphComment = { [weak self] paragraphIndex in
                     self?.parent.onParagraphComment?(paragraphIndex)
                 }
@@ -318,6 +325,9 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
     private let theme: ReaderTheme
     private let paragraphRanges: [NSRange]
     private let commentCounts: [Int: Int]
+    private let bubbleColorHex: String
+    private let bubbleCornerRadius: Double
+    private let bubbleIcon: String
     private let textView = UITextView()
     private var bubbleButtons: [UIButton] = []
     var onTap: ((CGPoint) -> Void)?
@@ -327,13 +337,18 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
     var onParagraphComment: ((Int) -> Void)?
 
     init(index: Int, attributed: NSAttributedString, pageStart: Int, theme: ReaderTheme,
-         paragraphRanges: [NSRange] = [], commentCounts: [Int: Int] = [:]) {
+         paragraphRanges: [NSRange] = [], commentCounts: [Int: Int] = [:],
+         bubbleColorHex: String = "#E8663D", bubbleCornerRadius: Double = 16,
+         bubbleIcon: String = "💬") {
         self.pageIndex = index
         self.attributed = attributed
         self.pageStart = pageStart
         self.theme = theme
         self.paragraphRanges = paragraphRanges
         self.commentCounts = commentCounts
+        self.bubbleColorHex = bubbleColorHex
+        self.bubbleCornerRadius = bubbleCornerRadius
+        self.bubbleIcon = bubbleIcon
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -376,6 +391,15 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         layoutCommentBubbles()
+    }
+
+    private static func uiColor(from hex: String) -> UIColor? {
+        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("#") { value.removeFirst() }
+        guard value.count == 6, let number = UInt64(value, radix: 16) else { return nil }
+        return UIColor(red: CGFloat((number >> 16) & 0xFF) / 255,
+                       green: CGFloat((number >> 8) & 0xFF) / 255,
+                       blue: CGFloat(number & 0xFF) / 255, alpha: 1)
     }
 
     private func layoutCommentBubbles() {

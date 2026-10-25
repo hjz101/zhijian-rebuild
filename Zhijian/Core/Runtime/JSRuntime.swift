@@ -51,7 +51,7 @@ final class JSRuntime: RuleJSEvaluating {
         self.source = source
         self.http = http
         self.jar = jar
-        self.context = JSContext(virtualMachine: JSVirtualMachine())
+        self.context = JSContext(virtualMachine: JSVirtualMachinePool.shared.take())
         queue.setSpecific(key: queueKey, value: 1)
         installAPIs()
         installJsLibIfNeeded()

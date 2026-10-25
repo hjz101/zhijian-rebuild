@@ -200,6 +200,10 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var mangaScrollMode: Bool = false
     /// P2-08：书源 HTTPS 优先
     var httpsFirst: Bool = true
+    /// P2-09：段评气泡样式（颜色 hex / 圆角 / 图标）
+    var bubbleColorHex: String = "#E8663D"
+    var bubbleCornerRadius: Double = 16
+    var bubbleIcon: String = "💬"
 
     enum PageMode: String, Codable, Sendable { case paged, scroll }
     enum PageTurnAnimation: String, Codable, Sendable, CaseIterable {
@@ -257,5 +261,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         highlightRules = try container.decodeIfPresent([HighlightRule].self, forKey: .highlightRules) ?? []
         mangaScrollMode = try container.decodeIfPresent(Bool.self, forKey: .mangaScrollMode) ?? false
         httpsFirst = try container.decodeIfPresent(Bool.self, forKey: .httpsFirst) ?? true
+        bubbleColorHex = try container.decodeIfPresent(String.self, forKey: .bubbleColorHex) ?? "#E8663D"
+        bubbleCornerRadius = try container.decodeIfPresent(Double.self, forKey: .bubbleCornerRadius) ?? 16
+        bubbleIcon = try container.decodeIfPresent(String.self, forKey: .bubbleIcon) ?? "💬"
     }
 }

@@ -267,6 +267,7 @@ struct ReaderSettingsSheet: View {
                     spacingSection
                     modeSection
                     highlightSection
+                    bubbleSection
                 }
                 .padding(.horizontal, ZJ.s5)
                 .padding(.top, ZJ.s3)
@@ -532,6 +533,55 @@ struct ReaderSettingsSheet: View {
                 }
             }
             .tint(ZJ.accent)
+        }
+    }
+
+    // MARK: 气泡样式（P2-09）
+
+    private var bubbleSection: some View {
+        section("段评气泡") {
+            HStack {
+                Text("颜色").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                ForEach(["#E8663D", "#4E8F86", "#D9A441", "#5C6BC0", "#8D6E63"], id: \.self) { hex in
+                    Button {
+                        settingsStore.settings.bubbleColorHex = hex
+                    } label: {
+                        Circle()
+                            .fill(Color(hexString: hex) ?? ZJ.accent)
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Circle().strokeBorder(
+                                    settingsStore.settings.bubbleColorHex == hex ? ZJ.accent : Color.clear,
+                                    lineWidth: 1.5
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+
+            QiSliderRow(title: "圆角", value: Binding(
+                get: { settingsStore.settings.bubbleCornerRadius },
+                set: { settingsStore.settings.bubbleCornerRadius = $0 }
+            ), range: 8...24, step: 1) { "\(Int($0))" }
+
+            HStack {
+                Text("图标").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                ForEach(["💬", "💭", "📝", "✍️"], id: \.self) { icon in
+                    Button(icon) {
+                        settingsStore.settings.bubbleIcon = icon
+                    }
+                    .font(.system(size: 15))
+                    .foregroundStyle(settingsStore.settings.bubbleIcon == icon ? ZJ.accent : ZJ.textSecondary)
+                    .padding(6)
+                    .background(settingsStore.settings.bubbleIcon == icon ? ZJ.accent.opacity(0.12) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 

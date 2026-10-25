@@ -265,6 +265,27 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webdav-mirror-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if ProcessInfo.processInfo.arguments.contains("-pcmPlayerTest") {
+            Task { @MainActor in
+                NSLog("[PCMStream] test begin")
+                var lines: [String] = []
+                // 合成 0.5s 440Hz 正弦（16kHz/16bit/单声道）
+                let count = 16000 / 2
+                var samples = [Int16](repeating: 0, count: count)
+                for i in 0..<count {
+                    let value = sin(2.0 * Double.pi * 440.0 * Double(i) / 16000.0)
+                    samples[i] = Int16(value * 12000)
+                }
+                let data = samples.withUnsafeBytes { Data($0) }
+                let converted = PCMStreamPlayer.shared.convertForValidation(data)
+                lines.append("pcmBytes=\(data.count) frames=\(converted)")
+                // 引擎播放需要真实音频设备（模拟器无渲染设备会阻塞），真机验证
+                lines.append("engineNote=\(PCMStreamPlayer.shared.deviceAvailable ? "ok" : "simulator: 真机验证")")
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("pcm-player-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+                NSLog("[PCMStream] test done frames=\(converted)")
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-autoBackupTest") {
             Task { @MainActor in
                 let store = AutoBackupStore.shared

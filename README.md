@@ -16,11 +16,11 @@
 | iCloud 备份 | ✅ | 自动备份（退出/每天/每周）+ iCloud Drive 镜像 + 云端列表/恢复；未签名落本地 Documents/ZhijianAutoBackup；`-autoBackupTest` |
 | 本地书备份 | ✅ | 备份可选包含 EPUB/PDF/漫画正文（local/ 目录），恢复写回 |
 | RAR/7z 导入 | ✅ | 压缩包自动识别漫画/TXT/EPUB |
-| 文件管理 | ✅ | App Documents 浏览/导入/删除/重命名 |
-| 热评 Top3 | ✅ | 章末评论按点赞展示热评（🔥） |
+| 文件管理 | ✅ | App Documents 浏览/导入/删除/重命名/移动/复制 |
+| 热评 Top3 | ✅ | 章末评论按点赞展示热评（🔥）+ 气泡颜色/圆角/图标可调 |
 | TTS 睡眠定时 | ✅ | 关/10/20/30/60 分，到点自动停止 |
 | LLM 角色识别 | ✅ | OpenAI 兼容 + Keychain Key + 章节缓存 + 失败回退 |
-| TTS 引擎播放 | ✅ | AVAudioEngine 预览播放 |
+| TTS 引擎播放 | ✅ | AVAudioEngine 预览播放 + PCM 分帧流式（WS 二进制帧逐帧播放） |
 | 源速度统计 | ✅ | 搜索耗时均值持久化，换源排序 |
 | 网络代理 | ✅ | HTTP/SOCKS5 代理（仅本 App） |
 | 稳定坐标 | ✅ | 批注前文锚点，重排后重定位 |

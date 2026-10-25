@@ -9,6 +9,10 @@ struct FileBrowserView: View {
     @State private var renaming: URL?
     @State private var renameText = ""
     @State private var alert: String?
+    @State private var moveSource: URL?
+    @State private var moveIsCopy = false
+    @State private var moveDestinations: [URL] = []
+    @State private var showMovePicker = false
 
     private static var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -37,6 +41,8 @@ struct FileBrowserView: View {
                     .contentShape(Rectangle())
                     .contextMenu {
                         Button { renaming = url; renameText = url.lastPathComponent } label: { Label("重命名", systemImage: "pencil") }
+                        Button { moveSource = url; moveIsCopy = false; loadDestinations(); showMovePicker = true } label: { Label("移动到…", systemImage: "folder") }
+                        Button { moveSource = url; moveIsCopy = true; loadDestinations(); showMovePicker = true } label: { Label("复制到…", systemImage: "doc.on.doc") }
                         Button(role: .destructive) { delete(url) } label: { Label("删除", systemImage: "trash") }
                     }
                 }
@@ -86,6 +92,23 @@ struct FileBrowserView: View {
                 reload()
             }
         }
+        .sheet(isPresented: $showMovePicker) {
+            NavigationStack {
+                List {
+                    ForEach(moveDestinations, id: \.absoluteString) { dir in
+                        Button {
+                            performMove(to: dir)
+                            showMovePicker = false
+                        } label: {
+                            Label(dir.lastPathComponent, systemImage: "folder")
+                        }
+                    }
+                }
+                .navigationTitle(moveIsCopy ? "复制到…" : "移动到…")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("取消") { showMovePicker = false } } }
+            }
+        }
         .alert(alert ?? "", isPresented: Binding(get: { alert != nil }, set: { if !$0 { alert = nil } })) {
             Button("好", role: .cancel) { alert = nil }
         }
@@ -120,6 +143,35 @@ struct FileBrowserView: View {
 
     private func delete(_ url: URL) {
         try? FileManager.default.removeItem(at: url)
+        reload()
+    }
+
+    private func loadDestinations() {
+        let fm = FileManager.default
+        var dirs: [URL] = []
+        func collect(_ dir: URL) {
+            dirs.append(dir)
+            for child in ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey])) ?? []) {
+                var isDir: ObjCBool = false
+                if fm.fileExists(atPath: child.path, isDirectory: &isDir), isDir.boolValue {
+                    collect(child)
+                }
+            }
+        }
+        collect(Self.documentsURL)
+        moveDestinations = dirs
+    }
+
+    private func performMove(to dir: URL) {
+        guard let source = moveSource else { return }
+        let destination = dir.appendingPathComponent(source.lastPathComponent)
+        let fm = FileManager.default
+        if moveIsCopy {
+            try? fm.copyItem(at: source, to: destination)
+        } else {
+            try? fm.moveItem(at: source, to: destination)
+        }
+        moveSource = nil
         reload()
     }
 
