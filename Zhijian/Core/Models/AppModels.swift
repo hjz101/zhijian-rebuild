@@ -258,7 +258,10 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var customPalette: ReaderCustomPalette? = nil
     /// qysg 启发：正文简体转繁体
     var traditional: Bool = false
-    /// P2-09：段评气泡样式（颜色 hex / 圆角 / 图标）
+    /// 书源 JS 执行器模式：0 自动(JSC优先+WebView兜底) / 1 仅 JSC / 2 WebView 优先
+    var jsExecutorMode: Int = 0
+    /// P2-09：段评气泡样式（颜色 hex / 圆角 / 图标 / 皮肤）
+    var bubbleSkin: Int = 0 // 0 胶囊 / 1 圆角 / 2 对话气泡
     var bubbleColorHex: String = "#E8663D"
     var bubbleCornerRadius: Double = 16
     var bubbleIcon: String = "💬"
@@ -322,6 +325,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         longChapterAutoPaged = try container.decodeIfPresent(Bool.self, forKey: .longChapterAutoPaged) ?? true
         customPalette = try container.decodeIfPresent(ReaderCustomPalette.self, forKey: .customPalette)
         traditional = try container.decodeIfPresent(Bool.self, forKey: .traditional) ?? false
+        jsExecutorMode = try container.decodeIfPresent(Int.self, forKey: .jsExecutorMode) ?? 0
+        bubbleSkin = try container.decodeIfPresent(Int.self, forKey: .bubbleSkin) ?? 0
         bubbleColorHex = try container.decodeIfPresent(String.self, forKey: .bubbleColorHex) ?? "#E8663D"
         bubbleCornerRadius = try container.decodeIfPresent(Double.self, forKey: .bubbleCornerRadius) ?? 16
         bubbleIcon = try container.decodeIfPresent(String.self, forKey: .bubbleIcon) ?? "💬"

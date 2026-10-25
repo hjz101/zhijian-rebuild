@@ -654,6 +654,12 @@ final class AppEnvironment: ObservableObject {
         if ProcessInfo.processInfo.arguments.contains("-epubPaged") {
             settings.settings.pageMode = .paged
         }
+        if let modeArg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-jsExecutorMode=") }),
+           let mode = Int(modeArg.dropFirst(16)) {
+            var s = settings.settings
+            s.jsExecutorMode = mode
+            settings.settings = s
+        }
         if ProcessInfo.processInfo.arguments.contains("-customPaletteTest") {
             var settings2 = settings.settings
             settings2.customPalette = ReaderCustomPalette(
@@ -888,11 +894,13 @@ final class SettingsStore: ObservableObject {
         didSet {
             AppData.save(settings, "settings.json")
             HTTPClient.httpsFirstEnabled = settings.httpsFirst
+            HTTPClient.currentExecutorMode = settings.jsExecutorMode
         }
     }
     init() {
         settings = AppData.load(ReadingSettings.self, "settings.json") ?? ReadingSettings()
         HTTPClient.httpsFirstEnabled = settings.httpsFirst
+        HTTPClient.currentExecutorMode = settings.jsExecutorMode
     }
 }
 

@@ -30,6 +30,7 @@ struct PagedReaderView: UIViewControllerRepresentable {
     var bubbleColorHex: String = "#E8663D"
     var bubbleCornerRadius: Double = 16
     var bubbleIcon: String = "💬"
+    var bubbleSkin: Int = 0
     /// iPad / 横屏双页：一屏两栏
     var twoPage: Bool = false
     /// 翻页动画
@@ -328,6 +329,7 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
     private let bubbleColorHex: String
     private let bubbleCornerRadius: Double
     private let bubbleIcon: String
+    private let bubbleSkin: Int
     private let textView = UITextView()
     private var bubbleButtons: [UIButton] = []
     var onTap: ((CGPoint) -> Void)?
@@ -339,7 +341,7 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
     init(index: Int, attributed: NSAttributedString, pageStart: Int, theme: ReaderTheme,
          paragraphRanges: [NSRange] = [], commentCounts: [Int: Int] = [:],
          bubbleColorHex: String = "#E8663D", bubbleCornerRadius: Double = 16,
-         bubbleIcon: String = "💬") {
+         bubbleIcon: String = "💬", bubbleSkin: Int = 0) {
         self.pageIndex = index
         self.attributed = attributed
         self.pageStart = pageStart
@@ -349,6 +351,7 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
         self.bubbleColorHex = bubbleColorHex
         self.bubbleCornerRadius = bubbleCornerRadius
         self.bubbleIcon = bubbleIcon
+        self.bubbleSkin = bubbleSkin
         super.init(nibName: nil, bundle: nil)
     }
 

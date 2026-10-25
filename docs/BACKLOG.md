@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 版本 2.3 四项深化（二批）
+- **WebView 主执行器**：`jsExecutorMode`（0 自动 / 1 仅 JSC / 2 WebView 优先），阅读设置可选；WebView 优先时纯函数脚本先走 WKWebView；**mode=2 真实书源回归通过**（书山聚合 215 类/200 本）；
+- **i18n 低频文案**：文案表扩到 140+ key，BackupView/FileBrowserView/SourcesView/TTSConfigView 等接入；
+- **dp:N 段评图片**：`<img src="dp:N">` 解析 → 正文渲染「💬×N」气泡胶囊（accent 色）；
+- **气泡皮肤**：`bubbleSkin`（0 胶囊 / 1 圆角 / 2 对话气泡），阅读设置可选，PagedReaderView 按皮肤渲染；
+- 自检扩到 **42 项全通过**（含 dp 解析/识别 2 断言）。
+
 ### [V2.3] ✅ 已完成 · 版本 2.3 三项深化
 - **版本号 2.3**（MARKETING_VERSION）；
 - **i18n 全量**：LocalizationManager 文案表扩到 100+ key（Tab/书架/统计/设置/阅读器/来源/发现/TTS/备份/通用），主要页面文案接入 `tr()`；

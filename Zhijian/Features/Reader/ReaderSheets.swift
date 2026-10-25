@@ -504,6 +504,23 @@ struct ReaderSettingsSheet: View {
             }
             .tint(ZJ.accent)
 
+            HStack {
+                Text("JS 执行器").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Picker("", selection: Binding(
+                    get: { settingsStore.settings.jsExecutorMode },
+                    set: { settingsStore.settings.jsExecutorMode = $0 }
+                )) {
+                    Text("自动").tag(0)
+                    Text("仅 JSC").tag(1)
+                    Text("WebView 优先").tag(2)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .tint(ZJ.accent)
+            }
+            .padding(.vertical, 4)
+
             Toggle(isOn: bind(\.longChapterAutoPaged)) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("长章自动分页")
@@ -647,6 +664,23 @@ struct ReaderSettingsSheet: View {
                     .foregroundStyle(settingsStore.settings.bubbleIcon == icon ? ZJ.accent : ZJ.textSecondary)
                     .padding(6)
                     .background(settingsStore.settings.bubbleIcon == icon ? ZJ.accent.opacity(0.12) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+
+            HStack {
+                Text("皮肤").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                ForEach(["胶囊", "圆角", "对话气泡"], id: \.self) { skin in
+                    let index = ["胶囊", "圆角", "对话气泡"].firstIndex(of: skin) ?? 0
+                    Button(skin) {
+                        settingsStore.settings.bubbleSkin = index
+                    }
+                    .font(.system(size: 11, weight: settingsStore.settings.bubbleSkin == index ? .semibold : .regular))
+                    .foregroundStyle(settingsStore.settings.bubbleSkin == index ? .white : ZJ.textSecondary)
+                    .padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(settingsStore.settings.bubbleSkin == index ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
                     .buttonStyle(.plain)
                 }
             }

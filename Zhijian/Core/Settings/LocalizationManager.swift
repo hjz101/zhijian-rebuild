@@ -62,7 +62,21 @@ final class LocalizationManager: ObservableObject {
             "common.cancel": "取消", "common.done": "完成", "common.save": "保存",
             "common.delete": "删除", "common.confirm": "确定", "common.search": "搜索",
             "common.loading": "加载中…", "common.failed": "失败", "common.import": "导入",
-            "common.share": "分享", "common.copy": "复制", "common.close": "关闭"
+            "common.share": "分享", "common.copy": "复制", "common.close": "关闭",
+            // 低频补充
+            "backup.exportNow": "立即备份", "backup.lastTime": "上次备份", "backup.frequency": "备份频率",
+            "backup.onExit": "退出时", "backup.daily": "每天", "backup.weekly": "每周",
+            "backup.mirror": "镜像备份目录到 WebDAV（增量）",
+            "sources.health": "书源体检", "sources.batch": "批量测试", "sources.diagnose": "诊断",
+            "sources.duplicate": "去重", "sources.importURL": "从 URL 导入", "sources.clipboard": "从剪贴板导入",
+            "tts.source": "TTS 源", "tts.voice": "音色", "tts.pitch": "音高", "tts.test": "试听",
+            "tts.aiRoles": "AI 角色识别", "tts.llmKey": "API Key",
+            "reader.titleDesigner": "章节标题设计器", "reader.background": "阅读背景",
+            "reader.themePackages": "主题包", "reader.fonts": "字体管理", "reader.highlightRules": "高亮规则",
+            "reader.comments": "评论", "reader.paragraph": "段评", "reader.chapterComments": "章末评论",
+            "files.title": "文件管理", "files.import": "导入文件", "files.rename": "重命名",
+            "files.move": "移动到…", "files.copy": "复制到…", "files.delete": "删除",
+            "stats.year": "年度目标", "stats.day": "今日卡", "stats.booksRead": "书籍统计"
         ]
         let en: [String: String] = [
             "tab.shelf": "Shelf", "tab.stats": "Stats", "tab.settings": "Settings", "tab.discover": "Discover",
@@ -94,7 +108,20 @@ final class LocalizationManager: ObservableObject {
             "common.cancel": "Cancel", "common.done": "Done", "common.save": "Save",
             "common.delete": "Delete", "common.confirm": "OK", "common.search": "Search",
             "common.loading": "Loading…", "common.failed": "Failed", "common.import": "Import",
-            "common.share": "Share", "common.copy": "Copy", "common.close": "Close"
+            "common.share": "Share", "common.copy": "Copy", "common.close": "Close",
+            "backup.exportNow": "Backup Now", "backup.lastTime": "Last Backup", "backup.frequency": "Frequency",
+            "backup.onExit": "On Exit", "backup.daily": "Daily", "backup.weekly": "Weekly",
+            "backup.mirror": "Mirror to WebDAV (incremental)",
+            "sources.health": "Source Health", "sources.batch": "Batch Test", "sources.diagnose": "Diagnose",
+            "sources.duplicate": "Deduplicate", "sources.importURL": "Import from URL", "sources.clipboard": "Import from Clipboard",
+            "tts.source": "TTS Source", "tts.voice": "Voice", "tts.pitch": "Pitch", "tts.test": "Preview",
+            "tts.aiRoles": "AI Role Detection", "tts.llmKey": "API Key",
+            "reader.titleDesigner": "Chapter Title Designer", "reader.background": "Reading Background",
+            "reader.themePackages": "Theme Packages", "reader.fonts": "Fonts", "reader.highlightRules": "Highlight Rules",
+            "reader.comments": "Comments", "reader.paragraph": "Paragraph", "reader.chapterComments": "Chapter Comments",
+            "files.title": "Files", "files.import": "Import Files", "files.rename": "Rename",
+            "files.move": "Move to…", "files.copy": "Copy to…", "files.delete": "Delete",
+            "stats.year": "Yearly Goal", "stats.day": "Today Card", "stats.booksRead": "Book Stats"
         ]
         let table = shared.language == .zh ? zh : en
         return table[key] ?? key

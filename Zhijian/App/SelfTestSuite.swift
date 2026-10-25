@@ -131,7 +131,15 @@ enum SelfTestSuite {
 
         // 13) WebView 兜底：由 `-webViewJSExecTest` 覆盖（主线程同步等信号量会死锁）
 
-        // 14) PSL eTLD+1
+        // 14) dp:N 段评图片协议
+        let dpRes = ReaderImageExtractor.splitOptions("dp:3")
+        check("DP-split", dpRes.url == "dp:3", dpRes.url)
+        // 走 extract 验证 dp 识别（构造简单 html）
+        let extracted = ReaderImageExtractor.extract(from: "行首<img src=\"dp:2\" />", baseURL: "")
+        check("DP-extract", extracted.images.first?.dpCount == 2,
+              "dp=\(extracted.images.first?.dpCount ?? 0) imgs=\(extracted.images.count)")
+
+        // 15) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

@@ -147,9 +147,9 @@ private struct TTSConfigContent: View {
             QiDivider()
             HStack(spacing: 10) {
                 Button {
-                    tts.play(text: sampleText, bookTitle: "试听", chapterTitle: "系统朗读")
+                    tts.play(text: sampleText, bookTitle: LocalizationManager.tr("tts.test"), chapterTitle: "系统朗读")
                 } label: {
-                    Label("试听", systemImage: "play.fill")
+                    Label(LocalizationManager.tr("tts.test"), systemImage: "play.fill")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)

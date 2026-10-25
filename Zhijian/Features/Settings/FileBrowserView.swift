@@ -40,10 +40,10 @@ struct FileBrowserView: View {
                     }
                     .contentShape(Rectangle())
                     .contextMenu {
-                        Button { renaming = url; renameText = url.lastPathComponent } label: { Label("重命名", systemImage: "pencil") }
-                        Button { moveSource = url; moveIsCopy = false; loadDestinations(); showMovePicker = true } label: { Label("移动到…", systemImage: "folder") }
-                        Button { moveSource = url; moveIsCopy = true; loadDestinations(); showMovePicker = true } label: { Label("复制到…", systemImage: "doc.on.doc") }
-                        Button(role: .destructive) { delete(url) } label: { Label("删除", systemImage: "trash") }
+                        Button { renaming = url; renameText = url.lastPathComponent } label: { Label(LocalizationManager.tr("files.rename"), systemImage: "pencil") }
+                        Button { moveSource = url; moveIsCopy = false; loadDestinations(); showMovePicker = true } label: { Label(LocalizationManager.tr("files.move"), systemImage: "folder") }
+                        Button { moveSource = url; moveIsCopy = true; loadDestinations(); showMovePicker = true } label: { Label(LocalizationManager.tr("files.copy"), systemImage: "doc.on.doc") }
+                        Button(role: .destructive) { delete(url) } label: { Label(LocalizationManager.tr("files.delete"), systemImage: "trash") }
                     }
                 }
                 .onDelete(perform: deleteRows)
@@ -51,7 +51,7 @@ struct FileBrowserView: View {
                 Text("\(currentDir.lastPathComponent) / \(items.count) 项")
             }
         }
-        .navigationTitle("文件")
+        .navigationTitle(LocalizationManager.tr("files.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -80,7 +80,7 @@ struct FileBrowserView: View {
                 present("导入失败：\(error.localizedDescription)")
             }
         }
-        .alert("重命名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+        .alert(LocalizationManager.tr("files.rename"), isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("名称", text: $renameText)
             Button("取消", role: .cancel) { renaming = nil }
             Button("确定") {
@@ -104,7 +104,7 @@ struct FileBrowserView: View {
                         }
                     }
                 }
-                .navigationTitle(moveIsCopy ? "复制到…" : "移动到…")
+                .navigationTitle(moveIsCopy ? LocalizationManager.tr("files.copy") : LocalizationManager.tr("files.move"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("取消") { showMovePicker = false } } }
             }

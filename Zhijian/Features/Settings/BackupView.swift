@@ -226,7 +226,7 @@ private struct BackupContent: View {
                 QiDivider()
                 actionRow("下载最新备份", icon: "icloud.and.arrow.down") { downloadLatestBackup(active) }
                 QiDivider()
-                actionRow("镜像备份目录到 WebDAV（增量）", icon: "arrow.triangle.2.circlepath") {
+                actionRow(LocalizationManager.tr("backup.mirror"), icon: "arrow.triangle.2.circlepath") {
                     mirrorDirectoryToWebDAV(active)
                 }
                 QiDivider()

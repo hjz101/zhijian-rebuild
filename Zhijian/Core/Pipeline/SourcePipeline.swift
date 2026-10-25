@@ -300,6 +300,8 @@ final class HTTPClient: @unchecked Sendable {
         "(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
     /// P2-08：书源 HTTPS 优先开关（默认开启）
     static var httpsFirstEnabled = true
+    /// 书源 JS 执行器模式（SettingsStore.jsExecutorMode 同步）
+    static var currentExecutorMode: Int = 0
 
     static func httpsUpgrade(_ url: String) -> String? {
         guard url.hasPrefix("http://") else { return nil }
@@ -837,6 +839,7 @@ final class SourcePipeline {
         self.http = client
         let runtime = JSRuntime(source: source, http: client, jar: jar)
         runtime.loginInfo = loginInfo.reduce(into: [:]) { $0[$1.key] = $1.value }
+        runtime.executorMode = HTTPClient.currentExecutorMode
         self.js = runtime
 
         // 书源 `header` 可以是 JS（很多聚合源用 @js: getSecretKey() 生成签名头），

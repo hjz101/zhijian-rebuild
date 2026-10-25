@@ -102,7 +102,7 @@ struct SourcesView: View {
             .alert("从 URL 导入", isPresented: $showURLImport) {
                 TextField("https://…/bookSource.json", text: $urlText)
                 Button("取消", role: .cancel) {}
-                Button("导入") { importFromURL() }
+                Button(LocalizationManager.tr("sources.import")) { importFromURL() }
             } message: { Text("支持 Legado 书源 JSON 地址（单条或数组）") }
             .alert("提示", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                 Button("好") { message = nil }
@@ -301,7 +301,7 @@ struct SourcesView: View {
                         exploreSource = source
                     }
                 }
-                chipButton("体检", icon: "stethoscope") {
+                chipButton(LocalizationManager.tr("sources.health"), icon: "stethoscope") {
                     showHealth = true
                 }
                 Spacer()
@@ -385,7 +385,7 @@ struct SourcesView: View {
                 Button {
                     let removed = env.sources.deduplicate()
                     message = removed > 0 ? "已去重 \(removed) 个书源" : "没有重复书源"
-                } label: { Label("去重", systemImage: "rectangle.stack.badge.minus") }
+                } label: { Label(LocalizationManager.tr("sources.duplicate"), systemImage: "rectangle.stack.badge.minus") }
             } label: { Image(systemName: "plus") }
         }
     }
@@ -400,7 +400,7 @@ struct SourcesView: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("取消") { showImport = false } }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("导入") { doImport(importText); showImport = false }
+                        Button(LocalizationManager.tr("sources.import")) { doImport(importText); showImport = false }
                             .disabled(importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }

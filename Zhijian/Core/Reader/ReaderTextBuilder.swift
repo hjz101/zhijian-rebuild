@@ -135,6 +135,27 @@ enum ReaderTextBuilder {
                 paragraph.paragraphSpacing = 8
                 paragraph.lineSpacing = 0
 
+                // dp:N 段评配图 → 「💬×N」气泡（qysg 协议）
+                if item.isDP {
+                    let bubbleText = "\(item.dpCount > 1 ? "💬×\(item.dpCount)" : "💬") "
+                    let bubble = NSAttributedString(string: bubbleText, attributes: [
+                        .font: UIFont.systemFont(ofSize: fontSize * 0.9, weight: .semibold),
+                        .foregroundColor: UIColor.white,
+                        .backgroundColor: UIColor(palette.accent).withAlphaComponent(0.85),
+                        .paragraphStyle: paragraph
+                    ])
+                    let padded = NSMutableAttributedString(string: " ")
+                    padded.append(bubble)
+                    padded.append(NSAttributedString(string: " "))
+                    result.append(padded)
+                    result.append(NSAttributedString(string: "\n", attributes: [
+                        .font: UIFont.systemFont(ofSize: 4),
+                        .foregroundColor: textColor,
+                        .paragraphStyle: paragraph
+                    ]))
+                    continue
+                }
+
                 let attachment = NSTextAttachment()
                 if let image = imageProvider?(item.url) {
                     attachment.image = image

@@ -95,8 +95,16 @@ final class JSRuntime: RuleJSEvaluating {
     }
 
     /// 执行 JS，并把「用当前解析上下文求值任意规则」的解析器注入给 java.getString 等 API。
+    /// 执行器模式：0 自动(JSC+兜底) / 1 仅 JSC / 2 WebView 优先（SettingsStore.jsExecutorMode）
+    var executorMode: Int = 0
+
     func evaluateJS(_ code: String, bindings: RuleBindings, resolver: RuleResolver?) throws -> Any? {
-        try syncExecute {
+        // WebView 优先模式：纯函数脚本先走 WKWebView，失败回 JSC
+        if executorMode == 2, isPureFunction(code),
+           let webResult = try? webViewFallback(code, exceptionMessage: "") {
+            return webResult
+        }
+        return try syncExecute {
             let previousResolver = currentResolver
             currentResolver = resolver
             defer { currentResolver = previousResolver }
@@ -131,6 +139,11 @@ final class JSRuntime: RuleJSEvaluating {
             return json
         }
         return result
+    }
+
+    private func isPureFunction(_ code: String) -> Bool {
+        let dependencyTokens = ["java.", "source.", "cookie.", "cache.", "result.", "jsoup", "getString", "getInt"]
+        return !dependencyTokens.contains { code.contains($0) }
     }
 
     /// WebView 兜底：仅当脚本是「纯函数」（无沙箱依赖）时可用。

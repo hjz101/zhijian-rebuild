@@ -318,6 +318,10 @@ private struct ReaderSurface: View {
                     chapterCommentCount: chapterComments.count(bookId: model.book.id,
                                                                chapterIndex: model.currentChapterIndex),
                     onChapterComments: { showChapterComments = true },
+                    bubbleColorHex: settings.bubbleColorHex,
+                    bubbleCornerRadius: settings.bubbleCornerRadius,
+                    bubbleIcon: settings.bubbleIcon,
+                    bubbleSkin: settings.bubbleSkin,
                     twoPage: model.isTwoPage,
                     animation: settings.pageTurnAnimation,
                     onImageTap: presentImage

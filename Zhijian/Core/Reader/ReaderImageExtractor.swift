@@ -10,6 +10,9 @@ struct ExtractedReaderImage: Codable, Hashable, Sendable {
     var headers: [String: String] = [:]
     var js: String = ""
     var imageDecode: Bool = false
+    /// qysg 段评图片协议 `dp:N`：内置段评配图数量
+    var dpCount: Int = 0
+    var isDP: Bool { dpCount > 0 }
 }
 
 enum ReaderImageExtractor {
@@ -60,6 +63,12 @@ enum ReaderImageExtractor {
                 let alt = (node.attribute("alt") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 // qysg 协议：`url,{'headers':{...},'js':'...','imageDecode':true}`
                 let (pureURL, options) = Self.splitOptions(raw)
+                // qysg 段评图片协议：`dp:N`（内置段评配图）
+                if pureURL.hasPrefix("dp:"), let count = Int(pureURL.dropFirst(3)), count > 0 {
+                    images.append(ExtractedReaderImage(url: "", alt: alt, lineIndex: 0, dpCount: count))
+                    out += "\n[[IMG\(images.count - 1)]]\n"
+                    return
+                }
                 let url = RuleURLResolver.resolve(base: baseURL, relative: pureURL)
                 if !url.isEmpty, !url.hasPrefix("data:") {
                     let lineIndex = out.components(separatedBy: "\n").count - 1
