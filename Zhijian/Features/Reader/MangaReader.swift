@@ -14,6 +14,13 @@ struct MangaReaderScreen: View {
     @State private var loadError: String?
     @State private var scrollMode = false
 
+    private var isTwoPage: Bool {
+        env.settings.settings.mangaTwoPage
+            && !scrollMode
+            && UIDevice.current.orientation.isLandscape
+            && pages.count > 2
+    }
+
     init(book: Book) {
         self.book = book
         _pageIndex = State(initialValue: max(0, book.currentPageIndex))
@@ -34,12 +41,31 @@ struct MangaReaderScreen: View {
             } else {
                 TabView(selection: $pageIndex) {
                     ForEach(pages.indices, id: \.self) { index in
-                        MangaPageView(url: pages[index]) { ratio in
-                            if ratio < 0.16 { go(-1) }
-                            else if ratio > 0.84 { go(1) }
-                            else { withAnimation(.easeOut(duration: 0.2)) { chromeVisible.toggle() } }
+                        if isTwoPage, index % 2 == 0, pages.indices.contains(index + 1) {
+                            // 双页：左页 + 右页并排
+                            HStack(spacing: 0) {
+                                MangaPageView(url: pages[index]) { ratio in
+                                    if ratio < 0.16 { go(-1) }
+                                    else if ratio > 0.84 { go(1) }
+                                    else { chromeVisible.toggle() }
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                MangaPageView(url: pages[index + 1]) { ratio in
+                                    if ratio < 0.16 { go(-1) }
+                                    else if ratio > 0.84 { go(1) }
+                                    else { chromeVisible.toggle() }
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                            .tag(index)
+                        } else {
+                            MangaPageView(url: pages[index]) { ratio in
+                                if ratio < 0.16 { go(-1) }
+                                else if ratio > 0.84 { go(1) }
+                                else { withAnimation(.easeOut(duration: 0.2)) { chromeVisible.toggle() } }
+                            }
+                            .tag(index)
                         }
-                        .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))

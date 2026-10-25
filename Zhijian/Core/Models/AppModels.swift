@@ -252,6 +252,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var mangaScrollMode: Bool = false
     /// Webtoon：漫画首次打开默认滚动模式
     var mangaDefaultScroll: Bool = true
+    /// 漫画双页模式（横屏并排）
+    var mangaTwoPage: Bool = true
     /// P2-08：书源 HTTPS 优先
     var httpsFirst: Bool = true
     /// R2-04：超长章节在滚动模式下自动切分页（缓解长章卡顿）
@@ -324,6 +326,7 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         highlightRules = try container.decodeIfPresent([HighlightRule].self, forKey: .highlightRules) ?? []
         mangaScrollMode = try container.decodeIfPresent(Bool.self, forKey: .mangaScrollMode) ?? false
         mangaDefaultScroll = try container.decodeIfPresent(Bool.self, forKey: .mangaDefaultScroll) ?? true
+        mangaTwoPage = try container.decodeIfPresent(Bool.self, forKey: .mangaTwoPage) ?? true
         httpsFirst = try container.decodeIfPresent(Bool.self, forKey: .httpsFirst) ?? true
         longChapterAutoPaged = try container.decodeIfPresent(Bool.self, forKey: .longChapterAutoPaged) ?? true
         customPalette = try container.decodeIfPresent(ReaderCustomPalette.self, forKey: .customPalette)

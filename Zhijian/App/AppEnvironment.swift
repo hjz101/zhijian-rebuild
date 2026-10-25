@@ -265,6 +265,12 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webdav-mirror-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if ProcessInfo.processInfo.arguments.contains("-i18nAudit") {
+            let lines = I18nAudit.run()
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("i18n-audit.txt"),
+                                                      atomically: true, encoding: .utf8)
+            NSLog("[I18nAudit] %@", lines.first ?? "")
+        }
         if ProcessInfo.processInfo.arguments.contains("-webViewJSExecTest") {
             Task {
                 let executor = WebViewJSExecutor()

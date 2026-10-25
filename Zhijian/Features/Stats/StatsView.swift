@@ -6,6 +6,7 @@ struct StatsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @ObservedObject private var stats = ReadingStatsStore.shared
     @State private var showGoalSheet = false
+    @State private var exportURL: URL?
 
     var body: some View {
         NavigationStack {
@@ -24,9 +25,26 @@ struct StatsView: View {
                                 .background(.ultraThinMaterial, in: Circle())
                         }
                         .buttonStyle(.plain)
+                        Button {
+                            exportCSV()
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(ZJ.textSecondary)
+                                .frame(width: 34, height: 34)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     todayGoalCard
+                    if let exportURL {
+                        ShareLink(item: exportURL) { Label("导出 CSV", systemImage: "square.and.arrow.up") }
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(ZJ.accent)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(ZJ.accent.opacity(0.1), in: Capsule())
+                    }
 
                     HStack(spacing: 12) {
                         metricCard(title: LocalizationManager.tr("stats.week"), value: ReadingStatsStore.text(stats.weekSeconds), icon: "clock")
@@ -36,6 +54,7 @@ struct StatsView: View {
 
                     weekCard
                     trendCard
+                    heatmapCard
                     yearlyCard
                     summaryCard
                 }
@@ -146,6 +165,86 @@ struct StatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .qiCard()
+    }
+
+    private func exportCSV() {
+        let trend = stats.recentTrend(days: 90)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        var lines = ["date,minutes"]
+        for item in trend {
+            lines.append("\(formatter.string(from: item.date)),\(Int(item.seconds / 60))")
+        }
+        let csv = lines.joined(separator: "\n")
+        let url = AppData.root.appendingPathComponent("reading-stats-export.csv")
+        try? csv.write(to: url, atomically: true, encoding: .utf8)
+        exportURL = url
+    }
+
+    private var heatmapCard: some View {
+        // GitHub 风格热力图：近 12 周（周日起始）
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let todayWeekday = calendar.component(.weekday, from: today) // 1 周日
+        let daysFromSunday = todayWeekday - 1
+        let end = calendar.date(byAdding: .day, value: -daysFromSunday, to: today) ?? today
+        let weeks = 12
+        let start = calendar.date(byAdding: .day, value: -(weeks * 7 - 1), to: end) ?? end
+        let maxMinutes = max(stats.recentTrend(days: 84).map { $0.seconds / 60 }.max() ?? 0, 30)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(LocalizationManager.tr("stats.heatmap"))
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                HStack(spacing: 3) {
+                    ForEach(0..<5, id: \.self) { level in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(heatColor(level: level, maxMinutes: max(30, maxMinutes)))
+                            .frame(width: 10, height: 10)
+                    }
+                }
+            }
+            HStack(alignment: .top, spacing: 3) {
+                ForEach(0..<weeks, id: \.self) { week in
+                    VStack(spacing: 3) {
+                        ForEach(0..<7, id: \.self) { day in
+                            if let date = calendar.date(byAdding: .day,
+                                                        value: week * 7 + day,
+                                                        to: start) {
+                                let minutes = stats.seconds(on: date) / 60
+                                RoundedRectangle(cornerRadius: 2.5)
+                                    .fill(heatColor(level: level(for: minutes, max: maxMinutes),
+                                                   maxMinutes: maxMinutes))
+                                    .frame(width: 11, height: 11)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .qiCard()
+    }
+
+    private func level(for minutes: Double, max: Double) -> Int {
+        guard minutes > 0, max > 0 else { return 0 }
+        let ratio = minutes / max
+        if ratio < 0.25 { return 1 }
+        if ratio < 0.5 { return 2 }
+        if ratio < 0.75 { return 3 }
+        return 4
+    }
+
+    private func heatColor(level: Int, maxMinutes: Double) -> Color {
+        switch level {
+        case 0: return ZJ.textTertiary.opacity(0.10)
+        case 1: return ZJ.accent.opacity(0.22)
+        case 2: return ZJ.accent.opacity(0.42)
+        case 3: return ZJ.accent.opacity(0.66)
+        default: return ZJ.accent.opacity(0.92)
+        }
     }
 
     private var yearlyCard: some View {
