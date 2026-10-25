@@ -9,79 +9,133 @@ struct ChapterRulesView: View {
     @State private var preview = ""
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("目录去重", isOn: $draft.deduplicate)
-                Toggle("过滤空标题", isOn: $draft.dropEmpty)
-                Toggle("识别卷名（第一卷/卷一）", isOn: $draft.detectVolumes)
-                Toggle("自动纠正倒序目录", isOn: $draft.autoReverse)
-                Toggle("强制倒序", isOn: $draft.reverseOrder)
-                Toggle("按章节编号排序", isOn: $draft.sortNumbered)
-            } header: {
-                Text("全局目录规则")
-            } footer: {
-                Text("顺序：去空 → 标题清理 → 卷名识别 → 去重 → 倒序 → 编号排序。")
-            }
+        ScrollView {
+            VStack(spacing: 18) {
+                QiSettingsSection(title: "全局目录规则") {
+                    QiToggleRow(icon: "square.stack.3d.down.right", title: "目录去重", isOn: $draft.deduplicate)
+                    QiDivider()
+                    QiToggleRow(icon: "text.badge.xmark", title: "过滤空标题", isOn: $draft.dropEmpty)
+                    QiDivider()
+                    QiToggleRow(icon: "book.closed", title: "识别卷名（第一卷/卷一）", isOn: $draft.detectVolumes)
+                    QiDivider()
+                    QiToggleRow(icon: "arrow.up.arrow.down", title: "自动纠正倒序目录", isOn: $draft.autoReverse)
+                    QiDivider()
+                    QiToggleRow(icon: "arrow.uturn.backward", title: "强制倒序", isOn: $draft.reverseOrder)
+                    QiDivider()
+                    QiToggleRow(icon: "number", title: "按章节编号排序", isOn: $draft.sortNumbered)
+                    footer("顺序：去空 → 标题清理 → 卷名识别 → 去重 → 倒序 → 编号排序。")
+                }
 
-            Section {
-                TextField("标题清理正则（匹配部分删除）", text: $draft.titleCleanupRegex, axis: .vertical)
-                    .font(.system(size: 12, design: .monospaced))
-                    .lineLimit(1...3)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                TextField("卷名正则", text: $draft.volumeRegex, axis: .vertical)
-                    .font(.system(size: 12, design: .monospaced))
-                    .lineLimit(1...3)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-            } header: {
-                Text("高级")
-            } footer: {
-                Text("标题清理示例：`^(正文|最新章节)\\s*`；卷名正则默认匹配「第X卷/部」。")
-            }
-
-            Section("预览") {
-                Button("用示例目录预览") { runPreview() }
-                Text(preview)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ForEach(env.sources.sources) { source in
-                    Button {
-                        editing = source
-                    } label: {
-                        HStack {
-                            Text(source.bookSourceName).foregroundStyle(ZJ.textPrimary)
-                            Spacer()
-                            Text(store.hasOverride(source.bookSourceUrl) ? "自定义" : "沿用全局")
-                                .font(.caption)
-                                .foregroundStyle(store.hasOverride(source.bookSourceUrl) ? ZJ.accent : .secondary)
-                            Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(.secondary)
-                        }
+                QiSettingsSection(title: "高级") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("标题清理正则（匹配部分删除）")
+                            .font(.system(size: 11))
+                            .foregroundStyle(ZJ.textSecondary)
+                        TextField("^(正文|最新章节)\\s*", text: $draft.titleCleanupRegex, axis: .vertical)
+                            .font(.system(size: 12, design: .monospaced))
+                            .lineLimit(1...3)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .padding(10)
+                            .background(ZJ.bgElev2.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    QiDivider()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("卷名正则")
+                            .font(.system(size: 11))
+                            .foregroundStyle(ZJ.textSecondary)
+                        TextField("卷名正则", text: $draft.volumeRegex, axis: .vertical)
+                            .font(.system(size: 12, design: .monospaced))
+                            .lineLimit(1...3)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .padding(10)
+                            .background(ZJ.bgElev2.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    footer("标题清理示例：`^(正文|最新章节)\\s*`；卷名正则默认匹配「第X卷/部」。")
                 }
-            } header: {
-                Text("按书源覆盖")
-            } footer: {
-                Text("为个别书源设置不同规则；未设置时使用全局。")
-            }
 
-            Section {
-                Button("恢复默认值") {
-                    draft = ChapterRuleConfig()
-                    store.updateGlobal(draft)
-                    runPreview()
+                QiSettingsSection(title: "预览") {
+                    Button { runPreview() } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "eye").font(.system(size: 13, weight: .semibold))
+                            Text("用示例目录预览").font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(ZJ.accent, in: Capsule())
+                        .padding(.horizontal, 14)
+                        .padding(.top, 10)
+                    }
+                    .buttonStyle(.plain)
+                    Text(preview)
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(ZJ.textSecondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .foregroundStyle(.red)
+
+                QiSettingsSection(title: "按书源覆盖") {
+                    if env.sources.sources.isEmpty {
+                        Text("尚未导入书源")
+                            .font(.system(size: 12))
+                            .foregroundStyle(ZJ.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 14)
+                    }
+                    ForEach(Array(env.sources.sources.enumerated()), id: \.element.bookSourceUrl) { index, source in
+                        Button {
+                            editing = source
+                        } label: {
+                            HStack(spacing: 12) {
+                                Text(source.bookSourceName)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(ZJ.textPrimary)
+                                Spacer()
+                                Text(store.hasOverride(source.bookSourceUrl) ? "自定义" : "沿用全局")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(store.hasOverride(source.bookSourceUrl) ? ZJ.accent : ZJ.textSecondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(ZJ.textTertiary)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 11)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if index < env.sources.sources.count - 1 { QiDivider() }
+                    }
+                    footer("为个别书源设置不同规则；未设置时使用全局。")
+                }
+
+                QiSettingsSection(title: "重置") {
+                    Button {
+                        draft = ChapterRuleConfig()
+                        store.updateGlobal(draft)
+                        runPreview()
+                    } label: {
+                        Text("恢复默认值")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(ZJ.error)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .scrollContentBackground(.hidden)
         .background(QiBackground())
-        .scrollContentBackground(.hidden)
-        .background(QiBackground())
-        .tint(ZJ.accent)
         .navigationTitle("目录规则")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -101,6 +155,16 @@ struct ChapterRulesView: View {
             ChapterRuleSourceEditor(source: source)
                 .environmentObject(env)
         }
+    }
+
+    private func footer(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func runPreview() {

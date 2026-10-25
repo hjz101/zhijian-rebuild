@@ -11,95 +11,81 @@ struct CloudSyncView: View {
     @State private var commentSyncMessage = "尚未同步"
 
     var body: some View {
-        List {
-            Section {
-                HStack {
-                    Label("iCloud 键值同步", systemImage: "icloud")
-                    Spacer()
-                    Text(cloud.usingFallback ? "本地镜像（待签名）" : (cloud.remoteUpdated ? "云端有更新" : "已连接"))
-                        .font(.caption).foregroundStyle(cloud.remoteUpdated ? ZJ.accent : .secondary)
-                }
-                Text(cloud.statusMessage).font(.footnote).foregroundStyle(.secondary)
-                if cloud.lastConflictCount > 0 {
-                    HStack {
-                        Text("最近合并冲突")
-                        Spacer()
-                        Text("\(cloud.lastConflictCount) 处（新版本优先）").foregroundStyle(ZJ.accent)
+        ScrollView {
+            VStack(spacing: 18) {
+                QiSettingsSection(title: "iCloud 同步") {
+                    QiRow(icon: "icloud", title: "iCloud 键值同步",
+                          subtitle: cloud.statusMessage,
+                          value: cloud.usingFallback ? "本地镜像（待签名）" : (cloud.remoteUpdated ? "云端有更新" : "已连接"))
+                    QiDivider()
+                    if cloud.lastConflictCount > 0 {
+                        QiRow(icon: "arrow.triangle.merge", title: "最近合并冲突",
+                              value: "\(cloud.lastConflictCount) 处（新版本优先）")
+                        QiDivider()
                     }
-                    .font(.caption)
+                    primaryAction("上传设置与阅读进度", icon: "icloud.and.arrow.up") {
+                        cloud.push(settings: env.settings.settings, books: env.books.books)
+                        present("已上传当前设置与阅读进度")
+                    }
+                    QiDivider()
+                    actionRow("从 iCloud 同步", icon: "icloud.and.arrow.down") {
+                        let summary = cloud.pull(into: env.settings, books: env.books)
+                        present(summary)
+                    }
+                    if let pushed = cloud.lastPushAt {
+                        QiDivider()
+                        QiRow(icon: "clock", title: "最近上传",
+                              value: pushed.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    if let pulled = cloud.lastPullAt {
+                        QiDivider()
+                        QiRow(icon: "clock", title: "最近下载",
+                              value: pulled.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    footer("通过 NSUbiquitousKeyValueStore 同步阅读设置与每本书的章节/页码进度；不包含书源 Cookie 与正文文件。")
                 }
-                Button {
-                    cloud.push(settings: env.settings.settings, books: env.books.books)
-                    present("已上传当前设置与阅读进度")
-                } label: {
-                    Label("上传设置与阅读进度", systemImage: "icloud.and.arrow.up")
-                }
-                Button {
-                    let summary = cloud.pull(into: env.settings, books: env.books)
-                    present(summary)
-                } label: {
-                    Label("从 iCloud 同步", systemImage: "icloud.and.arrow.down")
-                }
-                if let pushed = cloud.lastPushAt {
-                    HStack { Text("最近上传"); Spacer(); Text(pushed.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary) }
-                }
-                if let pulled = cloud.lastPullAt {
-                    HStack { Text("最近下载"); Spacer(); Text(pulled.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary) }
-                }
-            } header: {
-                Text("iCloud 同步")
-            } footer: {
-                Text("通过 NSUbiquitousKeyValueStore 同步阅读设置与每本书的章节/页码进度；不包含书源 Cookie 与正文文件。")
-            }
 
-            Section {
-                if let config = env.backup.webdav.activeConfig {
-                    Button {
-                        syncComments(config)
-                    } label: {
-                        HStack {
-                            Label("同步段评 / 章末评论", systemImage: "bubble.left.and.bubble.right")
-                            Spacer()
-                            if syncingComments { ProgressView().controlSize(.small) }
+                QiSettingsSection(title: "WebDAV 评论同步") {
+                    if let config = env.backup.webdav.activeConfig {
+                        actionRow(syncingComments ? "正在同步…" : "同步段评 / 章末评论",
+                                  icon: "bubble.left.and.bubble.right",
+                                  disabled: syncingComments) {
+                            syncComments(config)
                         }
+                        QiDivider()
+                        Text(commentSyncMessage)
+                            .font(.system(size: 11))
+                            .foregroundStyle(ZJ.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Text("先在「备份与同步」配置 WebDAV，即可独立同步评论。")
+                            .font(.system(size: 12))
+                            .foregroundStyle(ZJ.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 14)
                     }
-                    .disabled(syncingComments)
-                    Text(commentSyncMessage).font(.footnote).foregroundStyle(.secondary)
-                } else {
-                    Text("先在「备份与同步」配置 WebDAV，即可独立同步评论。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    footer("上传/下载 zhijian-comments.json；合并按 updatedAt 新版本优先，删除以墓碑同步。")
                 }
-            } header: {
-                Text("WebDAV 评论同步")
-            } footer: {
-                Text("上传/下载 zhijian-comments.json；合并按 updatedAt 新版本优先，删除以墓碑同步。")
-            }
 
-            Section {
-                HStack {
-                    Label("iCloud Drive", systemImage: "externaldrive.badge.icloud")
-                    Spacer()
-                    Text(cloud.driveAvailable ? "可用" : "不可用").font(.caption)
-                        .foregroundStyle(cloud.driveAvailable ? ZJ.celadon : .secondary)
+                QiSettingsSection(title: "iCloud Drive 备份") {
+                    QiRow(icon: "externaldrive.badge.icloud", title: "iCloud Drive",
+                          value: cloud.driveAvailable ? "可用" : "不可用")
+                    QiDivider()
+                    actionRow("生成备份并镜像到 iCloud Drive",
+                              icon: "arrow.up.doc.on.clipboard",
+                              disabled: working) {
+                        mirrorBackup()
+                    }
+                    footer(cloud.driveAvailable
+                           ? "备份文件会写入 iCloud Drive/指尖阅读/Documents。"
+                           : "当前构建未启用 iCloud 容器（需签名与 ubiquity 容器 entitlement）；可用「备份与同步」导出到「文件」App。")
                 }
-                Button {
-                    mirrorBackup()
-                } label: {
-                    Label("生成备份并镜像到 iCloud Drive", systemImage: "arrow.up.doc.on.clipboard")
-                }
-                .disabled(working)
-            } header: {
-                Text("iCloud Drive 备份")
-            } footer: {
-                Text(cloud.driveAvailable
-                     ? "备份文件会写入 iCloud Drive/指尖阅读/Documents。"
-                     : "当前构建未启用 iCloud 容器（需签名与 ubiquity 容器 entitlement）；可用「备份与同步」导出到「文件」App。")
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .scrollContentBackground(.hidden)
-        .background(ZJ.bgBase.ignoresSafeArea())
-        .scrollContentBackground(.hidden)
         .background(QiBackground())
         .tint(ZJ.accent)
         .navigationTitle("iCloud 同步")
@@ -107,6 +93,53 @@ struct CloudSyncView: View {
         .alert(message ?? "", isPresented: $showMessage) {
             Button("好", role: .cancel) {}
         }
+    }
+
+    private func actionRow(_ title: String, icon: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ZJ.accent)
+                    .frame(width: 30, height: 30)
+                    .background(ZJ.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(ZJ.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+    }
+
+    private func primaryAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+                Text(title).font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(ZJ.accent, in: Capsule())
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func footer(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func present(_ text: String) {

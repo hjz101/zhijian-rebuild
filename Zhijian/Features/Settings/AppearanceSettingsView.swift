@@ -41,8 +41,10 @@ struct AppearanceSettingsView: View {
                 }
             }
             .onChange(of: selected) { _, value in
-                ZJPaletteStore.apply(value)
-                refresh = UUID()
+                withAnimation(.easeInOut(duration: 0.28)) {
+                    ZJPaletteStore.apply(value)
+                    refresh = UUID()
+                }
             }
         }
         .preferredColorScheme(palette.isDark ? .dark : .light)

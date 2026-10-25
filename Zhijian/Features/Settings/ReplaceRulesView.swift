@@ -16,42 +16,62 @@ struct ReplaceRulesView: View {
     @State private var alert: String?
     @State private var sampleText = "正文第一段。\n本站域名 www.example.com 请勿相信。\n【广告】点击下载 App。\n正文第二段。"
     @State private var preview = ""
+    @State private var showPreview = false
 
     var body: some View {
-        List {
-            Section {
-                NavigationLink(value: "preview") {
-                    EmptyView()
-                }
-                .hidden()
-                NavigationLink {
-                    ReplaceRulePreviewView()
-                } label: {
-                    Label("清洗预览", systemImage: "eye")
-                }
-                HStack {
-                    Label("规则数", systemImage: "list.bullet")
-                    Spacer()
-                    Text("\(store.rules.count) 条 · \(store.rules.filter(\.enabled).count) 启用")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section {
-                ForEach(store.rules) { rule in
+        ScrollView {
+            VStack(spacing: 18) {
+                QiSettingsSection(title: "概览") {
                     Button {
-                        editing = rule
-                        showEditor = true
+                        showPreview = true
                     } label: {
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(rule.name.isEmpty ? rule.pattern : rule.name)
-                                    .foregroundStyle(ZJ.textPrimary)
-                                Text("\(rule.scope.name) · \(rule.isRegex ? "正则" : "字面量") · \(rule.replacement.isEmpty ? "删除" : "替换")")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
+                        HStack(spacing: 12) {
+                            Image(systemName: "eye")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(ZJ.accent)
+                                .frame(width: 30, height: 30)
+                                .background(ZJ.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            Text("清洗预览").font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
                             Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(ZJ.textTertiary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    QiDivider()
+                    QiRow(icon: "list.bullet", title: "规则数",
+                          value: "\(store.rules.count) 条 · \(store.rules.filter(\.enabled).count) 启用")
+                }
+
+                QiSettingsSection(title: "替换规则") {
+                    if store.rules.isEmpty {
+                        Text("暂无规则，点右上角 + 新建")
+                            .font(.system(size: 12))
+                            .foregroundStyle(ZJ.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 14)
+                    }
+                    ForEach(Array(store.rules.enumerated()), id: \.element.id) { index, rule in
+                        HStack(spacing: 12) {
+                            Button {
+                                editing = rule
+                                showEditor = true
+                            } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(rule.name.isEmpty ? rule.pattern : rule.name)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(ZJ.textPrimary)
+                                        .lineLimit(1)
+                                    Text("\(rule.scope.name) · \(rule.isRegex ? "正则" : "字面量") · \(rule.replacement.isEmpty ? "删除" : "替换")")
+                                        .font(.system(size: 10.5))
+                                        .foregroundStyle(ZJ.textSecondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                             Toggle("", isOn: Binding(
                                 get: { rule.enabled },
                                 set: { _ in store.toggle(rule) }
@@ -59,33 +79,33 @@ struct ReplaceRulesView: View {
                             .labelsHidden()
                             .tint(ZJ.accent)
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .contextMenu {
+                            Button { editing = rule; showEditor = true } label: { Label("编辑", systemImage: "pencil") }
+                            Button(role: .destructive) { store.remove(rule) } label: { Label("删除", systemImage: "trash") }
+                        }
+                        if index < store.rules.count - 1 { QiDivider() }
                     }
-                    .buttonStyle(.plain)
+                    footer("按顺序执行；支持 $1 捕获组、\\n 换行；单条规则超时自动跳过。")
                 }
-                .onDelete { offsets in
-                    offsets.map { store.rules[$0] }.forEach(store.remove)
-                }
-                .onMove(perform: store.move)
-            } header: {
-                Text("替换规则")
-            } footer: {
-                Text("按顺序执行；支持 $1 捕获组、\\n 换行；单条规则超时自动跳过。")
-            }
 
-            Section {
-                Button { showImporter = true } label: { Label("从文件导入 JSON", systemImage: "doc.badge.plus") }
-                Button { showPaste = true } label: { Label("粘贴 JSON 导入", systemImage: "doc.on.clipboard") }
-                Button { export() } label: { Label("导出规则 JSON", systemImage: "square.and.arrow.up") }
-            } footer: {
-                Text("兼容 `[ReplaceRule]` 数组或 `{version, rules}` 包装；导入按 id 覆盖/追加。")
+                QiSettingsSection(title: "导入 / 导出") {
+                    actionRow("从文件导入 JSON", icon: "doc.badge.plus") { showImporter = true }
+                    QiDivider()
+                    actionRow("粘贴 JSON 导入", icon: "doc.on.clipboard") { showPaste = true }
+                    QiDivider()
+                    actionRow("导出规则 JSON", icon: "square.and.arrow.up") { export() }
+                    footer("兼容 `[ReplaceRule]` 数组或 `{version, rules}` 包装；导入按 id 覆盖/追加。")
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .scrollContentBackground(.hidden)
         .background(QiBackground())
         .navigationTitle("替换净化")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { EditButton() }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     editing = ReplaceRule(name: "", pattern: "", replacement: "", order: store.rules.count)
@@ -100,6 +120,15 @@ struct ReplaceRulesView: View {
                     showEditor = false
                 } onCancel: { showEditor = false }
             }
+        }
+        .sheet(isPresented: $showPreview) {
+            NavigationStack {
+                ReplaceRulePreviewView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) { Button("完成") { showPreview = false } }
+                    }
+            }
+            .environmentObject(ReplaceRuleStore.shared)
         }
         .sheet(isPresented: $showExport) {
             if let url = exportURL {
@@ -153,6 +182,35 @@ struct ReplaceRulesView: View {
         .alert(alert ?? "", isPresented: Binding(get: { alert != nil }, set: { if !$0 { alert = nil } })) {
             Button("好", role: .cancel) { alert = nil }
         }
+    }
+
+    private func actionRow(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ZJ.accent)
+                    .frame(width: 30, height: 30)
+                    .background(ZJ.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(ZJ.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func footer(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func export() {

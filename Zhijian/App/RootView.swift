@@ -15,7 +15,9 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            ShelfView().tabItem { Label("书架", systemImage: "books.vertical") }.tag(0)
+            ShelfView()
+                .transition(.opacity)
+                .tabItem { Label("书架", systemImage: "books.vertical") }.tag(0)
             StatsView().tabItem { Label("统计", systemImage: "chart.bar.xaxis") }.tag(1)
             SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(2)
         }
@@ -23,6 +25,7 @@ struct RootView: View {
         .tint(ZJ.accent)
         .preferredColorScheme(ZJPaletteStore.current.isDark ? .dark : .light)
         .id(paletteID)
+        .animation(.easeInOut(duration: 0.28), value: paletteID)
         .onReceive(NotificationCenter.default.publisher(for: .zjPaletteChanged)) { _ in
             paletteID = ZJPaletteStore.currentID
         }

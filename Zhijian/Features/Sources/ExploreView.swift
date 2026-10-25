@@ -53,7 +53,7 @@ struct ExploreView: View {
                             } label: {
                                 exploreCard(book)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(QiPressStyle())
                         }
 
                         if hasMore {

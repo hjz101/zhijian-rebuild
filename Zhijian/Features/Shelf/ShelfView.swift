@@ -192,7 +192,7 @@ struct ShelfView: View {
                     } label: {
                         BookCard(book: book)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(QiPressStyle())
                     .contextMenu {
                         Button { moveTarget = book } label: {
                             Label("移动到分组", systemImage: "folder")
@@ -298,7 +298,7 @@ struct ShelfView: View {
                             .strokeBorder(Color.white.opacity(0.6), lineWidth: 0.8)
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(QiPressStyle())
                 .contextMenu {
                     Button { moveTarget = book } label: {
                         Label("移动到分组", systemImage: "folder")
