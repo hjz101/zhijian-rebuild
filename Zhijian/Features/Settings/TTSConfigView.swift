@@ -558,16 +558,23 @@ private struct TTSourceEditorView: View {
                         .textInputAutocapitalization(.never)
                 }
 
-                TextField("loginUrl（保留字段，登录流程未接入）", text: stringBinding(\.loginUrl))
+                TextField("loginUrl", text: stringBinding(\.loginUrl))
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                if let loginUrl = draft.loginUrl, !loginUrl.isEmpty {
+                    Button {
+                        showLogin = true
+                    } label: {
+                        Label("打开登录页并提取 Cookie", systemImage: "globe")
+                    }
+                }
                 TextField("loginUi（保留字段）", text: stringBinding(\.loginUi))
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
             } header: {
                 Text("请求 / 登录")
             } footer: {
-                Text("登录 Header 会与 header 合并注入 HTTP TTS 请求，仅保存在本机 Application Support/tts_runtime.json。")
+                Text("登录 Header 会与 header 合并注入 HTTP TTS 请求，仅保存在本机 Application Support/tts_runtime.json；loginUrl 可打开内置登录页抓取 Cookie，loginUi 仍未接入。")
             }
 
             Section {
@@ -581,6 +588,13 @@ private struct TTSourceEditorView: View {
                 ))
             } header: {
                 Text("状态")
+            }
+        }
+        .sheet(isPresented: $showLogin) {
+            if let url = draft.loginUrl, !url.isEmpty {
+                TTSLoginSheet(urlString: url, sourceName: draft.name) { header in
+                    loginHeader = header
+                }
             }
         }
         .navigationTitle(draft.name.isEmpty ? "编辑 TTS 源" : draft.name)

@@ -122,6 +122,10 @@ Zhijian/
 - 备份：`.zjbk`（ZIP，未加密；UI 已提示敏感性）
 - 书源/书籍仅用户导入；仓库不预置第三方书源（`demo-source-rulianshi.json` 仅用于开发验证，发布前请移除或替换）。
 
+## 与栖阅对比
+
+详细逐项对比（引擎/阅读器/TTS/同步/生态/安全 + 优先补齐建议）见 [docs/QIREADER-COMPARISON.md](docs/QIREADER-COMPARISON.md)。
+
 ## 已知缺口 / 下一步
 
 - 阅读器：图片、章节标题 HTML 设计器尚未接回；跨章为过渡页重载（非无缝）；滚动模式暂不支持选区划线。
