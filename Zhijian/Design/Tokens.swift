@@ -186,7 +186,10 @@ enum ZJFont {
     static func ui(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
     }
-    static func reader(_ family: ReaderFontFamily, size: CGFloat) -> UIFont {
+    static func reader(_ family: ReaderFontFamily, size: CGFloat, customName: String = "") -> UIFont {
+        if !customName.isEmpty, let font = UIFont(name: customName, size: size) {
+            return font
+        }
         switch family {
         case .songti:
             return UIFont(name: "Songti SC", size: size) ?? UIFont.systemFont(ofSize: size)

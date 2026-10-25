@@ -35,6 +35,34 @@ enum ReaderTheme: String, CaseIterable, Codable, Identifiable, Sendable {
         case .moss: return Color(hex: 0x5E6B52)
         }
     }
+    var backgroundHex: String {
+        switch self {
+        case .paper: return "#F4EFE4"
+        case .ink: return "#12161C"
+        case .moss: return "#E6EDDF"
+        }
+    }
+    var textHex: String {
+        switch self {
+        case .paper: return "#1F1C17"
+        case .ink: return "#C9C6BF"
+        case .moss: return "#26301F"
+        }
+    }
+    var secondaryHex: String {
+        switch self {
+        case .paper: return "#6B6459"
+        case .ink: return "#8A8F99"
+        case .moss: return "#5E6B52"
+        }
+    }
+    var accentHex: String {
+        switch self {
+        case .paper: return "#C2552E"
+        case .ink: return "#E8663D"
+        case .moss: return "#4E8F86"
+        }
+    }
     var accent: Color {
         switch self {
         case .paper: return Color(hex: 0xC2552E)
@@ -142,6 +170,8 @@ struct HighlightRule: Codable, Hashable, Identifiable, Sendable {
 
 struct ReadingSettings: Codable, Hashable, Sendable {
     var fontFamily: ReaderFontFamily = .songti
+    /// 自定义字体 PostScript 名（为空时用 fontFamily）
+    var customFontName: String = ""
     var fontSize: Double = 20
     var lineHeight: Double = 10
     var paragraphSpacing: Double = 10
@@ -205,6 +235,7 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         fontFamily = try container.decodeIfPresent(ReaderFontFamily.self, forKey: .fontFamily) ?? .songti
+        customFontName = try container.decodeIfPresent(String.self, forKey: .customFontName) ?? ""
         fontSize = try container.decodeIfPresent(Double.self, forKey: .fontSize) ?? 20
         lineHeight = try container.decodeIfPresent(Double.self, forKey: .lineHeight) ?? 10
         paragraphSpacing = try container.decodeIfPresent(Double.self, forKey: .paragraphSpacing) ?? 10

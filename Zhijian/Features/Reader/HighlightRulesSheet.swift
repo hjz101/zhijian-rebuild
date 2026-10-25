@@ -6,6 +6,7 @@ struct HighlightRulesSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editing: HighlightRule?
     @State private var showEditor = false
+    @State private var showPackage = false
 
     private var theme: ReaderTheme { settingsStore.settings.theme }
     private var rules: [HighlightRule] { settingsStore.settings.highlightRules }
@@ -57,9 +58,20 @@ struct HighlightRulesSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(theme.background.ignoresSafeArea())
+            .sheet(isPresented: $showPackage) {
+                HighlightPackageView()
+                    .environmentObject(AppEnvironment.shared)
+            }
             .navigationTitle("自动高亮规则")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showPackage = true
+                    } label: {
+                        Image(systemName: "shippingbox")
+                    }
+                }
                 ToolbarItem(placement: .topBarLeading) { Button("完成") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

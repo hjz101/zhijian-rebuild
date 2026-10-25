@@ -8,7 +8,7 @@ enum ReaderTextBuilder {
 
     /// 影响断页结果的排版签名；主题、书签、TTS 等不参与。
     static func layoutSignature(_ settings: ReadingSettings) -> String {
-        "\(settings.fontFamily.rawValue)|\(settings.fontSize)|\(settings.lineHeight)|\(settings.paragraphSpacing)|\(settings.chapterTitleAlignment.rawValue)|\(settings.chapterTitleScale)|\(settings.chapterTitleDecoration.rawValue)"
+        "\(settings.fontFamily.rawValue)|\(settings.customFontName)|\(settings.fontSize)|\(settings.lineHeight)|\(settings.paragraphSpacing)|\(settings.chapterTitleAlignment.rawValue)|\(settings.chapterTitleScale)|\(settings.chapterTitleDecoration.rawValue)"
     }
 
     /// 把一章标题 + 正文构建成阅读排版用富文本。
@@ -25,7 +25,7 @@ enum ReaderTextBuilder {
         imageProvider: ((String) -> UIImage?)? = nil
     ) -> NSAttributedString {
         let fontSize = CGFloat(settings.fontSize)
-        let baseFont = ZJFont.reader(settings.fontFamily, size: fontSize)
+        let baseFont = ZJFont.reader(settings.fontFamily, size: fontSize, customName: settings.customFontName)
         let textColor = UIColor(theme.text)
         let titleColor = UIColor(theme.text)
 

@@ -108,6 +108,24 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-background-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if ProcessInfo.processInfo.arguments.contains("-themePackageTest") {
+            Task { @MainActor in
+                var lines: [String] = []
+                var preset = ReaderThemePackageStore.shared.makePreset(from: settings.settings, name: "测试主题")
+                preset.backgroundHex = "#EDE4D4"
+                preset.textHex = "#2A241C"
+                ReaderThemePackageStore.shared.upsert(preset)
+                let url = try ReaderThemePackageStore.shared.exportPackage(preset)
+                let imported = try ReaderThemePackageStore.shared.importPackage(url: url)
+                lines.append("presets=\(ReaderThemePackageStore.shared.all.count)")
+                lines.append("export=\(url.lastPathComponent) bytes=\(try Data(contentsOf: url).count)")
+                lines.append("roundtrip=\(imported.name) bg=\(imported.backgroundHex)")
+                let fontEntry = CustomFontStore.shared.fonts.first
+                lines.append("fonts=\(CustomFontStore.shared.fonts.count) first=\(fontEntry?.displayName ?? "-")")
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("theme-package-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-readerImageTest") {
             let html = """
             <div>第一段文字。</div><img src="/img/a.png" alt="山景"><div>第二段文字。</div>

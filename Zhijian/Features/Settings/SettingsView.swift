@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules, chapterCache }
+    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules, chapterRules, chapterCache, fonts }
     @EnvironmentObject private var env: AppEnvironment
     @State private var path: [Route] = []
     @State private var showReaderSettings = false
@@ -49,6 +49,7 @@ struct SettingsView: View {
                 case .replaceRules: ReplaceRulesView()
                 case .chapterRules: ChapterRulesView()
                 case .chapterCache: CacheManageView()
+                case .fonts: FontManageView()
                 }
             }
             .sheet(isPresented: $showReaderSettings) {
@@ -110,9 +111,11 @@ struct SettingsView: View {
             row("textformat.size", "阅读设置", value: "主题/显示/朗读") {
                 showReaderSettings = true
             }
-            row("textformat", "字体管理", value: "\(env.settings.settings.fontFamily.name)") {
-                placeholder = "自定义字体导入将在 P1-06 上线。"
-            }
+            row("textformat", "字体管理",
+                value: env.settings.settings.customFontName.isEmpty
+                    ? env.settings.settings.fontFamily.name
+                    : (CustomFontStore.shared.fonts.first { $0.postScriptName == env.settings.settings.customFontName }?.displayName ?? "自定义"),
+                route: .fonts)
             row("square.stack.3d.up", "章节缓存", value: ChapterCacheStore.shared.formattedSize, route: .chapterCache)
             row("paintpalette.fill", "主题 / 显示", value: env.settings.settings.theme.name) {
                 showReaderSettings = true
@@ -199,6 +202,7 @@ struct SettingsView: View {
         if args.contains("-autoOpenReplaceRules") { path = [.replaceRules] }
         if args.contains("-autoOpenChapterRules") { path = [.chapterRules] }
         if args.contains("-autoOpenChapterCache") { path = [.chapterCache] }
+        if args.contains("-autoOpenFonts") { path = [.fonts] }
         if args.contains("-showShelfLayout") { showShelfLayout = true }
         if args.contains("-showReaderSettings") { showReaderSettings = true }
         if args.contains("-showAppearance") { showAppearance = true }

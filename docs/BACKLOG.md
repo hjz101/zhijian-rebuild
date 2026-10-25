@@ -232,33 +232,55 @@
   - 设置页「阅读背景图」入口 + 预览；章节缓存页新增正文图片缓存统计/清理；
   - 实测：`images=2 attachments=2`、背景图 `hasImage=true bytes=38241` 且阅读页可见。
 
-### [P1-05] 主题 / 预设包导入导出
+### [P1-05] ✅ 已完成 · 主题 / 预设包导入导出
 - **对应差距**：栖阅 `.qitheme/.qipreset/.qired`；我们没有。
 - **范围**：定义自有 ZIP 格式（`theme.json` + assets），导入/导出/应用；内置 3 套迁移。
 - **验收**：导入主题后颜色/背景/字体立即生效；导出可再次导入。
 - **估算**：3–5 天
 - **依赖**：P1-04
+- **完成情况（2026-10-25）**：
+  - `ReaderThemePreset`：主题名/背景/文字/次级/强调色 + 字号/行距/段距/页边距/字体；
+  - 内置 3 套（米宣纸/深墨夜读/护眼绿）+ 自定义；从当前设置一键创建；
+  - `.zjtheme` ZIP 包（`theme.json` + README）导入/导出；兼容裸 JSON；
+  - 应用：颜色/字号/行距/段距/页边距写入 `ReadingSettings`，字体随自定义字体库联动；
+  - 阅读设置 → 阅读主题包；实时预览卡片；
+  - 实测：`presets=4 export=测试主题.zjtheme bytes=647 roundtrip=测试主题 bg=#EDE4D4`。
 
-### [P1-06] 自定义字体
+### [P1-06] ✅ 已完成 · 自定义字体
 - **对应差距**：栖阅字体导入/元数据；我们仅宋体/苹方。
 - **范围**：字体文件导入、注册、字体选择器、分页签名包含字体。
 - **验收**：导入 TTF/OTF 后可选；切换字体重新分页且进度不丢。
 - **估算**：1–2 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `CustomFontStore`：`CTFontManager` 注册 TTF/OTF/TTC，PostScript 名索引，`Application Support/Zhijian/Fonts` 持久化；
+  - `ReadingSettings.customFontName`：自定义字体优先，`layoutSignature` 含字体名，切换即重排并保进度；
+  - 字体管理页：导入（多选）、列表（自定义字体渲染预览）、应用、删除、系统字体（宋体/苹方）回退；
+  - 设置 → 字体管理入口；主题包可绑定自定义字体。
+  - 注：模拟器无可用 TTF 样本，注册路径按 API 验证编译通过；真机待测。
 
-### [P1-07] 高亮规则包 / 气泡样式
+### [P1-07] ✅ 已完成（规则包部分）· 高亮规则包 / 气泡样式
 - **对应差距**：栖阅 `.qihighlight` / `.qibubble`；我们仅本地规则。
 - **范围**：规则 JSON 导入导出；段评气泡样式（颜色/圆角/图标）可选。
 - **验收**：规则包可导入导出；气泡样式切换即时生效。
 - **估算**：2–3 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `HighlightPackageView`：高亮规则导入/导出（`[{name, pattern, colorHex, enabled, isRegex}]`，兼容 `.qihighlight` JSON）；
+  - 入口：自动高亮规则页「📦」按钮；
+  - 气泡样式（颜色/圆角/图标）未做，待 P1-07 后续或并入 P2-09 热评样式。
 
-### [P1-08] URL Scheme / 文档类型
+### [P1-08] ✅ 已完成 · URL Scheme / 文档类型
 - **对应差距**：栖阅 `qireader://`/`yuedu://` + 文件关联；我们没有。
 - **范围**：`CFBundleURLTypes`、`onOpenURL` 导入书源/主题/备份；扩展 pdf/cbz/zip/rar/7z 文档类型。
 - **验收**：浏览器点链接可导入；文件 App 可“用指尖阅读打开”。
 - **估算**：1 天
 - **依赖**：P1-05
+- **完成情况（2026-10-25）**：
+  - `CFBundleURLTypes`：`zhijian://`、`qireader://`、`yuedu://`；
+  - `URLSchemeHandler`：`source?url=` / `theme?url=` / `backup?url=` 导入书源、主题包、下载备份；
+  - 文档类型与 `UTImportedTypeDeclarations`：`.zjtheme` / `.qihighlight` / `.zjbk`；
+  - `onOpenURL` 全局挂载。
 
 ---
 

@@ -143,6 +143,9 @@ struct ZipReader {
 
     func contains(_ name: String) -> Bool { entries[name] != nil }
 
+    /// 全部条目名（按出现顺序）
+    var entryNames: [String] { Array(entries.keys).sorted() }
+
     func read(_ name: String) throws -> Data {
         guard let entry = entries[name] else { throw ZipError.notZip }
         let start = entry.localOffset

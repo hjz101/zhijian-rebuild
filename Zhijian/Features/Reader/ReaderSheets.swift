@@ -252,6 +252,7 @@ struct ReaderSettingsSheet: View {
     @State private var showHighlightRules = false
     @State private var showTitleDesigner = false
     @State private var showBackground = false
+    @State private var showThemePackages = false
 
     private var theme: ReaderTheme { settingsStore.settings.theme }
     private var settings: ReadingSettings { settingsStore.settings }
@@ -290,6 +291,10 @@ struct ReaderSettingsSheet: View {
         }
         .sheet(isPresented: $showBackground) {
             ReaderBackgroundSettingsView()
+        }
+        .sheet(isPresented: $showThemePackages) {
+            ReaderThemePackageView()
+                .environmentObject(AppEnvironment.shared)
         }
         .presentationDetents([.height(600), .large])
         .presentationDragIndicator(.visible)
@@ -464,6 +469,19 @@ struct ReaderSettingsSheet: View {
                 .pickerStyle(.menu)
                 .tint(ZJ.accent)
             }
+
+            Button {
+                showThemePackages = true
+            } label: {
+                HStack {
+                    Text("阅读主题包").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                    Spacer()
+                    Text("\(ReaderThemePackageStore.shared.all.count) 套")
+                        .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
+                    Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(ZJ.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
 
             Button {
                 showBackground = true
