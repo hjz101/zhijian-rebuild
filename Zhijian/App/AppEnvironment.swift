@@ -108,6 +108,70 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-background-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-importSourceFile=") }) {
+            let name = String(arg.dropFirst("-importSourceFile=".count))
+            let candidates = [
+                AppData.root.appendingPathComponent(name),
+                FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(name)
+            ]
+            if let url = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }),
+               let text = try? String(contentsOf: url, encoding: .utf8) {
+                do {
+                    try sources.importJSON(text)
+                    NSLog("[Seed] imported sources=%d from %@", sources.sources.count, name)
+                } catch {
+                    NSLog("[Seed] import failed %@", error.localizedDescription)
+                }
+            } else {
+                NSLog("[Seed] file not found %@", name)
+            }
+        }
+        if ProcessInfo.processInfo.arguments.contains("-exploreDiag") {
+            Task { @MainActor in
+                var lines: [String] = []
+                guard let source = self.sources.sources.first(where: { !($0.exploreUrl ?? "").isEmpty }) else {
+                    lines.append("no source with exploreUrl")
+                    try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("explore-diag.txt"), atomically: true, encoding: .utf8)
+                    return
+                }
+                lines.append("source=\(source.bookSourceName)")
+                let pipeline = self.engines.makePipeline(source: source)
+                lines.append("jsLib=\(pipeline.jsLibStatus ?? "-")")
+                do {
+                    let categories = try await pipeline.exploreCategories()
+                    lines.append("categories=\(categories.count)")
+                    lines.append("titles=\(categories.prefix(6).map(\.title).joined(separator: ","))")
+                    let attempts_detail = ProcessInfo.processInfo.arguments.contains("-exploreDetail")
+                    for category in categories.prefix(2) {
+                        do {
+                            let books = try await pipeline.explore(category: category, page: 1)
+                            lines.append("[\(category.title)] books=\(books.count) first=\(books.first?.name ?? "-") author=\(books.first?.author ?? "-") url=\(books.first?.bookUrl.prefix(60) ?? "-")")
+                            if let first = books.first, attempts_detail {
+                                do {
+                                    let info = try await pipeline.bookInfo(first)
+                                    lines.append("  detail ok name=\(info.name) toc=\(info.tocUrl.prefix(70)) cover=\(info.coverUrl.prefix(50))")
+                                    let toc = try await pipeline.toc(info)
+                                    lines.append("  toc chapters=\(toc.count) first=\(toc.first?.title ?? "-")")
+                                    if let ch = toc.first(where: { !$0.isVolume }) {
+                                        let content = try await pipeline.content(ch, book: info)
+                                        lines.append("  content len=\(content.content.count) head=\(content.content.prefix(50).replacingOccurrences(of: "\n", with: " "))")
+                                    }
+                                } catch {
+                                    lines.append("  detail error=\(error.localizedDescription)")
+                                }
+                            }
+                        } catch {
+                            lines.append("[\(category.title)] error=\(error.localizedDescription)")
+                        }
+                    }
+                } catch {
+                    lines.append("categories error=\(error.localizedDescription)")
+                }
+                lines.append("--- diagnostics ---")
+                lines.append(contentsOf: pipeline.diagnosticsSnapshot.prefix(40))
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("explore-diag.txt"), atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-themePackageTest") {
             Task { @MainActor in
                 var lines: [String] = []

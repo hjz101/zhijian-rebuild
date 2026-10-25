@@ -40,6 +40,13 @@
   - 调试：`-seedLoginSource`、`-showSourceLogin`、`-autoSubmitLogin`。
 
 ### [P0-02] ✅ 已完成 · 发现 / Explore
+- **2026-10-25 真源适配（📚书山聚合 v5.61）**：
+  - `<js>…</js>` 解包修复（原 `dropLast(4)` 会残留 `<`，导致 `SyntaxError: Unexpected token '<'`）；
+  - 规则 JS 统一包进 `eval` 独立作用域，修复同上下文 `let` 重声明（exploreUrl 与 bookList 同名变量）；
+  - `data:detailsUrl|data:catalogUrl|data:chapterUrl` 私有协议：不发起 HTTP，payload 转 hex 作为 `result` 交给规则 JS；
+  - POST body 为 JSON 且未声明 Content-Type 时自动补 `application/json`；
+  - 发现页分类失败自动跳到下一个分类并顶部提示，不再整页报错；
+  - 实测：215 个分类、个性推荐 30 本书、详情页解析成功；目录需番茄账号登录（后端返回「访问被拒绝」）。
 - **对应差距**：栖阅 `ExploreFilterEngine` + 分类/筛选/信息流/网格；我们完全缺失。
 - **范围**：
   - 解析 `exploreUrl` / `ruleExplore`（分类、筛选、列表、书籍字段）。

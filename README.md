@@ -12,6 +12,7 @@
 
 | 模块 | 状态 | 说明 |
 |---|---|---|
+| 书源兼容修复 | ✅ | `<js>…</js>` 正确解包；规则 JS 每次独立词法作用域（修复 `let` 重声明）；`data:detailsUrl/catalogUrl/chapterUrl` 私有协议（payload 交给规则自解析）；POST JSON body 自动补 `Content-Type` |
 | 书源引擎 | ✅ | Legado `BookSource` 全量模型（35 字段）、`AnalyzeUrl` 请求、规则链/`{{}}`/`@put`/`@get`/索引/`##`、CSS/XPath/JSONPath/正则/JS；`packages_stub.js` + 原生 `_native*`/`_jsoup*`；多源并发搜索、详情/目录/正文、`concurrentRate`、`loginCheckJs`；**登录**（`loginUi` 原生表单 / `loginUrl` WebView / `@js:` 脚本 / 登录态持久化）；TOC 归一化、诊断快照 |
 | 分页阅读器 | ✅ | native TextKit 断页（`NSTextStorage+NSLayoutManager+NSTextContainer`）、UIPageViewController 左右翻页、点击左右 1/3、章节过渡页、页缓存、目录/设置 Sheet、滚动模式回退、进度持久化 |
 | TTS | ✅ | 系统 `AVSpeechSynthesizer`（切句/暂停/继续/停止/语速/Now Playing/远程控制）、旁白/对话多角色、**智能角色识别**（引号归属 + 提示语 → 角色名/逐角色音色+音高）、**句级高亮 + 自动翻页/滚动**（分页/滚动/EPUB/PDF）、HTTP TTS 源（模板 / `,{JSON}` POST / `@js:`；header/Cookie；contentType 校验；缓存）、**登录页 Cookie 提取**、**WebSocket 流式播放**（文本帧 → 二进制音频 → done） |
@@ -93,6 +94,8 @@ xcrun simctl launch booted com.zhijian.reader
 | `-titleTemplateTest` / `-showTitleDesigner` | 标题模板快照自检 / 打开设计器 |
 | `-readerImageTest` / `-readerBackgroundTest` | 正文图片提取与附件自检 / 生成背景图测试 |
 | `-twoPageTest` / `-forceTwoPage` | 启用双页 / 强制双页（小屏验证） |
+| `-importSourceFile=<文件名>` | 启动时从 App 容器导入书源 JSON（联调真实书源） |
+| `-exploreDiag` / `-exploreDetail` | 发现页诊断（分类/列表/详情/目录/正文写 explore-diag.txt） |
 | `-showShelfLayout` | 打开书架布局设置 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |

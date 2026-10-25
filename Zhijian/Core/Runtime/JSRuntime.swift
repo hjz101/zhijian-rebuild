@@ -65,8 +65,7 @@ final class JSRuntime: RuleJSEvaluating {
             code = json ?? ""
             loadedURL = raw
         }
-        if code.lowercased().hasPrefix("@js:") { code = String(code.dropFirst(4)) }
-        if code.hasPrefix("<js>"), code.hasSuffix(">") { code = String(code.dropFirst(4).dropLast(4)) }
+        code = JSBlock.unwrap(code)
         guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             jsLibStatus = "jsLib 加载失败：\(loadedURL ?? "内联脚本为空")"
             appendLog("jsLib", jsLibStatus ?? "")
@@ -101,17 +100,35 @@ final class JSRuntime: RuleJSEvaluating {
 
             installBindings(bindings)
             context.exception = nil
-            let value = context.evaluateScript(code)
+            #if DEBUG
+            NSLog("[JSEval] len=%d head=%@", code.count, String(code.prefix(70)).replacingOccurrences(of: "\n", with: " "))
+            #endif
+            let value = context.evaluateScript(Self.isolatedScript(code))
             if let exception = context.exception {
                 let message = exception.toString() ?? "JS 异常"
                 let line = exception.objectForKeyedSubscript("line")?.toString() ?? ""
                 let column = exception.objectForKeyedSubscript("column")?.toString() ?? ""
                 context.exception = nil
                 let location = line.isEmpty ? "" : "（line \(line)\(column.isEmpty ? "" : ", column \(column)")）"
+                #if DEBUG
+                NSLog("[JSErr] %@ | len=%d head=%@", message, code.count, String(code.prefix(90)).replacingOccurrences(of: "\n", with: " "))
+                #endif
                 throw Self.mapJSError(message + location)
             }
             return fromJSValue(value)
         }
+    }
+
+    /// 把规则脚本包进 `eval`，每次调用都有独立词法作用域。
+    /// JSC 的顶层 `let/const` 会留在全局词法环境里，同一上下文里第二次执行
+    /// 同名 `let`（书源里很常见，如 exploreUrl 与 bookList 都写 `let title`）会抛
+    /// "Can't create duplicate variable"；Legado 的 Rhino 不会。
+    private static func isolatedScript(_ code: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [code]),
+              var text = String(data: data, encoding: .utf8) else { return code }
+        text.removeFirst()
+        text.removeLast()
+        return "(function(){return eval(\(text));}).call(this)"
     }
 
     /// 同一队列上重入时直接执行，避免 `java.getString()` 里再跑 JS 造成 dispatch.sync 死锁
@@ -1161,6 +1178,11 @@ final class JSRuntime: RuleJSEvaluating {
         if missingMarkers.contains(where: { lowered.contains($0) }) {
             return SourceEngineError.missingAPI(message)
         }
+        #if DEBUG
+        if message.lowercased().contains("duplicate variable") {
+            NSLog("[JSOrigin] %@", Thread.callStackSymbols.prefix(14).joined(separator: " <- "))
+        }
+        #endif
         return SourceEngineError.jsError(message)
     }
 

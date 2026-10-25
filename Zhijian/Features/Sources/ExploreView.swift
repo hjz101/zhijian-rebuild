@@ -16,6 +16,7 @@ struct ExploreView: View {
     @State private var error: String?
     @State private var hasMore = true
     @State private var detail: SourceHit?
+    @State private var notice: String?
     var initialSource: BookSource? = nil
 
     private var exploreSources: [BookSource] {
@@ -30,6 +31,29 @@ struct ExploreView: View {
         VStack(spacing: 0) {
             sourceBar
             categoryBar
+            if let notice {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(ZJ.gold)
+                    Text(notice)
+                        .font(.system(size: 11))
+                        .foregroundStyle(ZJ.textSecondary)
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                    Button {
+                        self.notice = nil
+                    } label: {
+                        Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(ZJ.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(ZJ.gold.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+            }
 
             if loading && books.isEmpty {
                 Spacer()
@@ -266,25 +290,50 @@ struct ExploreView: View {
     }
 
     private func fetchPage(reset: Bool) async {
-        guard let source = selectedSource, let category = selectedCategory else { return }
+        guard let source = selectedSource, selectedCategory != nil else { return }
         if reset { loading = true }
         defer { if reset { loading = false } }
-        do {
-            let pipeline = makePipeline(source)
-            let result = try await pipeline.explore(category: category, page: page)
-            if reset {
-                books = result
-            } else {
-                let existing = Set(books.map { $0.bookUrl })
-                books.append(contentsOf: result.filter { !existing.contains($0.bookUrl) })
+        let pipeline = makePipeline(source)
+        var attempts = 0
+        while true {
+            guard let category = selectedCategory else { return }
+            do {
+                let result = try await pipeline.explore(category: category, page: page)
+                if reset {
+                    books = result
+                } else {
+                    let existing = Set(books.map { $0.bookUrl })
+                    books.append(contentsOf: result.filter { !existing.contains($0.bookUrl) })
+                }
+                hasMore = !result.isEmpty
+                error = nil
+                return
+            } catch {
+                // 分类接口失效（站点改版/未登录）时自动尝试后面的分类，避免整页报错。
+                if reset, attempts < 3,
+                   let index = categories.firstIndex(where: { $0.id == category.id }),
+                   index + 1 < categories.count {
+                    attempts += 1
+                    let next = categories[index + 1]
+                    selectedCategory = next
+                    let reason = Self.shortReason(error)
+                    notice = "「\(category.title)」加载失败（\(reason)），已切换到「\(next.title)」"
+                    continue
+                }
+                if reset { books = [] }
+                self.error = error.localizedDescription
+                hasMore = false
+                return
             }
-            hasMore = !result.isEmpty
-            error = nil
-        } catch {
-            if reset { books = [] }
-            self.error = error.localizedDescription
-            hasMore = false
         }
+    }
+
+    private static func shortReason(_ error: Error) -> String {
+        let text = error.localizedDescription
+        if text.contains("404") { return "接口 404" }
+        if text.contains("超时") || text.lowercased().contains("timeout") { return "请求超时" }
+        if text.contains("登录") { return "需要登录" }
+        return String(text.prefix(28))
     }
 
     private func makePipeline(_ source: BookSource) -> SourcePipeline {

@@ -433,6 +433,15 @@ final class HTTPClient: @unchecked Sendable {
             let cookie = jar.header(for: finalURL)
             if !cookie.isEmpty { mergedHeaders["Cookie"] = cookie }
         }
+        // POST body 是 JSON 且未显式声明 Content-Type 时补 application/json
+        // （源里常用 `URL,{method:"POST", body:{...}}`，后端会因此返回 400）
+        if let body,
+           !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !mergedHeaders.keys.contains(where: { $0.lowercased() == "content-type" }),
+           let data = body.data(using: .utf8),
+           (try? JSONSerialization.jsonObject(with: data)) != nil {
+            mergedHeaders["Content-Type"] = "application/json; charset=utf-8"
+        }
 
         return Prepared(
             url: finalURL,
@@ -701,6 +710,8 @@ struct SourceChapterContent {
 final class SourcePipeline {
 
     static let searchTimeout: TimeInterval = 15
+    /// 发现页：分类接口可能较慢，但单类失败要快速跳过
+    static let exploreTimeout: TimeInterval = 20
     static let bookInfoTimeout: TimeInterval = 15
     static let tocTimeout: TimeInterval = 60
     static let contentTimeout: TimeInterval = 30
@@ -815,21 +826,40 @@ final class SourcePipeline {
         guard !book.bookUrl.isEmpty else {
             throw SourceEngineError.ruleNoResult("搜索结果缺少 bookUrl，无法进入详情")
         }
-        let target = RuleURL(url: book.bookUrl)
-        let response = try await fetch(target, timeout: clock.requestTimeout(cap: Self.requestTimeout))
-        try clock.ensure()
+        let pseudo = PseudoURL.isData(book.bookUrl)
+        var content: Any
+        var baseURL = book.bookUrl
 
-        var content: Any = response.body
-        if let initRule = source.ruleBookInfo?.`init`?.ruleString {
-            let initAnalyzer = makeAnalyzer(result: response.body, baseURL: response.finalURL)
-            let value = try rule { try initAnalyzer.analyze(initRule, input: response.body) }
-            let isEmpty = !(value is [String: Any] || value is [Any]) && JSONValueUtil.text(value).isEmpty
-            guard !isEmpty else { throw SourceEngineError.ruleNoResult("ruleBookInfo.init 结果为空") }
-            content = value
+        if pseudo {
+            // data: 详情协议：payload 交给 init 规则自行解码 + 请求
+            let payload = PseudoURL.payload(book.bookUrl)
+            let searchBook = SourceBookInfo(name: book.name, author: book.author, bookUrl: book.bookUrl)
+            if let initRule = source.ruleBookInfo?.`init`?.ruleString {
+                let initAnalyzer = makeAnalyzer(result: payload, baseURL: book.bookUrl, book: searchBook)
+                let value = try rule { try initAnalyzer.analyze(initRule, input: payload) }
+                let isEmpty = !(value is [String: Any] || value is [Any]) && JSONValueUtil.text(value).isEmpty
+                guard !isEmpty else { throw SourceEngineError.ruleNoResult("ruleBookInfo.init 结果为空") }
+                content = value
+            } else {
+                content = payload
+            }
+        } else {
+            let target = RuleURL(url: book.bookUrl)
+            let response = try await fetch(target, timeout: clock.requestTimeout(cap: Self.requestTimeout))
+            try clock.ensure()
+            baseURL = response.finalURL
+            content = response.body
+            if let initRule = source.ruleBookInfo?.`init`?.ruleString {
+                let initAnalyzer = makeAnalyzer(result: response.body, baseURL: response.finalURL)
+                let value = try rule { try initAnalyzer.analyze(initRule, input: response.body) }
+                let isEmpty = !(value is [String: Any] || value is [Any]) && JSONValueUtil.text(value).isEmpty
+                guard !isEmpty else { throw SourceEngineError.ruleNoResult("ruleBookInfo.init 结果为空") }
+                content = value
+            }
         }
 
         let searchBook = SourceBookInfo(name: book.name, author: book.author, bookUrl: book.bookUrl)
-        let analyzer = makeAnalyzer(result: content, baseURL: response.finalURL, book: searchBook)
+        let analyzer = makeAnalyzer(result: content, baseURL: baseURL, book: searchBook)
         let rules = source.ruleBookInfo
         var info = SourceBookInfo(
             name: book.name,
@@ -868,19 +898,25 @@ final class SourcePipeline {
     func toc(_ book: SourceBookInfo) async throws -> [SourceChapter] {
         let clock = StageClock(Self.tocTimeout)
         guard !book.tocUrl.isEmpty else { throw SourceEngineError.invalidSource("没有 tocUrl") }
-        let response = try await fetch(RuleURL(url: book.tocUrl), timeout: clock.requestTimeout(cap: Self.requestTimeout))
-        try clock.ensure()
-
-        var content: Any = response.body
-        if let preUpdate = source.ruleToc?.preUpdateJs?.ruleString {
-            let preAnalyzer = makeAnalyzer(result: response.body, baseURL: response.finalURL, book: book)
-            if let value = try? preAnalyzer.analyze(preUpdate, input: response.body),
-               !JSONValueUtil.text(value).isEmpty {
-                content = value
+        var content: Any
+        var baseURL = book.tocUrl
+        if PseudoURL.isData(book.tocUrl) {
+            content = PseudoURL.payload(book.tocUrl)
+        } else {
+            let response = try await fetch(RuleURL(url: book.tocUrl), timeout: clock.requestTimeout(cap: Self.requestTimeout))
+            try clock.ensure()
+            baseURL = response.finalURL
+            content = response.body
+            if let preUpdate = source.ruleToc?.preUpdateJs?.ruleString {
+                let preAnalyzer = makeAnalyzer(result: response.body, baseURL: response.finalURL, book: book)
+                if let value = try? preAnalyzer.analyze(preUpdate, input: response.body),
+                   !JSONValueUtil.text(value).isEmpty {
+                    content = value
+                }
             }
         }
 
-        let analyzer = makeAnalyzer(result: content, baseURL: response.finalURL, book: book)
+        let analyzer = makeAnalyzer(result: content, baseURL: baseURL, book: book)
         guard let listRule = source.ruleToc?.chapterList?.ruleString else {
             throw SourceEngineError.ruleNoResult("ruleToc.chapterList 为空")
         }
@@ -891,7 +927,7 @@ final class SourcePipeline {
 
         var chapters: [SourceChapter] = []
         for (index, item) in items.enumerated() {
-            let itemAnalyzer = makeAnalyzer(result: item, baseURL: response.finalURL, book: book)
+            let itemAnalyzer = makeAnalyzer(result: item, baseURL: baseURL, book: book)
             var chapter = SourceChapter(index: index, title: "", url: "", updateTime: "", isVolume: false)
             chapter.title = try fieldText(source.ruleToc?.chapterName, itemAnalyzer, input: item)
             if let urlRule = source.ruleToc?.chapterUrl?.ruleString {
@@ -914,11 +950,22 @@ final class SourcePipeline {
         let clock = StageClock(Self.contentTimeout)
         currentChapter = chapter
         guard !chapter.url.isEmpty else { throw SourceEngineError.ruleNoResult("chapterUrl 为空") }
-        var response = try await fetch(RuleURL(url: chapter.url), timeout: clock.requestTimeout(cap: 20))
-        try clock.ensure()
+        let pseudoChapter = PseudoURL.isData(chapter.url)
+        var response: EngineHTTPResponse
+        if pseudoChapter {
+            // data: 正文协议：payload 交给 content 规则自行解码 + 请求
+            response = EngineHTTPResponse(status: 200,
+                                          body: PseudoURL.payload(chapter.url),
+                                          headers: [:],
+                                          finalURL: chapter.url,
+                                          isInline: true)
+        } else {
+            response = try await fetch(RuleURL(url: chapter.url), timeout: clock.requestTimeout(cap: 20))
+            try clock.ensure()
+        }
 
-        let webJs = source.ruleContent?.webJs?.ruleString
-        let sourceRegex = source.ruleContent?.sourceRegex?.ruleString
+        let webJs = pseudoChapter ? nil : source.ruleContent?.webJs?.ruleString
+        let sourceRegex = pseudoChapter ? nil : source.ruleContent?.sourceRegex?.ruleString
 
         // Legado ruleContent.sourceRegex：从 WebView 拦截到的 XHR/fetch 响应中挑出正文
         if let sourceRegex, !sourceRegex.isEmpty {
@@ -1007,6 +1054,34 @@ final class SourcePipeline {
 
     // MARK: 内部工具
 
+    /// `data:detailsUrl;base64,<payload>{"opt":1}` 这类私有协议：
+    /// 不发起 HTTP，而是把 payload 作为 `result` 交给规则 JS 自行处理。
+    /// 源里普遍紧跟 `java.hexDecodeToString(result)`，因此统一转成 hex 传给规则。
+    enum PseudoURL {
+        static func isData(_ url: String) -> Bool {
+            url.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("data:")
+        }
+
+        static func payload(_ url: String) -> String {
+            guard let comma = url.firstIndex(of: ",") else { return url }
+            var text = String(url[url.index(after: comma)...])
+            if let optionRange = text.range(of: ",{") {
+                text = String(text[..<optionRange.lowerBound])
+            }
+            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty, looksLikeHex(text) { return text.lowercased() }
+            if let data = Data(base64Encoded: text, options: [.ignoreUnknownCharacters]) {
+                return data.map { String(format: "%02x", $0) }.joined()
+            }
+            return text
+        }
+
+        static func looksLikeHex(_ text: String) -> Bool {
+            guard text.count >= 8, text.count % 2 == 0 else { return false }
+            return text.allSatisfy { $0.isHexDigit }
+        }
+    }
+
     private struct StageClock {
         let deadline: Date
 
@@ -1024,11 +1099,11 @@ final class SourcePipeline {
         }
     }
 
-    private func fetch(_ target: RuleURL, timeout: TimeInterval) async throws -> EngineHTTPResponse {
+    private func fetch(_ target: RuleURL, timeout: TimeInterval, retry: Int? = nil) async throws -> EngineHTTPResponse {
         #if DEBUG
         print("[engine] GET \(target.url.prefix(160))")
         #endif
-        var response = try await http.request(target, timeout: timeout)
+        var response = try await http.request(target, timeout: timeout, retry: retry)
         lastHTTPStatus = response.status
         lastResponseURL = response.finalURL
         lastContentType = Self.contentType(from: response.headers)
@@ -1094,12 +1169,7 @@ final class SourcePipeline {
     }
 
     static func loginCode(from raw: String) -> String {
-        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.hasPrefix("@js:") { return String(text.dropFirst(4)) }
-        if text.hasPrefix("<js>"), text.hasSuffix(">") {
-            return String(text.dropFirst(4).dropLast(4))
-        }
-        return text
+        JSBlock.unwrap(raw)
     }
 
     // MARK: - 发现 / Explore
@@ -1115,7 +1185,7 @@ final class SourcePipeline {
         guard let raw = source.exploreUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
             return []
         }
-        if raw.hasPrefix("@js:") || raw.hasPrefix("<js>") {
+        if JSBlock.isScript(raw) {
             let code = Self.loginCode(from: raw)
             let value = try js.evaluateJS(code, bindings: RuleBindings())
             return Self.parseExploreCategories(value)
@@ -1183,7 +1253,7 @@ final class SourcePipeline {
               !bookListRule.isEmpty else {
             throw SourceEngineError.invalidSource("ruleExplore.bookList 为空")
         }
-        let clock = StageClock(Self.searchTimeout)
+        let clock = StageClock(Self.exploreTimeout)
         let targetAnalyzer = makeAnalyzer(result: "", baseURL: baseURL)
         let target: RuleURL
         if category.url.isEmpty {
@@ -1193,7 +1263,8 @@ final class SourcePipeline {
         }
         guard !target.url.isEmpty else { throw SourceEngineError.ruleNoResult("发现分类 URL 为空") }
 
-        let response = try await fetch(target, timeout: clock.requestTimeout(cap: Self.requestTimeout))
+        // 发现分类是「一屏一类」，失败应当快速跳到下一类，避免重试把 30s+ 拖满。
+        let response = try await fetch(target, timeout: clock.requestTimeout(cap: 10), retry: 0)
         try clock.ensure()
         let body = response.body
         let analyzer = makeAnalyzer(result: body, baseURL: response.finalURL)
@@ -1502,7 +1573,7 @@ final class SourcePipeline {
         let markers = [
             "免登录访问次数", "登录后刷新", "请登录", "开通VIP", "VIP专属", "VIP",
             "购买本章", "订阅本章", "付费阅读", "章节已下架", "今日免费次数", "免费次数",
-            "需要登录", "购买"
+            "需要登录", "购买", "访问被拒绝", "登录已过期", "未登录", "token失效"
         ]
         return markers.contains { text.contains($0) }
     }
