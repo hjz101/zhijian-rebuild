@@ -48,6 +48,9 @@ final class ReaderViewModel {
 
     /// 页尺寸（正文可用区域，由 SwiftUI GeometryReader 传入）。
     @ObservationIgnored private var pageSize: CGSize = .zero
+    /// 双页模式下的单栏宽度（含 1/2 间距）
+    @ObservationIgnored private(set) var columnWidth: CGFloat = 0
+    static let twoPageGutter: CGFloat = 28
     /// 已下载章节正文，key 为 chapter.id。
     @ObservationIgnored private var contentCache: [String: BookChapterContent] = [:]
     @ObservationIgnored private var prefetchTask: Task<Void, Never>?
@@ -211,7 +214,9 @@ final class ReaderViewModel {
                 settings: settings,
                 theme: settings.theme
             )
-            let layoutSize = pageSize
+            var layoutSize = pageSize
+            if isTwoPage { layoutSize.width = columnSize(for: pageSize).width }
+            columnWidth = layoutSize.width
             var newPages: [ReaderPage] = []
             if settings.pageMode == .paged, layoutSize.width > 1, layoutSize.height > 1 {
                 isPaginating = true
@@ -457,6 +462,20 @@ final class ReaderViewModel {
 
     // MARK: - 尺寸 / 设置
 
+    /// 双页生效条件：开关打开 + 横向（宽 > 高）+ 宽度足够。
+    var isTwoPage: Bool {
+        guard settings.pageMode == .paged, settings.twoPageEnabled else { return false }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-forceTwoPage") { return true }
+        #endif
+        return pageSize.width > pageSize.height * 1.05 && pageSize.width >= 640
+    }
+
+    func columnSize(for size: CGSize) -> CGSize {
+        let gutter = Self.twoPageGutter
+        return CGSize(width: max(160, (size.width - gutter) / 2), height: size.height)
+    }
+
     func setViewport(_ size: CGSize) {
         guard size.width > 1, size.height > 1 else { return }
         let changed = abs(size.width - pageSize.width) > 0.5 || abs(size.height - pageSize.height) > 0.5
@@ -464,7 +483,21 @@ final class ReaderViewModel {
         let anchor = currentCharOffset
         pageSize = size
         guard settings.pageMode == .paged, attributedChapter != nil, !isLoadingChapter else { return }
-        repaginateKeepingCurrentPage(anchor: anchor)
+        isPaginating = true
+        let attributed = attributedChapter ?? NSAttributedString()
+        let signature = ReaderTextBuilder.layoutSignature(settings)
+        var layoutSize = pageSize
+        if isTwoPage { layoutSize.width = columnSize(for: pageSize).width }
+        columnWidth = layoutSize.width
+        Task { @MainActor in
+            let result = await paginator.paginate(bookId: book.id, chapterIndex: currentChapterIndex,
+                                                  layoutSignature: signature, attributed: attributed,
+                                                  pageSize: layoutSize)
+            pages = result.pages
+            renderVersion += 1
+            pageIndex = resolvePage(.offset(anchor), pages: pages, textLength: attributed.length)
+            isPaginating = false
+        }
     }
 
     /// 由 SettingsStore 的 Combine 订阅调用；也允许 UI 主动调用（例如设置 Sheet 关闭后兜底）。

@@ -89,6 +89,12 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-twoPageTest") {
+            var updated = settings.settings
+            updated.pageMode = .paged
+            updated.twoPageEnabled = true
+            settings.settings = updated
+        }
         if ProcessInfo.processInfo.arguments.contains("-jsLibTest") {
             let script = """
             function sharedGreeting(name) { return '你好，' + name + '（jsLib）'; }

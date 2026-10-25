@@ -172,19 +172,31 @@
 
 ## P1 · 阅读器与主题对齐
 
-### [P1-01] 双页 / iPad 横屏
+### [P1-01] ✅ 已完成 · 双页 / iPad 横屏
 - **对应差距**：栖阅 `ReaderTwoPageRenderer`；我们没有。
 - **范围**：TextKit 双页布局、跨页选择、横屏/分屏适配、页码。
 - **验收**：iPad 横屏双页阅读正常；标注/高亮跨页正确；旋转不丢进度。
 - **估算**：3–5 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `ReaderViewModel.isTwoPage`（开关 + 横屏 + 宽度 ≥640pt）；分页宽度改为单栏 `(宽-28)/2`；
+  - `PagedReaderView` 新增 `ReaderSpreadViewController`：一屏两栏、等宽、28pt 栏距、单页时右侧留白；
+  - 双页步进 2 页（左右滑动/点击/上下章边界）；页码显示「1–2 / 12 页」；
+  - 旋转/分屏后按字符锚点重新分页，进度不丢（`setViewport` → `repaginate`）；
+  - 设置页新增「双页模式」开关；调试 `-twoPageTest`、`-forceTwoPage`。
+  - 注：本机 iPad 模拟器无法启动（core sim 报 device not located），双页渲染在 iPhone 竖屏用 `-forceTwoPage` 验证通过。
 
-### [P1-02] 翻页动画 + 音量键翻页
+### [P1-02] ✅ 已完成 · 翻页动画 + 音量键翻页
 - **对应差距**：栖阅 `PageCurlDriver` + `volumeButtonPageTurnEnabled`；我们没有。
 - **范围**：页卷曲/淡入/无动画三选项；音量键翻页开关；与 TTS 冲突处理。
 - **验收**：三种动画可切换；音量键翻页不改变系统音量；可关闭。
 - **估算**：2–3 天
 - **依赖**：P1-01
+- **完成情况（2026-10-25）**：
+  - `ReadingSettings.pageTurnAnimation`：平移（scroll）/ 仿真（pageCurl）/ 淡入（crossDissolve）/ 无动画；
+  - `PagedReaderView` 按动画选择 `transitionStyle`，淡入用 `UIView.transition`；`.id(animation)` 保证切换后重建控制器；
+  - `VolumeButtonPageTurnMonitor`：隐藏 `MPVolumeView` + 音量还原，`+1/-1` 交给 `nextPage/previousPage`，不改系统音量；
+  - 设置页新增「翻页动画」菜单、「音量键翻页」开关；TTS 播放时不拦截（仅在分页模式生效）。
 
 ### [P1-03] HTML 章节标题设计器
 - **对应差距**：栖阅可视化 SPA（8 类元素/图层/撤销/资源）；我们仅对齐/大小/分隔线/花饰。

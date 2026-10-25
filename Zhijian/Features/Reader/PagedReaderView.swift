@@ -26,12 +26,17 @@ struct PagedReaderView: UIViewControllerRepresentable {
     var onParagraphComment: ((Int) -> Void)? = nil
     var chapterCommentCount: Int = 0
     var onChapterComments: (() -> Void)? = nil
+    /// iPad / 横屏双页：一屏两栏
+    var twoPage: Bool = false
+    /// 翻页动画
+    var animation: ReadingSettings.PageTurnAnimation = .slide
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIViewController(context: Context) -> UIPageViewController {
+        let style: UIPageViewController.TransitionStyle = animation == .curl ? .pageCurl : .scroll
         let controller = UIPageViewController(
-            transitionStyle: .scroll,
+            transitionStyle: style,
             navigationOrientation: .horizontal,
             options: [.interPageSpacing: 0]
         )
@@ -62,7 +67,7 @@ struct PagedReaderView: UIViewControllerRepresentable {
         func attach(_ controller: UIPageViewController) {
             pageController = controller
             isReady = true
-            displayedIndex = parent.currentIndex
+            displayedIndex = normalize(parent.currentIndex)
             displayedVersion = parent.renderVersion
             displayedPageCount = parent.pages.count
             guard let page = makePage(displayedIndex) else { return }
@@ -72,25 +77,43 @@ struct PagedReaderView: UIViewControllerRepresentable {
         /// 模型状态变化后，把当前页/页数/版本同步给 UIPageViewController。
         func synchronize() {
             guard isReady, let controller = pageController, !parent.pages.isEmpty else { return }
-            let targetIndex = min(max(parent.currentIndex, 0), parent.pages.count - 1)
+            let targetIndex = normalize(min(max(parent.currentIndex, 0), parent.pages.count - 1))
             let contentChanged = parent.renderVersion != displayedVersion || parent.pages.count != displayedPageCount
             let indexChanged = targetIndex != displayedIndex
             guard contentChanged || indexChanged else { return }
             guard let page = makePage(targetIndex) else { return }
 
             // 单页前后翻（点击翻页）用动画；换章、换字号、换主题直接重建。
-            let animated = !contentChanged && abs(targetIndex - displayedIndex) == 1
+            let step = parent.twoPage ? 2 : 1
+            let animated = !contentChanged && abs(targetIndex - displayedIndex) == step
+                && parent.animation != .none
             let direction: UIPageViewController.NavigationDirection = targetIndex >= displayedIndex ? .forward : .reverse
             displayedIndex = targetIndex
             displayedVersion = parent.renderVersion
             displayedPageCount = parent.pages.count
-            controller.setViewControllers([page], direction: direction, animated: animated, completion: nil)
+
+            if parent.animation == .fade && animated {
+                UIView.transition(with: controller.view, duration: 0.18,
+                                  options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                    controller.setViewControllers([page], direction: direction, animated: false, completion: nil)
+                }
+            } else {
+                controller.setViewControllers([page], direction: direction, animated: animated, completion: nil)
+            }
         }
 
         // MARK: - 页面构建
 
+        private func normalize(_ index: Int) -> Int {
+            guard parent.twoPage else { return index }
+            return max(0, index - (index % 2))
+        }
+
         private func makePage(_ index: Int) -> UIViewController? {
             guard parent.pages.indices.contains(index) else { return nil }
+            if parent.twoPage {
+                return makeSpread(index)
+            }
             let pageStart = parent.pages[index].range.location
             let controller = ReaderPageViewController(index: index, attributed: parent.pageText(index),
                                                      pageStart: pageStart, theme: parent.theme,
@@ -112,6 +135,53 @@ struct PagedReaderView: UIViewControllerRepresentable {
                 self.parent.onNote?(pageStart + range.location, range.length, text)
             }
             return controller
+        }
+
+        private func makeSpread(_ index: Int) -> UIViewController {
+            let spread = ReaderSpreadViewController(theme: parent.theme)
+            let indices = [index, index + 1].filter { parent.pages.indices.contains($0) }
+            let gutter = ReaderViewModel.twoPageGutter
+            var previous: UIView?
+            for (position, pageIndex) in indices.enumerated() {
+                let pageStart = parent.pages[pageIndex].range.location
+                let page = ReaderPageViewController(index: pageIndex, attributed: parent.pageText(pageIndex),
+                                                   pageStart: pageStart, theme: parent.theme,
+                                                   paragraphRanges: parent.paragraphRanges,
+                                                   commentCounts: parent.commentCounts)
+                page.onParagraphComment = { [weak self] paragraphIndex in
+                    self?.parent.onParagraphComment?(paragraphIndex)
+                }
+                page.onTap = { [weak self, weak page] location in
+                    guard let self, let page else { return }
+                    self.handleTap(location: location, width: page.view.bounds.width)
+                }
+                page.onHighlight = { [weak self] range, text in
+                    guard let self else { return }
+                    self.parent.onHighlight?(pageStart + range.location, range.length, text)
+                }
+                page.onNote = { [weak self] range, text in
+                    guard let self else { return }
+                    self.parent.onNote?(pageStart + range.location, range.length, text)
+                }
+                spread.addChild(page)
+                spread.stack.addArrangedSubview(page.view)
+                page.view.translatesAutoresizingMaskIntoConstraints = false
+                if position == 1 {
+                    page.view.widthAnchor.constraint(equalTo: spread.stack.arrangedSubviews[0].widthAnchor).isActive = true
+                }
+                page.didMove(toParent: spread)
+                previous = page.view
+            }
+            if indices.count == 1 {
+                let spacer = UIView()
+                spacer.backgroundColor = .clear
+                spread.stack.addArrangedSubview(spacer)
+                spacer.translatesAutoresizingMaskIntoConstraints = false
+                spacer.widthAnchor.constraint(equalTo: spread.stack.arrangedSubviews[0].widthAnchor).isActive = true
+            }
+            spread.stack.spacing = gutter
+            _ = previous
+            return spread
         }
 
         private func makeGate(isNext: Bool) -> UIViewController {
@@ -146,8 +216,9 @@ struct PagedReaderView: UIViewControllerRepresentable {
             viewControllerBefore viewController: UIViewController
         ) -> UIViewController? {
             if let page = viewController as? ReaderPageViewController {
-                if page.pageIndex > 0 {
-                    return makePage(page.pageIndex - 1)
+                let step = parent.twoPage ? 2 : 1
+                if page.pageIndex - step >= 0 {
+                    return makePage(page.pageIndex - step)
                 }
                 if parent.previousChapterTitle != nil {
                     return makeGate(isNext: false)
@@ -155,7 +226,7 @@ struct PagedReaderView: UIViewControllerRepresentable {
                 return nil
             }
             if let gate = viewController as? ReaderChapterGateViewController, gate.isNext {
-                return makePage(parent.pages.count - 1)
+                return makePage(normalize(parent.pages.count - 1))
             }
             return nil
         }
@@ -165,8 +236,9 @@ struct PagedReaderView: UIViewControllerRepresentable {
             viewControllerAfter viewController: UIViewController
         ) -> UIViewController? {
             if let page = viewController as? ReaderPageViewController {
-                if page.pageIndex + 1 < parent.pages.count {
-                    return makePage(page.pageIndex + 1)
+                let step = parent.twoPage ? 2 : 1
+                if page.pageIndex + step < parent.pages.count {
+                    return makePage(page.pageIndex + step)
                 }
                 if parent.nextChapterTitle != nil {
                     return makeGate(isNext: true)
@@ -189,12 +261,43 @@ struct PagedReaderView: UIViewControllerRepresentable {
         ) {
             guard completed, let visible = pageViewController.viewControllers?.first else { return }
             if let page = visible as? ReaderPageViewController {
-                displayedIndex = page.pageIndex
-                parent.onPageChanged(page.pageIndex)
+                let index = normalize(page.pageIndex)
+                displayedIndex = index
+                parent.onPageChanged(index)
             } else if let gate = visible as? ReaderChapterGateViewController {
                 parent.onChapterBoundary(gate.isNext ? 1 : -1)
             }
         }
+    }
+}
+
+// MARK: - 双页容器
+
+private final class ReaderSpreadViewController: UIViewController {
+    let stack = UIStackView()
+    private let theme: ReaderTheme
+
+    init(theme: ReaderTheme) {
+        self.theme = theme
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+        stack.axis = .horizontal
+        stack.alignment = .fill
+        stack.distribution = .fillEqually
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: view.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
     }
 }
 

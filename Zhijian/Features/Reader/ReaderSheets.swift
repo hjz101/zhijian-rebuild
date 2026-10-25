@@ -439,6 +439,47 @@ struct ReaderSettingsSheet: View {
                     .foregroundStyle(ZJ.textPrimary)
             }
             .tint(ZJ.accent)
+
+            Divider().opacity(0.5)
+
+            HStack {
+                Text("翻页动画")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Picker("", selection: bind(\.pageTurnAnimation)) {
+                    ForEach(ReadingSettings.PageTurnAnimation.allCases, id: \.self) { item in
+                        Text(item.name).tag(item)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(ZJ.accent)
+            }
+
+            Toggle(isOn: bind(\.twoPageEnabled)) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("双页模式")
+                        .font(.system(size: 13))
+                        .foregroundStyle(ZJ.textPrimary)
+                    Text("横屏 / iPad 左右两栏")
+                        .font(.system(size: 10))
+                        .foregroundStyle(ZJ.textTertiary)
+                }
+            }
+            .tint(ZJ.accent)
+
+            Toggle(isOn: bind(\.volumeButtonPageTurn)) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("音量键翻页")
+                        .font(.system(size: 13))
+                        .foregroundStyle(ZJ.textPrimary)
+                    Text("音量键翻页且不改变系统音量")
+                        .font(.system(size: 10))
+                        .foregroundStyle(ZJ.textTertiary)
+                }
+            }
+            .tint(ZJ.accent)
         }
     }
 

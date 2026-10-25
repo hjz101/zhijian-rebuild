@@ -106,6 +106,17 @@ private struct ReaderSurface: View {
     @ObservedObject private var paragraphComments = ParagraphCommentStore.shared
 
     private var settings: ReadingSettings { settingsStore.settings }
+
+    private func handleVolumeTurn(_ direction: Int) {
+        guard settings.volumeButtonPageTurn, model.isPaged else { return }
+        Task {
+            if direction > 0 {
+                await model.nextPage()
+            } else {
+                await model.previousPage()
+            }
+        }
+    }
     private var theme: ReaderTheme { settings.theme }
     private var horizontalPadding: CGFloat { CGFloat(settings.horizontalPadding) }
 
@@ -134,6 +145,11 @@ private struct ReaderSurface: View {
 
                 pageIndicator
                 statusOverlay
+
+                VolumeButtonPageTurnMonitor(enabled: settings.volumeButtonPageTurn && model.isPaged,
+                                            onTurn: handleVolumeTurn)
+                    .frame(width: 1, height: 1)
+                    .opacity(0.001)
             }
             .onChange(of: pageSize, initial: true) { _, newSize in
                 model.setViewport(newSize)
@@ -278,8 +294,11 @@ private struct ReaderSurface: View {
                     },
                     chapterCommentCount: chapterComments.count(bookId: model.book.id,
                                                                chapterIndex: model.currentChapterIndex),
-                    onChapterComments: { showChapterComments = true }
+                    onChapterComments: { showChapterComments = true },
+                    twoPage: model.isTwoPage,
+                    animation: settings.pageTurnAnimation
                 )
+                .id("paged-\(settings.pageTurnAnimation.rawValue)")
             }
         } else if model.attributedChapter != nil {
             ScrollReaderView(
@@ -527,6 +546,10 @@ private struct ReaderSurface: View {
         if model.isPaged {
             let count = max(model.pageCount, 1)
             let index = min(model.pageIndex + 1, count)
+            if model.isTwoPage {
+                let right = min(index + 1, count)
+                return "\(index)–\(right) / \(count) 页 · \(model.progressPercent)%"
+            }
             return "第 \(index) / \(count) 页 · \(model.progressPercent)%"
         }
         let count = max(model.chapters.count, 1)

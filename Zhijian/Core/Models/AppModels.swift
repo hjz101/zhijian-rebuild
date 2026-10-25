@@ -148,6 +148,12 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var horizontalPadding: Double = 22
     var theme: ReaderTheme = .paper
     var pageMode: PageMode = .paged
+    /// iPad / 横屏双页（左右两栏）
+    var twoPageEnabled: Bool = false
+    /// 翻页动画
+    var pageTurnAnimation: PageTurnAnimation = .slide
+    /// 音量键翻页
+    var volumeButtonPageTurn: Bool = false
     var showPageNumber: Bool = true
     var ttsRate: Double = 0.5
 
@@ -162,6 +168,17 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var mangaScrollMode: Bool = false
 
     enum PageMode: String, Codable, Sendable { case paged, scroll }
+    enum PageTurnAnimation: String, Codable, Sendable, CaseIterable {
+        case slide, curl, fade, none
+        var name: String {
+            switch self {
+            case .slide: return "平移"
+            case .curl: return "仿真翻页"
+            case .fade: return "淡入"
+            case .none: return "无动画"
+            }
+        }
+    }
     enum TitleAlignment: String, Codable, Sendable, CaseIterable {
         case leading, center, trailing
         var name: String {
@@ -194,6 +211,9 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         horizontalPadding = try container.decodeIfPresent(Double.self, forKey: .horizontalPadding) ?? 22
         theme = try container.decodeIfPresent(ReaderTheme.self, forKey: .theme) ?? .paper
         pageMode = try container.decodeIfPresent(PageMode.self, forKey: .pageMode) ?? .paged
+        twoPageEnabled = try container.decodeIfPresent(Bool.self, forKey: .twoPageEnabled) ?? false
+        pageTurnAnimation = try container.decodeIfPresent(PageTurnAnimation.self, forKey: .pageTurnAnimation) ?? .slide
+        volumeButtonPageTurn = try container.decodeIfPresent(Bool.self, forKey: .volumeButtonPageTurn) ?? false
         showPageNumber = try container.decodeIfPresent(Bool.self, forKey: .showPageNumber) ?? true
         ttsRate = try container.decodeIfPresent(Double.self, forKey: .ttsRate) ?? 0.5
         chapterTitleAlignment = try container.decodeIfPresent(TitleAlignment.self, forKey: .chapterTitleAlignment) ?? .center
