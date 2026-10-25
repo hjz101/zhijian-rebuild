@@ -554,7 +554,7 @@ struct ReaderSettingsSheet: View {
                 showThemePackages = true
             } label: {
                 HStack {
-                    Text("阅读主题包").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                    Text(LocalizationManager.tr("reader.themePackage")).font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
                     Spacer()
                     Text("\(ReaderThemePackageStore.shared.all.count) 套")
                         .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
@@ -567,7 +567,7 @@ struct ReaderSettingsSheet: View {
                 showBackground = true
             } label: {
                 HStack {
-                    Text("阅读背景图").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                    Text(LocalizationManager.tr("reader.bgImage")).font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
                     Spacer()
                     Text(ReaderBackgroundStore.shared.enabled ? "已启用" : "未启用")
                         .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
@@ -794,6 +794,7 @@ private struct BubbleImportSheet: View {
                     settings.bubbleColorHex = style.colorHex
                     settings.bubbleCornerRadius = style.corner
                     settings.bubbleIcon = style.icon
+                    settings.bubbleSkin = style.skin
                     settingsStore.settings = settings
                     dismiss()
                 } catch {

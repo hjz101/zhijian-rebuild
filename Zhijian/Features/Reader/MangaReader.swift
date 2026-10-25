@@ -50,10 +50,13 @@ struct MangaReaderScreen: View {
         .preferredColorScheme(.dark)
         .task {
             load()
-            scrollMode = env.settings.settings.mangaScrollMode
             if ProcessInfo.processInfo.arguments.contains("-mangaScroll") {
                 scrollMode = true
                 env.settings.settings.mangaScrollMode = true
+            } else if env.settings.settings.mangaDefaultScroll {
+                scrollMode = true
+            } else {
+                scrollMode = env.settings.settings.mangaScrollMode
             }
         }
         .onChange(of: pageIndex) { _, _ in saveProgress() }

@@ -76,7 +76,14 @@ final class LocalizationManager: ObservableObject {
             "reader.comments": "评论", "reader.paragraph": "段评", "reader.chapterComments": "章末评论",
             "files.title": "文件管理", "files.import": "导入文件", "files.rename": "重命名",
             "files.move": "移动到…", "files.copy": "复制到…", "files.delete": "删除",
-            "stats.year": "年度目标", "stats.day": "今日卡", "stats.booksRead": "书籍统计"
+            "stats.year": "年度目标", "stats.day": "今日卡", "stats.booksRead": "书籍统计",
+            "stats.minutes": "分钟 / 分",
+            "reader.themePackage": "阅读主题包", "reader.bgImage": "阅读背景图",
+            "cache.title": "缓存管理", "cache.desc": "目录缓存 24 小时自动刷新；正文按 200 MB LRU 上限自动清理。断网可读已缓存章节。",
+            "backup.done": "备份已生成", "backup.mkcol": "目录不存在时上传会自动 MKCOL 创建，支持多级目录。",
+            "fonts.title": "字体管理", "fonts.desc": "字体文件保存在 Application Support/Zhijian/Fonts，切换字体后会重新分页但保留阅读进度。",
+            "tts.rolesDesc": "朗读一章后自动识别角色，并按角色分配不同语音",
+            "sources.address": "书源地址", "batch.hint": "设置关键词后点击「开始批量测试」"
         ]
         let en: [String: String] = [
             "tab.shelf": "Shelf", "tab.stats": "Stats", "tab.settings": "Settings", "tab.discover": "Discover",
@@ -121,7 +128,14 @@ final class LocalizationManager: ObservableObject {
             "reader.comments": "Comments", "reader.paragraph": "Paragraph", "reader.chapterComments": "Chapter Comments",
             "files.title": "Files", "files.import": "Import Files", "files.rename": "Rename",
             "files.move": "Move to…", "files.copy": "Copy to…", "files.delete": "Delete",
-            "stats.year": "Yearly Goal", "stats.day": "Today Card", "stats.booksRead": "Book Stats"
+            "stats.year": "Yearly Goal", "stats.day": "Today Card", "stats.booksRead": "Book Stats",
+            "stats.minutes": "Minutes",
+            "reader.themePackage": "Theme Package", "reader.bgImage": "Background Image",
+            "cache.title": "Cache", "cache.desc": "Chapter cache refreshes every 24h; body capped at 200MB LRU. Cached chapters readable offline.",
+            "backup.done": "Backup Created", "backup.mkcol": "MKCOL auto-creates missing directories, multi-level supported.",
+            "fonts.title": "Fonts", "fonts.desc": "Fonts stored in Application Support/Zhijian/Fonts. Repaginates on switch, progress kept.",
+            "tts.rolesDesc": "Auto-detect roles after reading a chapter and assign voices",
+            "sources.address": "Source URL", "batch.hint": "Set a keyword and tap Start Batch Test"
         ]
         let table = shared.language == .zh ? zh : en
         return table[key] ?? key

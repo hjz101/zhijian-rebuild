@@ -25,7 +25,7 @@ struct CacheManageView: View {
                     Text("\(cache.bookCount) 本").foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("目录缓存 24 小时自动刷新；正文按 200 MB LRU 上限自动清理。断网可读已缓存章节。")
+                Text(LocalizationManager.tr("cache.desc"))
             }
 
             Section("图片缓存") {

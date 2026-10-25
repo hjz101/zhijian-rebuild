@@ -109,7 +109,7 @@ struct FontManageView: View {
                     .buttonStyle(.plain)
                 }
 
-                Text("字体文件保存在 Application Support/Zhijian/Fonts，切换字体后会重新分页但保留阅读进度。")
+                Text(LocalizationManager.tr("fonts.desc"))
                     .font(.system(size: 10.5))
                     .foregroundStyle(ZJ.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)

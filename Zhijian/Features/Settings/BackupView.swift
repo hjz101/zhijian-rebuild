@@ -622,7 +622,7 @@ private struct BackupContent: View {
                 Image(systemName: "archivebox")
                     .font(.system(size: 44))
                     .foregroundStyle(ZJ.accent)
-                Text("备份已生成")
+                Text(LocalizationManager.tr("backup.done"))
                     .font(.headline)
                 Text("书架 \(backup.books.books.count) 本 · 书源 \(backup.sources.sources.count) 个 · TTS \(backup.ttsSources.sources.count) 个")
                 Label(encryptBackup ? "已加密（需要密码恢复）" : "未加密", systemImage: encryptBackup ? "lock.fill" : "lock.open")
@@ -675,7 +675,7 @@ private struct WebDAVConfigEditorView: View {
             } header: {
                 Text("连接")
             } footer: {
-                Text("目录不存在时上传会自动 MKCOL 创建，支持多级目录。")
+                Text(LocalizationManager.tr("backup.mkcol"))
             }
 
             Section {

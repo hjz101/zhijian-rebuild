@@ -94,11 +94,12 @@ enum SelfTestSuite {
         } else {
             check("Red-import", false, "解析失败")
         }
-        let bubbleJSON = "{\"colorHex\":\"#5C6BC0\",\"cornerRadius\":20,\"icon\":\"💭\"}"
+        let bubbleJSON = "{\"colorHex\":\"#5C6BC0\",\"cornerRadius\":20,\"icon\":\"💭\",\"skin\":2}"
         if let bubble = try? ExternalThemeImporter.importBubble(data: Data(bubbleJSON.utf8)) {
             check("Bubble-color", bubble.colorHex == "#5C6BC0")
             check("Bubble-corner", bubble.corner == 20)
             check("Bubble-icon", bubble.icon == "💭")
+            check("Bubble-skin", bubble.skin == 2)
         } else {
             check("Bubble-import", false, "解析失败")
         }

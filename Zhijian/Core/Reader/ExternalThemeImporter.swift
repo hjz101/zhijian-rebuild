@@ -49,6 +49,7 @@ struct QIBubbleJSON: Codable {
     var color: String?
     var cornerRadius: Double?
     var icon: String?
+    var skin: Int?
     var light: QIBubbleSide?
     var dark: QIBubbleSide?
 
@@ -57,6 +58,7 @@ struct QIBubbleJSON: Codable {
         var color: String?
         var cornerRadius: Double?
         var icon: String?
+        var skin: Int?
     }
 }
 
@@ -120,8 +122,8 @@ enum ExternalThemeImporter {
         return makePreset(from: red, fallbackName: fallbackName)
     }
 
-    /// 导入 `.qibubble` JSON → 气泡样式参数（应用到 ReadingSettings.bubble*）。
-    static func importBubble(data: Data) throws -> (colorHex: String, corner: Double, icon: String) {
+    /// 导入 `.qibubble` JSON → 气泡样式参数（颜色/圆角/图标/皮肤）。
+    static func importBubble(data: Data) throws -> (colorHex: String, corner: Double, icon: String, skin: Int) {
         let decoder = JSONDecoder()
         guard let bubble = try? decoder.decode(QIBubbleJSON.self, from: data) else {
             throw ThemeError.bubbleInvalid
@@ -130,7 +132,8 @@ enum ExternalThemeImporter {
         let color = bubble.colorHex ?? bubble.color ?? side?.colorHex ?? side?.color ?? "#E8663D"
         let corner = bubble.cornerRadius ?? side?.cornerRadius ?? 16
         let icon = bubble.icon ?? side?.icon ?? "💬"
-        return (color, corner, icon)
+        let skin = bubble.skin ?? side?.skin ?? 0
+        return (color, corner, icon, skin)
     }
 
     private static func makePreset(from red: RedThemeJSON, fallbackName: String) -> ReaderThemePreset {

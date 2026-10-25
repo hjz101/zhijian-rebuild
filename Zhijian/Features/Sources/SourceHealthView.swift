@@ -197,7 +197,7 @@ struct SourceHealthDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("书源地址").font(.system(size: 11, weight: .semibold)).foregroundStyle(ZJ.textTertiary)
+            Text(LocalizationManager.tr("sources.address")).font(.system(size: 11, weight: .semibold)).foregroundStyle(ZJ.textTertiary)
             Text(source.bookSourceUrl).font(.system(size: 11, design: .monospaced)).foregroundStyle(ZJ.textSecondary).lineLimit(2)
             if let report {
                 Text(report.ok ? "链路正常" : "链路失败")

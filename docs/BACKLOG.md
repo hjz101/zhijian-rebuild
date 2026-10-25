@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 版本 2.3 四项深化（三批）
+- **i18n 全量收尾**：文案表扩到 160+ key，覆盖设置/缓存/字体/备份/TTS/书源/阅读设置等全部高频文案；
+- **统计图表**：30 日趋势升级 Swift Charts 面积图（Catmull-Rom 平滑 + 点标注 + 分钟轴）；
+- **Webtoon**：漫画默认滚动模式设置（`mangaDefaultScroll`，默认开）；LazyVStack 懒加载长图已有；
+- **`.qibubble` 皮肤导入**：支持 `skin` 字段（0 胶囊/1 圆角/2 对话气泡），导入即应用；
+- 自检扩到 **43 项全通过**（含 Bubble-skin 断言）。
+
 ### [V2.3] ✅ 已完成 · 版本 2.3 四项深化（二批）
 - **WebView 主执行器**：`jsExecutorMode`（0 自动 / 1 仅 JSC / 2 WebView 优先），阅读设置可选；WebView 优先时纯函数脚本先走 WKWebView；**mode=2 真实书源回归通过**（书山聚合 215 类/200 本）；
 - **i18n 低频文案**：文案表扩到 140+ key，BackupView/FileBrowserView/SourcesView/TTSConfigView 等接入；

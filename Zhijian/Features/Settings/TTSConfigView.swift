@@ -211,7 +211,7 @@ private struct TTSConfigContent: View {
             ))
             QiDivider()
             if tts.recognizedCharacters.isEmpty {
-                Text("朗读一章后自动识别角色，并按角色分配不同语音")
+                Text(LocalizationManager.tr("tts.rolesDesc"))
                     .font(.system(size: 12))
                     .foregroundStyle(ZJ.textSecondary)
                     .padding(.horizontal, 14)

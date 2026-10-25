@@ -1,5 +1,6 @@
-// StatsView.swift — 阅读统计（时长/目标/趋势，栖阅式玻璃）
+// StatsView.swift — 阅读统计（时长/目标/趋势，栖阅式玻璃 + Swift Charts 面积图）
 import SwiftUI
+import Charts
 
 struct StatsView: View {
     @EnvironmentObject private var env: AppEnvironment
