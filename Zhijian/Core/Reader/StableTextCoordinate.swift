@@ -6,11 +6,12 @@ import Foundation
 enum StableTextCoordinate {
     static func makeAnchor(text: String, location: Int) -> (anchor: String, anchorOffset: Int)? {
         guard location > 0, location <= text.count else { return nil }
-        let start = text.index(text.startIndex, offsetBy: max(0, location - 24), limitedBy: text.endIndex) ?? text.startIndex
+        let startChar = max(0, location - 24)
+        let start = text.index(text.startIndex, offsetBy: startChar, limitedBy: text.endIndex) ?? text.startIndex
         let end = text.index(text.startIndex, offsetBy: location, limitedBy: text.endIndex) ?? text.endIndex
         let anchor = String(text[start..<end])
         guard !anchor.isEmpty else { return nil }
-        return (anchor, max(0, location - anchor.count))
+        return (anchor, location - startChar)
     }
 
     static func resolve(anchor: String, offset: Int, in text: String) -> Int? {

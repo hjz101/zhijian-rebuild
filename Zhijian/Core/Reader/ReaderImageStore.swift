@@ -13,6 +13,8 @@ final class ReaderImageStore: ObservableObject {
     private let fm = FileManager.default
     private let root: URL
     private var memory: [String: UIImage] = [:]
+    private var memoryOrder: [String] = []
+    private let memoryLimit = 80
     private var inflight: [String: Task<UIImage?, Never>] = [:]
 
     private init() {
@@ -26,10 +28,13 @@ final class ReaderImageStore: ObservableObject {
     func cachedImage(_ url: String) -> UIImage? { memory[url] }
 
     func image(for url: String) async -> UIImage? {
-        if let hit = memory[url] { return hit }
+        if let hit = memory[url] {
+            touchMemory(url)
+            return hit
+        }
         let file = path(for: url)
         if let data = try? Data(contentsOf: file), let image = UIImage(data: data) {
-            memory[url] = image
+            cacheMemory(url, image)
             return image
         }
         if let task = inflight[url] { return await task.value }
@@ -80,7 +85,24 @@ final class ReaderImageStore: ObservableObject {
         try? fm.removeItem(at: root)
         try? fm.createDirectory(at: root, withIntermediateDirectories: true)
         memory.removeAll()
+        memoryOrder.removeAll()
         refreshStats()
+    }
+
+    private func cacheMemory(_ url: String, _ image: UIImage) {
+        memory[url] = image
+        memoryOrder.append(url)
+        if memoryOrder.count > memoryLimit {
+            let removed = memoryOrder.removeFirst()
+            memory.removeValue(forKey: removed)
+        }
+    }
+
+    private func touchMemory(_ url: String) {
+        if let index = memoryOrder.firstIndex(of: url) {
+            memoryOrder.remove(at: index)
+            memoryOrder.append(url)
+        }
     }
 
     var formattedSize: String { ByteCountFormatter.string(fromByteCount: cacheBytes, countStyle: .file) }
@@ -98,7 +120,7 @@ final class ReaderImageStore: ObservableObject {
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) { return nil }
         guard let image = UIImage(data: data), image.size.width > 1 else { return nil }
         try? data.write(to: path(for: url), options: .atomic)
-        memory[url] = image
+        cacheMemory(url, image)
         refreshStats()
         return image
     }

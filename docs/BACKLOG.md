@@ -447,6 +447,17 @@
 
 ## P4 · 发布与合规
 
+### [R1-01] ✅ 已完成 · 文档纠偏
+- `QIREADER-COMPARISON.md` 重写：130 文件 / 35,445 行，P0–P3 逐项 ✅/🟡，综合对齐度约 85%。
+
+### [R1-02] ✅ 已完成 · 统一回归自检
+- `-selfTestSuite`：JSBlock / PseudoURL / ReplaceRule / ChapterRule / BackupCrypto / WebDAVMirror.diff / StableTextCoordinate / TTSSegmenter / parseTOCNumber，20/20 通过，报告写 `self-test-report.txt`。
+
+### [R1-03] ✅ 已完成 · 内存稳定性
+- `ReaderImageStore` 图片内存 LRU（上限 80 张，触达即淘汰）；
+- `EngineRegistry` 空闲 3 分钟自动回收复用的 pipeline（释放 JSContext）。
+- 待办：滚动模式分块加载（长章 1 章整塞 UITextView，需重写选择/高亮交互，R2）。
+
 ### [P4-01] 正式签名 + TestFlight
 - 需要 Apple Developer Team、证书、Provisioning Profile；`ExportOptions.plist`；真机回归。
 - **估算**：1–2 天（依赖账号）

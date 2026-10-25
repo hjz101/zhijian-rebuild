@@ -265,6 +265,12 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("webdav-mirror-test.txt"),
                                                      atomically: true, encoding: .utf8)
         }
+        if ProcessInfo.processInfo.arguments.contains("-selfTestSuite") {
+            let report = SelfTestSuite.run()
+            try? report.write(to: AppData.root.appendingPathComponent("self-test-report.txt"),
+                              atomically: true, encoding: .utf8)
+            NSLog("[SelfTest] %@", report.replacingOccurrences(of: "\n", with: " | "))
+        }
         if ProcessInfo.processInfo.arguments.contains("-pcmPlayerTest") {
             Task { @MainActor in
                 NSLog("[PCMStream] test begin")
@@ -831,6 +837,7 @@ final class EngineRegistry: ObservableObject {
     private var pipelineCache: [String: SourcePipeline] = [:]
     private let pipelineCacheLimit = 6
     private var memoryObserver: NSObjectProtocol?
+    private var idleTask: Task<Void, Never>?
 
     init(sources: SourceStore, settings: SettingsStore) {
         self.sources = sources
@@ -839,6 +846,17 @@ final class EngineRegistry: ObservableObject {
             forName: UIApplication.didReceiveMemoryWarningNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
+            self?.recyclePipelines()
+        }
+        scheduleIdleRecycle()
+    }
+
+    /// 空闲回收：3 分钟无搜索后清空复用的 pipeline（释放 JSContext 内存）。
+    private func scheduleIdleRecycle() {
+        idleTask?.cancel()
+        idleTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3 * 60 * 1_000_000_000)
+            guard !Task.isCancelled else { return }
             self?.recyclePipelines()
         }
     }
@@ -870,6 +888,11 @@ final class EngineRegistry: ObservableObject {
     }
 
     func clearSearchCache() { searchCache.removeAll() }
+
+    /// 搜索完成后重置空闲回收计时。
+    private func markActivity() {
+        scheduleIdleRecycle()
+    }
 
     func search(_ keyword: String, page: Int = 1, useCache: Bool = true) async -> [(source: BookSource, books: [SourceBook], error: String?)] {
         let enabled = enabledSources()
@@ -907,6 +930,7 @@ final class EngineRegistry: ObservableObject {
             let sorted = out.sorted { ($0.1.count) > ($1.1.count) }
                 .map { (source: $0.0, books: $0.1, error: $0.2) }
             searchCache[cacheKey] = (Date(), sorted)
+            markActivity()
             return sorted
         }
     }
