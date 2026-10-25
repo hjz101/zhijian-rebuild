@@ -56,7 +56,7 @@
   - 调试：`-seedExploreSource`、`-autoExplore`；本地 mock 实测 6 本书/页。
   - 未做：筛选器（`exploreScreen`）、信息流/网格布局、多级分类。
 
-### [P0-03] 替换规则（正文清洗）
+### [P0-03] ✅ 已完成 · 替换规则（正文清洗）
 - **对应差距**：栖阅 `ReplaceRuleService` 13 字段；我们没有。
 - **范围**：
   - `Core/Reader` 新增 `ReplaceRule` 模型 + 存储 + 应用器（正则/替换/作用域/顺序/超时）。
@@ -64,6 +64,13 @@
 - **验收**：广告行/乱码/站点后缀可被规则移除；规则启停即时生效。
 - **估算**：3–5 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `ReplaceRule`：pattern/replacement/isRegex/scope(content/title/both)/enabled/order/timeout；
+  - `ReplaceRuleEngine`：按 order 执行、`$1…$9` 捕获组、`\n` 转义、1s 超时保护、失败记录；
+  - `ReplaceRuleStore`：JSON 持久化、增删改/启停/拖动排序、导入（数组或 `{version,rules}` 包）、导出；
+  - 正文/标题清洗接入 `BookContentService`（远程与本地书都生效）；
+  - UI：设置 → 替换净化；列表/编辑/预览/清洗预览页；导入文件/粘贴、导出分享；
+  - 实测：广告行删除 + 域名替换（`applied=2`）、标题 `第12章 ` 前缀移除；`-replaceRuleTest`。
 
 ### [P0-04] 章节规则（目录/正文修正）
 - **对应差距**：栖阅 `ChapterRuleManager`；我们没有。

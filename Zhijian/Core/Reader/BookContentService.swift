@@ -107,12 +107,18 @@ final class BookContentService: ReaderContentProviding {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SourceEngineError.emptyContent("正文为空（\(chapter.title)）")
         }
-        let title = result.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        var title = result.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? chapter.title
             : result.title
+        var body = text
+        let store = ReplaceRuleStore.shared
+        if !store.rules.isEmpty {
+            title = store.cleanTitle(title)
+            body = store.cleanContent(body)
+        }
         return BookChapterContent(
             title: title,
-            text: text,
+            text: body,
             nextChapterIndex: nextChapterIndex(after: chapter, bookId: book.id)
         )
     }
@@ -221,9 +227,16 @@ final class BookContentService: ReaderContentProviding {
         }
         let current = sorted[position]
         let next = sorted.indices.contains(position + 1) ? position + 1 : nil
+        var title = current.title
+        var body = current.text
+        let store = ReplaceRuleStore.shared
+        if !store.rules.isEmpty {
+            title = store.cleanTitle(title)
+            body = store.cleanContent(body)
+        }
         return BookChapterContent(
-            title: current.title,
-            text: current.text,
+            title: title,
+            text: body,
             nextChapterIndex: next
         )
     }

@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    enum Route: Hashable { case tts, backup, cookies, cloud }
+    enum Route: Hashable { case tts, backup, cookies, cloud, replaceRules }
     @EnvironmentObject private var env: AppEnvironment
     @State private var path: [Route] = []
     @State private var showReaderSettings = false
@@ -43,6 +43,7 @@ struct SettingsView: View {
                 case .backup: BackupView()
                 case .cookies: CookieManageView()
                 case .cloud: CloudSyncView()
+                case .replaceRules: ReplaceRulesView()
                 }
             }
             .sheet(isPresented: $showReaderSettings) {
@@ -93,9 +94,7 @@ struct SettingsView: View {
             row("antenna.radiowaves.left.and.right", "书源管理", value: "\(env.sources.sources.count) 个") {
                 showSources = true
             }
-            row("wand.and.stars", "替换净化", value: "未接入") {
-                placeholder = "替换规则将随 P0-03 上线：正文广告/乱码/站点后缀清洗。"
-            }
+            row("wand.and.stars", "替换净化", value: "\(ReplaceRuleStore.shared.rules.count) 条", route: .replaceRules)
             row("list.bullet.indent", "目录规则", value: "未接入") {
                 placeholder = "目录规则将随 P0-04 上线：去重、排序、卷名识别。"
             }
@@ -195,6 +194,7 @@ struct SettingsView: View {
         if args.contains("-autoOpenBackup") { path = [.backup] }
         if args.contains("-autoOpenCookies") { path = [.cookies] }
         if args.contains("-autoOpenCloud") { path = [.cloud] }
+        if args.contains("-autoOpenReplaceRules") { path = [.replaceRules] }
         if args.contains("-showReaderSettings") { showReaderSettings = true }
         if args.contains("-showAppearance") { showAppearance = true }
     }

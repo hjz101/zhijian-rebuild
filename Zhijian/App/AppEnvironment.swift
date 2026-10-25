@@ -76,6 +76,37 @@ final class AppEnvironment: ObservableObject {
         if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-palette=") }) {
             ZJPaletteStore.apply(String(arg.dropFirst(9)))
         }
+        if ProcessInfo.processInfo.arguments.contains("-seedReplaceRules") {
+            let existing = ReplaceRuleStore.shared.rules
+            if existing.isEmpty {
+                ReplaceRuleStore.shared.replaceAll([
+                    ReplaceRule(name: "删除广告行", pattern: "【广告】.*", replacement: "",
+                                isRegex: true, scope: .content, order: 0),
+                    ReplaceRule(name: "删除域名", pattern: "本站域名\\s*\\S+\\s*请勿相信。", replacement: "",
+                                isRegex: true, scope: .content, order: 1),
+                    ReplaceRule(name: "标题去重章号", pattern: "^第\\d+章\\s*", replacement: "",
+                                isRegex: true, scope: .title, order: 2)
+                ])
+            }
+        }
+        if ProcessInfo.processInfo.arguments.contains("-replaceRuleTest") {
+            let rules = [
+                ReplaceRule(name: "删除广告行", pattern: "【广告】.*", replacement: "", isRegex: true, scope: .content),
+                ReplaceRule(name: "域名替换", pattern: "(https?://)?[a-z0-9.]+\\.(com|cn)/?", replacement: "[链接]", isRegex: true, scope: .both),
+                ReplaceRule(name: "章号去重", pattern: "^第\\d+章\\s*", replacement: "", isRegex: true, scope: .title)
+            ]
+            let sample = "【广告】点击下载\n正文 www.example.com 到此一游\n第12章 山雨欲来"
+            let r = ReplaceRuleEngine.apply(rules, to: sample, scope: .content)
+            let t = ReplaceRuleEngine.apply(rules, to: "第12章 山雨欲来", scope: .title)
+            let lines = [
+                "applied=\(r.applied)",
+                "content=\(r.text.replacingOccurrences(of: "\n", with: " | "))",
+                "title=\(t.text)",
+                "failures=\(r.failures.joined(separator: ","))"
+            ]
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("replace-rule-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
         if ProcessInfo.processInfo.arguments.contains("-seedReadingStats") {
             ReadingStatsStore.shared.seedDemo()
         }
