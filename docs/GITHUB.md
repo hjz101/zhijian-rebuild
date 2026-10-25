@@ -26,7 +26,17 @@ xcodebuild -project Zhijian.xcodeproj -scheme Zhijian \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 ```
 
-CI：`.github/workflows/ios-build.yml`（GitHub Actions macos-15 模拟器构建）。
+CI：`docs/ci/ios-build.yml`（GitHub Actions macos-15 模拟器构建）。
+当前 OAuth token 缺少 `workflow` scope，先未放入 `.github/workflows`；获得权限后执行：
+
+```bash
+gh auth refresh -s workflow
+mkdir -p .github/workflows
+cp docs/ci/ios-build.yml .github/workflows/ios-build.yml
+git add .github/workflows/ios-build.yml
+git commit -m "ci: enable iOS build workflow"
+git push
+```
 
 ## 首次上传
 
