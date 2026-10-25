@@ -89,6 +89,22 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-searchPageTest") {
+            Task { @MainActor in
+                var lines: [String] = []
+                let p1 = await self.engines.search("剑来", page: 1, useCache: false)
+                let p2 = await self.engines.search("剑来", page: 2, useCache: false)
+                let start = Date()
+                let cached = await self.engines.search("剑来", page: 1, useCache: true)
+                let cachedMs = Int(Date().timeIntervalSince(start) * 1000)
+                lines.append("page1Groups=\(p1.count) page1Books=\(p1.reduce(0) { $0 + $1.books.count })")
+                lines.append("page2Groups=\(p2.count) page2Books=\(p2.reduce(0) { $0 + $1.books.count })")
+                lines.append("cachedGroups=\(cached.count) cachedMs=\(cachedMs)")
+                lines.append("page1First=\(p1.first?.books.first?.name ?? "-")")
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("search-page-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-chapterCacheTest") {
             let bookId = "demo-local-001"
             let chapters = [
@@ -351,6 +367,9 @@ final class SettingsStore: ObservableObject {
 final class EngineRegistry: ObservableObject {
     let sources: SourceStore
     let settings: SettingsStore
+    /// 搜索页缓存：key = keyword|page|sourceCount
+    private var searchCache: [String: (date: Date, groups: [(source: BookSource, books: [SourceBook], error: String?)])] = [:]
+    private let searchCacheTTL: TimeInterval = 180
 
     init(sources: SourceStore, settings: SettingsStore) {
         self.sources = sources
@@ -371,8 +390,14 @@ final class EngineRegistry: ObservableObject {
         enabledSources().map { makePipeline(source: $0) }
     }
 
-    func search(_ keyword: String, page: Int = 1) async -> [(source: BookSource, books: [SourceBook], error: String?)] {
+    func clearSearchCache() { searchCache.removeAll() }
+
+    func search(_ keyword: String, page: Int = 1, useCache: Bool = true) async -> [(source: BookSource, books: [SourceBook], error: String?)] {
         let enabled = enabledSources()
+        let cacheKey = "\(keyword.lowercased())|\(page)|\(enabled.count)"
+        if useCache, let cached = searchCache[cacheKey], Date().timeIntervalSince(cached.date) < searchCacheTTL {
+            return cached.groups
+        }
         let initialCookies = CookieStore.shared.snapshot()
         let loginStates = enabled.reduce(into: [String: (info: [String: String], header: [String: String])]()) { result, source in
             result[source.bookSourceUrl] = (SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
@@ -395,8 +420,11 @@ final class EngineRegistry: ObservableObject {
             }
             var out: [(BookSource, [SourceBook], String?)] = []
             for await item in group { out.append(item) }
-            return out.sorted { ($0.1.count) > ($1.1.count) }
+            if Task.isCancelled { return [] }
+            let sorted = out.sorted { ($0.1.count) > ($1.1.count) }
                 .map { (source: $0.0, books: $0.1, error: $0.2) }
+            searchCache[cacheKey] = (Date(), sorted)
+            return sorted
         }
     }
 

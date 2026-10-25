@@ -16,6 +16,12 @@ struct SourcesView: View {
     @State private var message: String?
     @State private var showHealth = false
     @State private var loginTarget: LoginTarget?
+    @State private var page = 1
+    @State private var hasMore = false
+    @State private var loadingMore = false
+    @State private var searchTask: Task<Void, Never>?
+    @State private var searchStartedAt: Date?
+    @State private var lastDuration: TimeInterval = 0
     @ObservedObject private var loginStore = SourceLoginStore.shared
 
     var body: some View {
@@ -72,8 +78,34 @@ struct SourcesView: View {
             .padding(.horizontal, ZJ.pageMargin).padding(.vertical, 10)
 
             if searching {
-                HStack(spacing: 8) { ProgressView(); Text("正在并发搜索 \(env.engines.enabledSources().count) 个书源…").font(.footnote).foregroundStyle(ZJ.textSecondary) }
-                    .padding(.top, 30)
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在并发搜索 \(env.engines.enabledSources().count) 个书源…")
+                        .font(.footnote).foregroundStyle(ZJ.textSecondary)
+                    Spacer()
+                    Button("取消") { cancelSearch() }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(ZJ.error)
+                }
+                .padding(.horizontal, ZJ.pageMargin)
+                .padding(.top, 18)
+            }
+
+            if !results.isEmpty && !searching {
+                HStack {
+                    Text("共 \(results.reduce(0) { $0 + $1.books.count }) 条 · \(results.count) 个书源")
+                        .font(.system(size: 11))
+                        .foregroundStyle(ZJ.textSecondary)
+                    Spacer()
+                    Text(String(format: "%.1fs", lastDuration))
+                        .font(.system(size: 10).monospacedDigit())
+                        .foregroundStyle(ZJ.textTertiary)
+                    Button("重搜") { runSearch() }
+                        .font(.system(size: 11))
+                        .foregroundStyle(ZJ.accent)
+                }
+                .padding(.horizontal, ZJ.pageMargin)
+                .padding(.bottom, 4)
             }
 
             List {
@@ -108,8 +140,25 @@ struct SourcesView: View {
                             HStack {
                                 Text(group.source.bookSourceName)
                                 Spacer()
-                                if group.error == nil { Text("\(group.books.count) 条").font(.system(size: 11)).foregroundStyle(.secondary) }
+                                if group.error == nil {
+                                    Text("\(group.books.count) 条").font(.system(size: 11)).foregroundStyle(.secondary)
+                                }
                             }
+                        }
+                    }
+                    if hasMore && !searching {
+                        Section {
+                            Button {
+                                loadMore()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    if loadingMore { ProgressView() }
+                                    else { Text("加载更多").font(.system(size: 13, weight: .medium)).foregroundStyle(ZJ.accent) }
+                                    Spacer()
+                                }
+                            }
+                            .disabled(loadingMore)
                         }
                     }
                 }
@@ -118,6 +167,8 @@ struct SourcesView: View {
     }
 
     // MARK: - 书源管理
+
+    private var searchState: some View { EmptyView() }
 
     private var sourcesPane: some View {
         List {
@@ -210,15 +261,63 @@ struct SourcesView: View {
     private func runSearch() {
         let kw = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !kw.isEmpty else { return }
+        searchTask?.cancel()
+        page = 1
+        hasMore = false
         searching = true
-        Task {
-            results = await env.engines.search(kw)
+        searchStartedAt = Date()
+        searchTask = Task {
+            let outcome = await env.engines.search(kw, page: 1)
+            guard !Task.isCancelled else { return }
+            results = outcome
+            hasMore = outcome.contains { $0.error == nil && !$0.books.isEmpty }
+            lastDuration = Date().timeIntervalSince(searchStartedAt ?? Date())
             searching = false
             if ProcessInfo.processInfo.arguments.contains("-autoOpenFirstHit"),
                let first = results.first(where: { !$0.books.isEmpty }) {
                 detail = SourceHit(book: first.books[0], source: first.source)
             }
         }
+    }
+
+    private func cancelSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        searching = false
+        loadingMore = false
+    }
+
+    private func loadMore() {
+        let kw = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !kw.isEmpty, !loadingMore else { return }
+        loadingMore = true
+        page += 1
+        let targetPage = page
+        Task {
+            let outcome = await env.engines.search(kw, page: targetPage)
+            guard !Task.isCancelled else { loadingMore = false; return }
+            let added = merge(outcome)
+            hasMore = added > 0
+            loadingMore = false
+        }
+    }
+
+    @discardableResult
+    private func merge(_ outcome: [(source: BookSource, books: [SourceBook], error: String?)]) -> Int {
+        var added = 0
+        for group in outcome {
+            let urls = Set(results.first(where: { $0.source.bookSourceUrl == group.source.bookSourceUrl })?.books.map(\.bookUrl) ?? [])
+            added += group.books.filter { !urls.contains($0.bookUrl) }.count
+            if let index = results.firstIndex(where: { $0.source.bookSourceUrl == group.source.bookSourceUrl }) {
+                var existing = results[index].books
+                let urls = Set(existing.map(\.bookUrl))
+                existing.append(contentsOf: group.books.filter { !urls.contains($0.bookUrl) })
+                results[index] = (group.source, existing, group.error ?? results[index].error)
+            } else {
+                results.append(group)
+            }
+        }
+        return added
     }
 
     private func importFromClipboard() {
