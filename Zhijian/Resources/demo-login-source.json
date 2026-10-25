@@ -1,0 +1,16 @@
+{
+  "bookSourceUrl": "http://localhost/login-demo",
+  "bookSourceName": "登录测试源",
+  "bookSourceType": 0,
+  "bookSourceGroup": "测试",
+  "enabled": true,
+  "loginUrl": "@js: java.putLoginHeader({Cookie: \"sid=demo-ok; uid=demo\"});",
+  "loginUi": "[{\"name\":\"username\",\"type\":\"text\",\"viewName\":\"'账号'\",\"default\":\"demo\"},{\"name\":\"password\",\"type\":\"password\",\"viewName\":\"'密码'\"},{\"name\":\"remember\",\"type\":\"toggle\",\"viewName\":\"'记住登录'\",\"default\":\"true\"},{\"name\":\"server\",\"type\":\"select\",\"viewName\":\"'线路'\",\"chars\":[\"主站\",\"备用\"],\"default\":\"主站\"}]",
+  "searchUrl": "http://localhost/search?q={{key}}",
+  "ruleSearch": {
+    "bookList": "class.list@tag.div",
+    "name": "tag.a@text",
+    "author": "tag.span@text",
+    "bookUrl": "tag.a@href"
+  }
+}

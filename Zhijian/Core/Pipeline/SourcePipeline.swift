@@ -717,6 +717,8 @@ final class SourcePipeline {
     private(set) var lastHTTPStatus: Int = 0
     /// 最近一次（可能被 loginCheckJs 改写后的）响应，供 UI/诊断查看
     private(set) var lastHTTPResponse: EngineHTTPResponse?
+    /// 登录态（loginInfo），登录页/登录脚本写入，规则 JS 可读。
+    private(set) var loginInfo: [String: String] = [:]
     /// 最近一次响应 URL / Content-Type
     private(set) var lastResponseURL: String = ""
     private(set) var lastContentType: String?
@@ -733,14 +735,21 @@ final class SourcePipeline {
 
     init(source: BookSource,
          initialCookies: [String: [String: String]] = [:],
+         loginInfo: [String: String] = [:],
+         loginHeader: [String: String] = [:],
          onCookiesChanged: (([String: [String: String]]) -> Void)? = nil) {
         self.source = source
+        self.loginInfo = loginInfo
         let jar = CookieJar(initial: initialCookies)
         let limiter = RateLimiter(configuration: RateLimiter.Configuration.parse(source.concurrentRate))
-        let client = HTTPClient(jar: jar, limiter: limiter, headers: source.headerMap)
+        var headers = source.headerMap
+        for (key, value) in loginHeader { headers[key] = value }
+        let client = HTTPClient(jar: jar, limiter: limiter, headers: headers)
         client.onCookiesChanged = onCookiesChanged
         self.http = client
-        self.js = JSRuntime(source: source, http: client, jar: jar)
+        let runtime = JSRuntime(source: source, http: client, jar: jar)
+        runtime.loginInfo = loginInfo.reduce(into: [:]) { $0[$1.key] = $1.value }
+        self.js = runtime
     }
 
     /// 站点根地址（bookSourceUrl 去掉 `#fragment`）
@@ -1043,6 +1052,49 @@ final class SourcePipeline {
         #endif
         guard response.isOK else { throw SourceEngineError.from(response: response) }
         return response
+    }
+
+    // MARK: - 登录
+
+    /// 执行 loginUrl 的 `@js:`/`<js>` 脚本；返回脚本写入的登录头（java.putLoginHeader 或返回对象）。
+    func runLoginScript() async throws -> [String: String] {
+        guard let raw = source.loginUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return [:]
+        }
+        let code = Self.loginCode(from: raw)
+        guard !code.isEmpty else { return [:] }
+        var bindings = RuleBindings()
+        bindings.result = loginInfo
+        bindings.sourceName = source.bookSourceName
+        let value = try js.evaluateJS(code, bindings: bindings)
+        var headers = js.loginHeaders
+        if let dictionary = value as? [String: Any] {
+            for (key, item) in dictionary { headers[key] = RuleEngine.text(item) }
+        } else if let text = value as? String,
+                  let parsed = LenientJSON.parse(text) as? [String: Any] {
+            for (key, item) in parsed { headers[key] = RuleEngine.text(item) }
+        }
+        return headers
+    }
+
+    /// loginUi 的 `@js:`/`<js>` 形式返回 JSON 字符串；普通 JSON 原样返回。
+    func resolvedLoginUI() async throws -> String {
+        guard let raw = source.loginUi?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return ""
+        }
+        let code = Self.loginCode(from: raw)
+        if code == raw { return raw }
+        let value = try js.evaluateJS(code, bindings: RuleBindings())
+        return RuleEngine.text(value)
+    }
+
+    static func loginCode(from raw: String) -> String {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasPrefix("@js:") { return String(text.dropFirst(4)) }
+        if text.hasPrefix("<js>"), text.hasSuffix(">") {
+            return String(text.dropFirst(4).dropLast(4))
+        }
+        return text
     }
 
     /// 诊断快照：UI 可直接展示（书源名、最近 HTTP、JS console、请求流水）

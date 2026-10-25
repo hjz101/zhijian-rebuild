@@ -21,7 +21,7 @@
 
 ## P0 · 书源日常可用（最高优先）
 
-### [P0-01] 书源登录 UI 与登录态持久化
+### [P0-01] ✅ 已完成 · 书源登录 UI 与登录态持久化
 - **对应差距**：栖阅 `LoginService` + `loginUi` + `loginCheckJs` + `loginInfo`；我们只有 `loginCheckJs`。
 - **范围**：
   - `Features/Sources/` 新增登录页/表单 Sheet：`loginUrl` 用 WKWebView；`loginUi` 支持 `text/select/toggle/button`。
@@ -30,6 +30,14 @@
 - **验收**：带登录的书源可完成“打开登录页→提交→搜索成功”；重启 App 登录态保留；失败有可读错误。
 - **估算**：5–8 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `loginUi` JSON（`@js:`/`<js>` 可解析）→ 原生 text/password/toggle/select/button 表单；
+  - `loginUrl` 非 JS 时 WKWebView 登录页 + Cookie 提取；
+  - `loginUrl` 为 `@js:`/`<js>` 时执行登录脚本，支持 `java.putLoginHeader` / 返回对象；
+  - 登录态按源持久化到 `source_login.json`，注入搜索/详情/目录/正文/体检/批量测试；
+  - 入口：书源列表「登录」按钮 + 已登录徽标；
+  - 自检：登录测试源 4 行表单 → 保存 `username/remember/server` + `Cookie` 头；重启保留。
+  - 调试：`-seedLoginSource`、`-showSourceLogin`、`-autoSubmitLogin`。
 
 ### [P0-02] 发现 / Explore
 - **对应差距**：栖阅 `ExploreFilterEngine` + 分类/筛选/信息流/网格；我们完全缺失。

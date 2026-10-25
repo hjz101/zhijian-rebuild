@@ -67,6 +67,8 @@ final class SourceHealthStore: ObservableObject {
 
         let pipeline = SourcePipeline(source: source,
                                       initialCookies: CookieStore.shared.snapshot(),
+                                      loginInfo: SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
+                                      loginHeader: SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl),
                                       onCookiesChanged: { CookieStore.onChange($0) })
 
         // 1. 搜索

@@ -15,6 +15,8 @@ struct SourcesView: View {
     @State private var urlText = ""
     @State private var message: String?
     @State private var showHealth = false
+    @State private var loginTarget: LoginTarget?
+    @ObservedObject private var loginStore = SourceLoginStore.shared
 
     var body: some View {
         NavigationStack {
@@ -35,6 +37,9 @@ struct SourcesView: View {
             .toolbar { toolbar }
             .sheet(item: $detail) { hit in BookDetailView(book: hit.book, source: hit.source) }
             .sheet(isPresented: $showHealth) { SourceHealthView() }
+            .sheet(item: $loginTarget) { target in
+                SourceLoginSheet(source: target.source)
+            }
             .sheet(isPresented: $showImport) { importSheet }
             .alert("从 URL 导入", isPresented: $showURLImport) {
                 TextField("https://…/bookSource.json", text: $urlText)
@@ -120,7 +125,18 @@ struct SourcesView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text(s.bookSourceName).font(.system(size: 15, weight: .medium))
+                            if loginStore.state(for: s.bookSourceUrl) != nil {
+                                Text("已登录")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(ZJ.celadon)
+                                    .padding(.horizontal, 5).padding(.vertical, 2)
+                                    .background(ZJ.celadon.opacity(0.12), in: Capsule())
+                            }
                             Spacer()
+                            if let loginUrl = s.loginUrl, !loginUrl.isEmpty {
+                                Button("登录") { loginTarget = LoginTarget(source: s) }
+                                    .font(.system(size: 11, weight: .medium))
+                            }
                             Toggle("", isOn: Binding(
                                 get: { s.enabled ?? true },
                                 set: { _ in env.sources.toggle(s) }
@@ -179,6 +195,14 @@ struct SourcesView: View {
                 keyword = String(arg.dropFirst(12)); mode = .search; runSearch()
             }
             if arg == "-showHealth" { showHealth = true }
+            if arg == "-showSourceLogin" {
+                if let source = env.sources.sources.first(where: {
+                    ($0.loginUrl ?? "").isEmpty == false && ($0.loginUi ?? "").isEmpty == false
+                }) ?? env.sources.sources.first(where: { ($0.loginUrl ?? "").isEmpty == false }) {
+                    loginTarget = LoginTarget(source: source)
+                } else {
+                }
+            }
         }
     }
 
@@ -225,5 +249,10 @@ struct SourcesView: View {
 struct SourceHit: Identifiable {
     var id: String { book.bookUrl + source.bookSourceUrl }
     let book: SourceBook
+    let source: BookSource
+}
+
+private struct LoginTarget: Identifiable {
+    let id = UUID()
     let source: BookSource
 }

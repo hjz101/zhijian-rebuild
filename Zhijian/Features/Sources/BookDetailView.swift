@@ -82,6 +82,8 @@ struct BookDetailView: View {
         do {
             let pipeline = SourcePipeline(source: source,
                                           initialCookies: CookieStore.shared.snapshot(),
+                                          loginInfo: SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
+                                          loginHeader: SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl),
                                           onCookiesChanged: { CookieStore.onChange($0) })
             let i = try await pipeline.bookInfo(book)
             let toc = try await pipeline.toc(i)

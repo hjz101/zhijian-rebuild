@@ -61,6 +61,10 @@ final class SourceBatchTestStore: ObservableObject {
 
         let deep = deepTest
         let initialCookies = CookieStore.shared.snapshot()
+        let loginStates = enabled.reduce(into: [String: (info: [String: String], header: [String: String])]()) { result, source in
+            result[source.bookSourceUrl] = (SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
+                                            SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl))
+        }
         let limit = max(1, min(concurrency, 4))
 
         await withTaskGroup(of: SourceBatchRow.self) { group in
@@ -69,7 +73,10 @@ final class SourceBatchTestStore: ObservableObject {
                 guard next < jobs.count else { return }
                 let job = jobs[next]
                 next += 1
-                group.addTask { await Self.runOne(source: job.0, keyword: job.1, deep: deep, initialCookies: initialCookies) }
+                let login = loginStates[job.0.bookSourceUrl] ?? ([:], [:])
+                group.addTask { await Self.runOne(source: job.0, keyword: job.1, deep: deep,
+                                                  initialCookies: initialCookies,
+                                                  loginInfo: login.info, loginHeader: login.header) }
             }
             for _ in 0..<min(limit, jobs.count) { addNext() }
             for await row in group {
@@ -81,9 +88,12 @@ final class SourceBatchTestStore: ObservableObject {
     }
 
     private nonisolated static func runOne(source: BookSource, keyword: String, deep: Bool,
-                                           initialCookies: [String: [String: String]]) async -> SourceBatchRow {
+                                           initialCookies: [String: [String: String]],
+                                           loginInfo: [String: String],
+                                           loginHeader: [String: String]) async -> SourceBatchRow {
         let start = Date()
         let pipeline = SourcePipeline(source: source, initialCookies: initialCookies,
+                                      loginInfo: loginInfo, loginHeader: loginHeader,
                                       onCookiesChanged: { CookieStore.onChange($0) })
         do {
             let books = try await pipeline.search(keyword, page: 1)

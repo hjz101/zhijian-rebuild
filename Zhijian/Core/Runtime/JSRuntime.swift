@@ -25,6 +25,8 @@ final class JSRuntime: RuleJSEvaluating {
     var cache: [String: String] = [:]
     private var sourceVariables: String = ""
     var loginInfo: [String: Any] = [:]
+    /// 登录头（java.putLoginHeader 写入；下次请求由 SourcePipeline 合并）。
+    var loginHeaders: [String: String] = [:]
     private var logLines: [String] = []
     /// 当前 JS 求值注入的规则解析器（只在 js 队列内存取）
     private var currentResolver: RuleResolver?
@@ -382,6 +384,26 @@ final class JSRuntime: RuleJSEvaluating {
         java.setObject(unsupported, forKeyedSubscript: "startBrowserAwait" as NSString)
         java.setObject(unsupported, forKeyedSubscript: "createSymmetricCrypto" as NSString)
         java.setObject(unsupported, forKeyedSubscript: "queryBase64TTF" as NSString)
+        let javaGetLoginHeader: @convention(block) () -> JSValue = { [weak self] in
+            guard let self else { return JSValue(undefinedIn: JSContext.current()) }
+            return JSValue(object: JSONValueUtil.jsonText(self.loginHeaders), in: self.context)
+        }
+        java.setObject(javaGetLoginHeader, forKeyedSubscript: "getLoginHeader" as NSString)
+
+        let javaPutLoginHeader: @convention(block) (JSValue) -> Void = { [weak self] value in
+            guard let self else { return }
+            let any = Self.any(from: value)
+            var headers: [String: String] = [:]
+            if let dictionary = any as? [String: Any] {
+                for (key, item) in dictionary { headers[key] = JSONValueUtil.text(item) }
+            } else if let text = any as? String,
+                      let parsed = LenientJSON.parse(text) as? [String: Any] {
+                for (key, item) in parsed { headers[key] = JSONValueUtil.text(item) }
+            }
+            for (key, item) in headers { self.loginHeaders[key] = item }
+        }
+        java.setObject(javaPutLoginHeader, forKeyedSubscript: "putLoginHeader" as NSString)
+
         installJavaCompatMethods(on: java)
 
         return java
@@ -493,6 +515,26 @@ final class JSRuntime: RuleJSEvaluating {
             return JSValue(object: self.loginInfo, in: self.context)
         }
         object.setObject(getLoginInfoMap, forKeyedSubscript: "getLoginInfoMap" as NSString)
+
+        let getLoginHeader: @convention(block) () -> JSValue = { [weak self] in
+            guard let self else { return JSValue(undefinedIn: JSContext.current()) }
+            return JSValue(object: JSONValueUtil.jsonText(self.loginHeaders), in: self.context)
+        }
+        object.setObject(getLoginHeader, forKeyedSubscript: "getLoginHeader" as NSString)
+
+        let putLoginHeader: @convention(block) (JSValue) -> Void = { [weak self] value in
+            guard let self else { return }
+            let any = Self.any(from: value)
+            var headers: [String: String] = [:]
+            if let dictionary = any as? [String: Any] {
+                for (key, item) in dictionary { headers[key] = JSONValueUtil.text(item) }
+            } else if let text = any as? String,
+                      let parsed = LenientJSON.parse(text) as? [String: Any] {
+                for (key, item) in parsed { headers[key] = JSONValueUtil.text(item) }
+            }
+            for (key, item) in headers { self.loginHeaders[key] = item }
+        }
+        object.setObject(putLoginHeader, forKeyedSubscript: "putLoginHeader" as NSString)
 
         let putLoginInfo: @convention(block) (JSValue) -> Void = { [weak self] value in
             guard let self else { return }

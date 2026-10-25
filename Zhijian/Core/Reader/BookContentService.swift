@@ -135,6 +135,8 @@ final class BookContentService: ReaderContentProviding {
         return SourcePipeline(
             source: bookSource,
             initialCookies: CookieStore.shared.snapshot(),
+            loginInfo: SourceLoginStore.shared.loginInfo(for: bookSource.bookSourceUrl),
+            loginHeader: SourceLoginStore.shared.loginHeader(for: bookSource.bookSourceUrl),
             onCookiesChanged: { cookies in
                 CookieStore.onChange(cookies)
             }

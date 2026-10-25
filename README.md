@@ -12,7 +12,7 @@
 
 | 模块 | 状态 | 说明 |
 |---|---|---|
-| 书源引擎 | ✅ | Legado `BookSource` 全量模型（35 字段）、`AnalyzeUrl` 请求、规则链/`{{}}`/`@put`/`@get`/索引/`##`、CSS/XPath/JSONPath/正则/JS；`packages_stub.js`（javax.crypto/java.security/java.util/java.io/net + hutool/okhttp/JsonPath/Jsoup）+ 原生 `_native*`/`_jsoup*` 下沉；多源并发搜索、详情/目录/正文、`concurrentRate`、`loginCheckJs`、TOC 顺序归一化、诊断快照 |
+| 书源引擎 | ✅ | Legado `BookSource` 全量模型（35 字段）、`AnalyzeUrl` 请求、规则链/`{{}}`/`@put`/`@get`/索引/`##`、CSS/XPath/JSONPath/正则/JS；`packages_stub.js` + 原生 `_native*`/`_jsoup*`；多源并发搜索、详情/目录/正文、`concurrentRate`、`loginCheckJs`；**登录**（`loginUi` 原生表单 / `loginUrl` WebView / `@js:` 脚本 / 登录态持久化）；TOC 归一化、诊断快照 |
 | 分页阅读器 | ✅ | native TextKit 断页（`NSTextStorage+NSLayoutManager+NSTextContainer`）、UIPageViewController 左右翻页、点击左右 1/3、章节过渡页、页缓存、目录/设置 Sheet、滚动模式回退、进度持久化 |
 | TTS | ✅ | 系统 `AVSpeechSynthesizer`（切句/暂停/继续/停止/语速/Now Playing/远程控制）、旁白/对话多角色、**智能角色识别**（引号归属 + 提示语 → 角色名/逐角色音色+音高）、**句级高亮 + 自动翻页/滚动**（分页/滚动/EPUB/PDF）、HTTP TTS 源（模板 / `,{JSON}` POST / `@js:`；header/Cookie；contentType 校验；缓存）、**登录页 Cookie 提取**、**WebSocket 流式播放**（文本帧 → 二进制音频 → done） |
 | 备份/同步 | ✅ | `.zjbk`（ZIP + `manifest.json`，bookshelf/sources/settings/tts_sources/**annotations/paragraph_comments**）导出/恢复；WebDAV（PROPFIND/MKCOL/PUT/GET + Basic Auth）上传/下载/列表；**加密备份**（PBKDF2-SHA256 120k + AES-GCM）；**Cookie 持久化**（`cookies.json`）与 **iCloud KVS** 设置/进度/段评/章末评论/批注同步（未签名时本地镜像降级） |
@@ -72,6 +72,8 @@ xcrun simctl launch booted com.zhijian.reader
 | `-showCatalog` / `-catalogTab=notes` | 阅读页自动打开目录/书签/笔记 |
 | `-showChangeSource` | 阅读页自动打开换源 |
 | `-showHealth` / `-showHealthDetail` | 打开书源体检 / 首个书源详情 |
+| `-seedLoginSource` / `-showSourceLogin` | 导入登录测试源 / 打开其登录表单 |
+| `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |
 | `-engineSelfTest` | 打开引擎自检（fastjson/Gson/ZIP/WebView） |
 | `-showBatchTest` / `-autoBatchTest` | 打开批量测试 / 自动开始 |

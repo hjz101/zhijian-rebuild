@@ -73,6 +73,11 @@ final class AppEnvironment: ObservableObject {
                           text: "山雾与书庐的意象很统一。")
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-seedLoginSource"),
+           let url = Bundle.main.url(forResource: "demo-login-source", withExtension: "json"),
+           let text = try? String(contentsOf: url, encoding: .utf8) {
+            try? sources.importJSON(text)
+        }
         if ProcessInfo.processInfo.arguments.contains("-seedParagraphComments") {
             let store = ParagraphCommentStore.shared
             if store.counts(bookId: "demo-local-001", chapterIndex: 0).isEmpty {
@@ -274,6 +279,8 @@ final class EngineRegistry: ObservableObject {
     func makePipeline(source: BookSource) -> SourcePipeline {
         let initial = CookieStore.shared.snapshot()
         return SourcePipeline(source: source, initialCookies: initial,
+                              loginInfo: SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
+                              loginHeader: SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl),
                               onCookiesChanged: { CookieStore.onChange($0) })
     }
 
@@ -284,11 +291,17 @@ final class EngineRegistry: ObservableObject {
     func search(_ keyword: String, page: Int = 1) async -> [(source: BookSource, books: [SourceBook], error: String?)] {
         let enabled = enabledSources()
         let initialCookies = CookieStore.shared.snapshot()
+        let loginStates = enabled.reduce(into: [String: (info: [String: String], header: [String: String])]()) { result, source in
+            result[source.bookSourceUrl] = (SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
+                                            SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl))
+        }
         return await withTaskGroup(of: (BookSource, [SourceBook], String?).self) { group in
             for source in enabled {
                 group.addTask {
                     do {
+                        let login = loginStates[source.bookSourceUrl] ?? ([:], [:])
                         let pipeline = SourcePipeline(source: source, initialCookies: initialCookies,
+                                                      loginInfo: login.info, loginHeader: login.header,
                                                       onCookiesChanged: { CookieStore.onChange($0) })
                         let books = try await pipeline.search(keyword, page: page)
                         return (source, books, nil)
