@@ -18,6 +18,7 @@
 | 备份/同步 | ✅ | `.zjbk`（ZIP + `manifest.json`，bookshelf/sources/settings/tts_sources/**annotations/paragraph_comments**）导出/恢复；WebDAV（PROPFIND/MKCOL/PUT/GET + Basic Auth）上传/下载/列表；**加密备份**（PBKDF2-SHA256 120k + AES-GCM）；**Cookie 持久化**（`cookies.json`）与 **iCloud KVS** 设置/进度/段评/章末评论/批注同步（未签名时本地镜像降级） |
 | 本地书 | ✅ | TXT 导入（UTF-8/GB18030 探测）+ 自动分章；**EPUB 导入**（ZIP → container/OPF/spine → nav/ncx 标题）与 **EPUB 富文本阅读**（解包原始 XHTML/CSS/图片，WKWebView 渲染 + 主题注入 + 目录/章节切换/进度 + **分页模式**）；**PDF 导入与阅读**（PDFKit）；**漫画 CBZ/ZIP 导入**（横向分页 / 纵向长图、缩放、页码、进度） |
 | 阅读增强 | ✅ | 书签、划线、笔记（分页/滚动均可选中 → 划线/笔记）、笔记列表、目录/书签/笔记三 Tab、换源；**章节标题设计器**（对齐/大小/分隔线·花饰）；**自动高亮规则**（关键词/正则 + 颜色）；**段评**（分页段落气泡 + 整章侧栏）与**章末评论**（章尾按钮/菜单入口，列表/发表、分页加载、点赞/回复/@、时间戳冲突处理）；**段评同能力**；**WebDAV 独立评论同步**（`zhijian-comments.json`，下载→合并→回传）；**EPUB 图片查看器**（点击图片全屏、缩放/双击、分享）；本地 JSON 持久化 |
+| 发现 / Explore | ✅ | `exploreUrl`（JS/JSON/行文本）+ `ruleExplore`；书源/分类横滑、列表分页、详情、登录态徽标；底部「发现」Tab |
 | 书源体检 | ✅ | 逐源四阶段（搜索/详情/目录/正文）耗时与错误、批量体检、HTTP 流水 + JS console 诊断、一键复制；结果持久化；内置「引擎自检」 |
 | 引擎兼容补强 | ✅ | fastjson、Gson；`java.getZipStringContent/getZipByteArrayContent/unzipFile` 支持 ZIP **以及 RAR/7z（iOS SDK libarchive 弱链接）**；JSC 执行超时中断（12s，可测试 2s） |
 | **WebView 兜底** | ✅ | 离屏 WKWebView：`@webjs:` 规则、`java.webView/webViewGetSource/webViewGetOverrideUrl`、`ruleContent.webJs`；**网络拦截**（XHR/fetch → `ruleContent.sourceRegex` 匹配响应体/URL）；引擎自检 13/13 |
@@ -73,6 +74,7 @@ xcrun simctl launch booted com.zhijian.reader
 | `-showChangeSource` | 阅读页自动打开换源 |
 | `-showHealth` / `-showHealthDetail` | 打开书源体检 / 首个书源详情 |
 | `-seedLoginSource` / `-showSourceLogin` | 导入登录测试源 / 打开其登录表单 |
+| `-seedExploreSource` / `-autoExplore` | 导入发现测试源 / 打开发现页 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |
 | `-engineSelfTest` | 打开引擎自检（fastjson/Gson/ZIP/WebView） |

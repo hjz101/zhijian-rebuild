@@ -1097,6 +1097,127 @@ final class SourcePipeline {
         return text
     }
 
+    // MARK: - 发现 / Explore
+
+    struct ExploreCategory: Identifiable, Hashable, Sendable {
+        var title: String
+        var url: String
+        var id: String { title + "|" + url }
+    }
+
+    /// 解析 exploreUrl：JS / JSON 数组 / `标题::URL` 行文本。
+    func exploreCategories() async throws -> [ExploreCategory] {
+        guard let raw = source.exploreUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return []
+        }
+        if raw.hasPrefix("@js:") || raw.hasPrefix("<js>") {
+            let code = Self.loginCode(from: raw)
+            let value = try js.evaluateJS(code, bindings: RuleBindings())
+            return Self.parseExploreCategories(value)
+        }
+        if let value = LenientJSON.parse(raw) {
+            let parsed = Self.parseExploreCategories(value)
+            if !parsed.isEmpty { return parsed }
+        }
+        var categories: [ExploreCategory] = []
+        for line in raw.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            guard let range = trimmed.range(of: "::") else { continue }
+            let title = String(trimmed[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let url = String(trimmed[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty, !url.isEmpty else { continue }
+            categories.append(ExploreCategory(title: title, url: url))
+        }
+        return categories
+    }
+
+    static func parseExploreCategories(_ value: Any?) -> [ExploreCategory] {
+        let array: [Any]
+        if let list = value as? [Any] {
+            array = list
+        } else if let text = value as? String,
+                  let parsed = LenientJSON.parse(text) as? [Any] {
+            array = parsed
+        } else if let text = value as? String {
+            var result: [ExploreCategory] = []
+            for line in text.components(separatedBy: .newlines) {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let range = trimmed.range(of: "::") else { continue }
+                let title = String(trimmed[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let url = String(trimmed[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !title.isEmpty, !url.isEmpty {
+                    result.append(ExploreCategory(title: title, url: url))
+                }
+            }
+            return result
+        } else {
+            return []
+        }
+
+        var result: [ExploreCategory] = []
+        for item in array {
+            if let dictionary = item as? [String: Any] {
+                let title = RuleEngine.text(dictionary["title"] ?? dictionary["name"] ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let url = RuleEngine.text(dictionary["url"] ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !title.isEmpty, !url.isEmpty {
+                    result.append(ExploreCategory(title: title, url: url))
+                }
+            }
+        }
+        return result
+    }
+
+    /// 拉取某个发现分类的一页书籍。
+    func explore(category: ExploreCategory, page: Int = 1) async throws -> [SourceBook] {
+        self.page = page
+        guard let rules = source.ruleExplore,
+              let bookListRule = rules.bookList?.ruleString,
+              !bookListRule.isEmpty else {
+            throw SourceEngineError.invalidSource("ruleExplore.bookList 为空")
+        }
+        let clock = StageClock(Self.searchTimeout)
+        let targetAnalyzer = makeAnalyzer(result: "", baseURL: baseURL)
+        let target: RuleURL
+        if category.url.isEmpty {
+            target = RuleURL(url: baseURL)
+        } else {
+            target = try rule { try RuleURLResolver.analyzeURL(category.url, with: targetAnalyzer) }
+        }
+        guard !target.url.isEmpty else { throw SourceEngineError.ruleNoResult("发现分类 URL 为空") }
+
+        let response = try await fetch(target, timeout: clock.requestTimeout(cap: Self.requestTimeout))
+        try clock.ensure()
+        let body = response.body
+        let analyzer = makeAnalyzer(result: body, baseURL: response.finalURL)
+        var items = try rule { try analyzer.analyzeList(bookListRule, input: body) }
+        guard !items.isEmpty else {
+            throw SourceEngineError.ruleNoResult("发现列表为空（响应前 120 字：\(String(body.prefix(120)))）")
+        }
+        if items.count > 200 { items = Array(items.prefix(200)) }
+
+        var books: [SourceBook] = []
+        for item in items {
+            let itemAnalyzer = makeAnalyzer(result: item, baseURL: response.finalURL)
+            var book = SourceBook()
+            book.name = try fieldText(rules.name, itemAnalyzer, input: item)
+            book.author = try fieldText(rules.author, itemAnalyzer, input: item)
+            book.kind = try fieldText(rules.kind, itemAnalyzer, input: item)
+            book.intro = try fieldText(rules.intro, itemAnalyzer, input: item)
+            book.lastChapter = try fieldText(rules.lastChapter, itemAnalyzer, input: item)
+            book.coverUrl = try fieldText(rules.coverUrl, itemAnalyzer, input: item)
+            book.wordCount = try fieldText(rules.wordCount, itemAnalyzer, input: item)
+            if let bookURLRule = rules.bookUrl?.ruleString {
+                book.bookUrl = try rule { try RuleURLResolver.analyzeURL(bookURLRule, with: itemAnalyzer) }.urlWithOptions
+            }
+            if book.bookUrl.isEmpty { book.bookUrl = response.finalURL }
+            if !book.name.isEmpty { books.append(book) }
+        }
+        return books
+    }
+
     /// 诊断快照：UI 可直接展示（书源名、最近 HTTP、JS console、请求流水）
     var diagnosticsSnapshot: [String] {
         var lines: [String] = []

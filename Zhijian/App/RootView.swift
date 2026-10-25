@@ -15,6 +15,7 @@ struct RootView: View {
         TabView(selection: $tab) {
             ShelfView().tabItem { Label("书架", systemImage: "books.vertical") }.tag(0)
             SourcesView().tabItem { Label("书源", systemImage: "antenna.radiowaves.left.and.right") }.tag(1)
+            ExploreView().tabItem { Label("发现", systemImage: "square.grid.2x2") }.tag(3)
             SettingsView().tabItem { Label("我的", systemImage: "person.crop.circle") }.tag(2)
         }
         .environmentObject(env)

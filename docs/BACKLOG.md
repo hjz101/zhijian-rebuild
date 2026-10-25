@@ -39,7 +39,7 @@
   - 自检：登录测试源 4 行表单 → 保存 `username/remember/server` + `Cookie` 头；重启保留。
   - 调试：`-seedLoginSource`、`-showSourceLogin`、`-autoSubmitLogin`。
 
-### [P0-02] 发现 / Explore
+### [P0-02] ✅ 已完成 · 发现 / Explore
 - **对应差距**：栖阅 `ExploreFilterEngine` + 分类/筛选/信息流/网格；我们完全缺失。
 - **范围**：
   - 解析 `exploreUrl` / `ruleExplore`（分类、筛选、列表、书籍字段）。
@@ -48,6 +48,13 @@
 - **验收**：至少 2 个真实书源可浏览分类并打开详情；空分类/失败有占位。
 - **估算**：4–6 天
 - **依赖**：P0-01（登录源）
+- **完成情况（2026-10-25）**：
+  - 新增底部「发现」Tab；书源横滑选择 + 分类横滑；
+  - 解析 `exploreUrl` 的三种形式：JS（`@js:`/`<js>`）、JSON 数组、`标题::URL` 行文本；
+  - `ruleExplore` 列表字段（name/author/kind/intro/lastChapter/coverUrl/bookUrl）映射为 `SourceBook`；
+  - 分页「加载更多」、详情 Sheet、登录态徽标；
+  - 调试：`-seedExploreSource`、`-autoExplore`；本地 mock 实测 6 本书/页。
+  - 未做：筛选器（`exploreScreen`）、信息流/网格布局、多级分类。
 
 ### [P0-03] 替换规则（正文清洗）
 - **对应差距**：栖阅 `ReplaceRuleService` 13 字段；我们没有。

@@ -73,6 +73,11 @@ final class AppEnvironment: ObservableObject {
                           text: "山雾与书庐的意象很统一。")
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-seedExploreSource"),
+           let url = Bundle.main.url(forResource: "demo-explore-source", withExtension: "json"),
+           let text = try? String(contentsOf: url, encoding: .utf8) {
+            try? sources.importJSON(text)
+        }
         if ProcessInfo.processInfo.arguments.contains("-seedLoginSource"),
            let url = Bundle.main.url(forResource: "demo-login-source", withExtension: "json"),
            let text = try? String(contentsOf: url, encoding: .utf8) {

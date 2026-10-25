@@ -1,0 +1,19 @@
+{
+  "bookSourceUrl": "http://127.0.0.1:8770",
+  "bookSourceName": "发现测试源",
+  "bookSourceType": 0,
+  "bookSourceGroup": "测试",
+  "enabled": true,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"玄幻\",\"url\":\"/explore?cat=1&page={{page}}\"},{\"title\":\"都市\",\"url\":\"/explore?cat=2&page={{page}}\"}]",
+  "ruleExplore": {
+    "bookList": "$.books[*]",
+    "name": "$.title",
+    "author": "$.author",
+    "kind": "$.kind",
+    "intro": "$.intro",
+    "lastChapter": "$.lastChapter",
+    "bookUrl": "http://127.0.0.1:8770/book/{{$.id}}",
+    "coverUrl": "$.cover"
+  }
+}
