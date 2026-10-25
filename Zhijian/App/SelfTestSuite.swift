@@ -103,7 +103,23 @@ enum SelfTestSuite {
             check("Bubble-import", false, "解析失败")
         }
 
-        // 11) PSL eTLD+1
+        // 11) .qitheme 导入（ZIP + AppTheme JSON）
+        let themeJSON = "{\"name\":\"栖阅墨\",\"primaryTextColorHex\":\"#E8E4DA\",\"secondaryTextColorHex\":\"#9A948A\",\"accentColorHex\":\"#C9A227\",\"defaultBackground\":\"#1E222A\",\"readerThemeLight\":{\"backgroundColorHex\":\"#20242E\",\"textColorHex\":\"#E8E4DA\"}}"
+        var qizip = ZipWriter()
+        qizip.addText(themeJSON, name: "appTheme.json")
+        let qiData = qizip.build()
+            if let preset = try? ExternalThemeImporter.importQITheme(data: qiData, fallbackName: "qi") {
+                check("QITheme-name", preset.name == "栖阅墨")
+                check("QITheme-bg", preset.backgroundHex == "#20242E", preset.backgroundHex)
+                check("QITheme-text", preset.textHex == "#E8E4DA")
+                check("QITheme-accent", preset.accentHex == "#C9A227")
+                check("QITheme-surface", preset.surfaceHex != "#EDE5D6" && !preset.surfaceHex.isEmpty, preset.surfaceHex)
+                check("QITheme-dark", preset.isDarkHint)
+            } else {
+                check("QITheme-import", false, "解析失败")
+            }
+
+        // 12) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

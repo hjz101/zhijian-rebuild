@@ -1,7 +1,30 @@
-// ExternalThemeImporter.swift — 栖阅生态格式导入（R2-05）
+// ExternalThemeImporter.swift — 栖阅生态格式导入（R2-05 / THEME-V2 阶段三）
 // - `.red`（Red App 主题归档）：ZIP 含 theme.json（{name, light, dark, ...}）+ 背景图
 // - `.qibubble`（段评气泡样式）：JSON {colorHex, cornerRadius, icon} 或 {light, dark}
+// - `.qitheme`（栖阅 AppTheme 归档）：ZIP 含 AppTheme JSON（54 字段，映射阅读子集 + chrome）
 import Foundation
+import SwiftUI
+
+/// 兼容栖阅 `.qitheme` 的 AppTheme JSON（54 字段，我们映射阅读相关子集）。
+struct QIAppThemeJSON: Codable {
+    var name: String?
+    var primaryTextColorHex: String?
+    var secondaryTextColorHex: String?
+    var tertiaryTextColorHex: String?
+    var darkPrimaryTextColorHex: String?
+    var darkSecondaryTextColorHex: String?
+    var accentColorHex: String?
+    var darkAccentColorHex: String?
+    var defaultBackground: String?
+    var readerThemeLight: QIReaderThemeJSON?
+    var readerThemeDark: QIReaderThemeJSON?
+
+    struct QIReaderThemeJSON: Codable {
+        var textColorHex: String?
+        var backgroundColorHex: String?
+        var backgroundImageName: String?
+    }
+}
 
 /// 兼容栖阅报告中的 Red App 主题 JSON 结构。
 struct RedThemeJSON: Codable {
@@ -38,6 +61,46 @@ struct QIBubbleJSON: Codable {
 }
 
 enum ExternalThemeImporter {
+    /// 导入 `.qitheme`（ZIP，AppTheme JSON）→ ReaderThemePreset（含 chrome 色）。
+    static func importQITheme(data: Data, fallbackName: String) throws -> ReaderThemePreset {
+        let zip = try ZipReader(data: data)
+        guard let name = zip.fileNames.first(where: { $0.hasSuffix(".json") && ($0.contains("theme") || $0.contains("Theme")) }),
+              let json = try? zip.read(name) else {
+            throw ThemeError.qiThemeInvalid
+        }
+        let decoder = JSONDecoder()
+        let appTheme: QIAppThemeJSON
+        if let parsed = try? decoder.decode(QIAppThemeJSON.self, from: json) {
+            appTheme = parsed
+        } else if let parsed = try? JSONSerialization.jsonObject(with: json) as? [String: Any],
+                  let nested = try? JSONSerialization.data(withJSONObject: parsed["appTheme"] ?? parsed),
+                  let decoded = try? decoder.decode(QIAppThemeJSON.self, from: nested) {
+            appTheme = decoded
+        } else {
+            throw ThemeError.qiThemeInvalid
+        }
+        var preset = ReaderThemePreset()
+        preset.name = appTheme.name ?? fallbackName
+        preset.themeName = "paper"
+        let light = appTheme.readerThemeLight
+        preset.backgroundHex = normalizeHex(light?.backgroundColorHex ?? appTheme.defaultBackground ?? "#F4EFE4")
+        preset.textHex = normalizeHex(light?.textColorHex ?? appTheme.primaryTextColorHex ?? "#1F1C17")
+        preset.secondaryHex = normalizeHex(appTheme.secondaryTextColorHex ?? "#6B6459")
+        preset.accentHex = normalizeHex(appTheme.accentColorHex ?? "#C2552E")
+        // chrome（surface）：用 background 加深/变暗近似
+        preset.surfaceHex = surfaceFrom(backgroundHex: preset.backgroundHex)
+        return preset
+    }
+
+    private static func surfaceFrom(backgroundHex: String) -> String {
+        guard let color = Color(hexString: backgroundHex) else { return backgroundHex }
+        let ui = UIColor(color)
+        var hue: CGFloat = 0, sat: CGFloat = 0, bright: CGFloat = 0, alpha: CGFloat = 0
+        ui.getHue(&hue, saturation: &sat, brightness: &bright, alpha: &alpha)
+        let darker = bright > 0.5 ? max(bright - 0.08, 0.2) : min(bright + 0.08, 0.9)
+        return Color(hue: hue, saturation: sat, brightness: darker).hexString
+    }
+
     /// 导入 `.red` 归档或裸 JSON → ReaderThemePreset（取 light 侧映射到米宣纸风格）。
     static func importRed(data: Data, fallbackName: String) throws -> ReaderThemePreset {
         let decoder = JSONDecoder()
@@ -90,11 +153,12 @@ enum ExternalThemeImporter {
     }
 
     enum ThemeError: LocalizedError {
-        case redInvalid, bubbleInvalid
+        case redInvalid, bubbleInvalid, qiThemeInvalid
         var errorDescription: String? {
             switch self {
             case .redInvalid: return ".red 主题解析失败（缺少 theme.json 或字段格式不符）"
             case .bubbleInvalid: return ".qibubble 气泡样式解析失败"
+            case .qiThemeInvalid: return ".qitheme 主题解析失败（缺少 AppTheme JSON）"
             }
         }
     }

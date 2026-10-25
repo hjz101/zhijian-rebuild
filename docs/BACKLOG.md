@@ -447,6 +447,12 @@
 
 ## P4 · 发布与合规
 
+### [THEME-V2] ✅ 已完成（阶段三）· .qitheme 外部主题包映射
+- `.qitheme`（栖阅 AppTheme ZIP）：解析 AppTheme JSON 54 字段子集（primary/secondary/accent/defaultBackground/readerThemeLight）→ ReaderThemePreset；
+- chrome 色 surface 由背景色亮度自动生成；`ReaderThemePreset.surfaceHex` 新增（含编解码）；
+- `apply` 统一把外部主题（.red/.qitheme/.zjtheme）写入 customPalette（含 surface）完整呈现；
+- 主题包页支持 .qitheme 扩展名导入；自检 35 项全通过（含 QITheme 6 断言）。
+
 ### [THEME-V2] ✅ 已完成（阶段二）· 外观重构为 origo-x seed 方案
 - App 外观 = 中性基底（亮/暗）+ 单一强调色 seed 动态生成整套色板（hue 调整生成 accent/celadon/gold）；
 - 外观页：预设场景 5 套 + 18 色快捷 + ColorPicker + hex + 外观模式（跟随系统/浅/深）；

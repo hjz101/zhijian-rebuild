@@ -18,6 +18,7 @@ struct ReaderThemePackageView: View {
         var result: [UTType] = [.json, .zip, .data]
         if let zj = UTType(filenameExtension: "zjtheme") { result.append(zj) }
         if let red = UTType(filenameExtension: "red") { result.append(red) }
+        if let qi = UTType(filenameExtension: "qitheme") { result.append(qi) }
         return result
     }
 
@@ -65,12 +66,19 @@ struct ReaderThemePackageView: View {
                     let scoped = url.startAccessingSecurityScopedResource()
                     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                     let data = try Data(contentsOf: url)
-                    if url.pathExtension.lowercased() == "red" {
+                    let ext = url.pathExtension.lowercased()
+                    if ext == "red" {
                         let preset = try ExternalThemeImporter.importRed(data: data,
                                                                           fallbackName: url.deletingPathExtension().lastPathComponent)
                         store.upsert(preset)
                         store.apply(preset, to: env.settings)
                         present("已导入 .red 主题并应用：\(preset.name)")
+                    } else if ext == "qitheme" {
+                        let preset = try ExternalThemeImporter.importQITheme(data: data,
+                                                                             fallbackName: url.deletingPathExtension().lastPathComponent)
+                        store.upsert(preset)
+                        store.apply(preset, to: env.settings)
+                        present("已导入 .qitheme 主题并应用：\(preset.name)")
                     } else {
                         let preset = try store.importPackage(url: url)
                         store.apply(preset, to: env.settings)

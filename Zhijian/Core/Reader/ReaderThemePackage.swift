@@ -11,6 +11,7 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
     var textHex: String = "#1F1C17"
     var secondaryHex: String = "#6B6459"
     var accentHex: String = "#C2552E"
+    var surfaceHex: String = "#EDE5D6"
     var fontName: String = ""
     var fontSize: Double = 20
     var lineHeight: Double = 10
@@ -19,7 +20,7 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
     var isBuiltIn: Bool = false
 
     enum CodingKeys: String, CodingKey {
-        case id, name, themeName, backgroundHex, textHex, secondaryHex, accentHex
+        case id, name, themeName, backgroundHex, textHex, secondaryHex, accentHex, surfaceHex
         case fontName, fontSize, lineHeight, paragraphSpacing, horizontalPadding, isBuiltIn
     }
 
@@ -34,6 +35,7 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
         textHex = try c.decodeIfPresent(String.self, forKey: .textHex) ?? "#1F1C17"
         secondaryHex = try c.decodeIfPresent(String.self, forKey: .secondaryHex) ?? "#6B6459"
         accentHex = try c.decodeIfPresent(String.self, forKey: .accentHex) ?? "#C2552E"
+        surfaceHex = try c.decodeIfPresent(String.self, forKey: .surfaceHex) ?? "#EDE5D6"
         fontName = try c.decodeIfPresent(String.self, forKey: .fontName) ?? ""
         fontSize = try c.decodeIfPresent(Double.self, forKey: .fontSize) ?? 20
         lineHeight = try c.decodeIfPresent(Double.self, forKey: .lineHeight) ?? 10
@@ -42,7 +44,15 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
         isBuiltIn = try c.decodeIfPresent(Bool.self, forKey: .isBuiltIn) ?? false
     }
 
+    var isDarkHint: Bool {
+        // 背景偏暗即视为深色
+        let ui = UIColor(Color(hexString: backgroundHex) ?? Color(hex: 0xF4EFE4))
+        var brightness: CGFloat = 0
+        ui.getWhite(&brightness, alpha: nil)
+        return brightness < 0.5
+    }
     var backgroundColor: Color { Color(hexString: backgroundHex) ?? Color(hex: 0xF4EFE4) }
+    var surfaceColor: Color { Color(hexString: surfaceHex) ?? Color(hex: 0xEDE5D6) }
     var textColor: Color { Color(hexString: textHex) ?? Color(hex: 0x1F1C17) }
     var secondaryColor: Color { Color(hexString: secondaryHex) ?? Color(hex: 0x6B6459) }
     var accentColor: Color { Color(hexString: accentHex) ?? Color(hex: 0xC2552E) }
@@ -190,6 +200,15 @@ final class ReaderThemePackageStore: ObservableObject {
         settings.lineHeight = preset.lineHeight
         settings.paragraphSpacing = preset.paragraphSpacing
         settings.horizontalPadding = preset.horizontalPadding
+        // 外部主题（.red/.qitheme/.zjtheme）带 chrome 色 → 走自定义配色，完整呈现背景/正文/强调/surface
+        settings.customPalette = ReaderCustomPalette(
+            backgroundHex: preset.backgroundHex,
+            textHex: preset.textHex,
+            secondaryHex: preset.secondaryHex,
+            accentHex: preset.accentHex,
+            surfaceHex: preset.surfaceHex,
+            isDark: preset.isDarkHint
+        )
         if !preset.fontName.isEmpty, CustomFontStore.shared.fonts.contains(where: { $0.postScriptName == preset.fontName }) {
             settings.customFontName = preset.fontName
         }
