@@ -447,6 +447,14 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 书源与性能优化（六批）
+- **搜书时间优化**：HTTP GET 响应缓存（20s，同 URL 重复请求免网络+免限速）；搜索并发上限 6（AsyncSemaphore）；单源 8s 超时兜底；搜索缓存 TTL 300s；
+- **登录优化**：登录失效检测关键词扩充（18 个，含 token 失效/session expired 等）；401/403 响应体命中关键词 → 自动映射 needLogin 弹登录；
+- **源适配**：toList JSON 字符串→列表、charset 多候选解码（UTF-8/GB18030/乱码评分）、jsLib 失败不阻塞源；真实源回归通过（书山聚合 215 类/200 本）；
+- **卡顿优化**：图片解码移后台线程（Task.detached，大图不卡主线程）；分页本就在后台串行队列；
+- **崩溃防护**：CrashGuard 全局异常/信号捕获 → crash-logs.txt（定位崩溃）；
+- 自检 **44 项通过** + 真实源回归通过。
+
 ### [V2.3] ✅ 已完成 · 版本 2.3 三项深化（五批）
 - **替换规则分组**：`ReplaceRule.group` 字段 + 分组筛选 chips + 编辑分组输入（新建规则继承当前分组）；
 - **sourceRegex 请求头改写**：WebView 拦截脚本支持 XHR/fetch 请求头改写（`headerOverrides` = 书源 headerMap），页面内请求携带签名头；

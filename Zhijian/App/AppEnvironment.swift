@@ -16,6 +16,7 @@ final class AppEnvironment: ObservableObject {
     let localLibrary: LocalLibrary
 
     private init() {
+        CrashGuard.install()
         let books = BookStore()
         let sources = SourceStore()
         let settings = SettingsStore()
@@ -918,7 +919,7 @@ final class EngineRegistry: ObservableObject {
     let settings: SettingsStore
     /// 搜索页缓存：key = keyword|page|sourceCount
     private var searchCache: [String: (date: Date, groups: [(source: BookSource, books: [SourceBook], error: String?)])] = [:]
-    private let searchCacheTTL: TimeInterval = 180
+    private let searchCacheTTL: TimeInterval = 300
     /// P3-05：按源复用 pipeline（避免重复初始化 JSContext），内存紧张/空闲时回收。
     private var pipelineCache: [String: SourcePipeline] = [:]
     private let pipelineCacheLimit = 6
@@ -991,18 +992,31 @@ final class EngineRegistry: ObservableObject {
             result[source.bookSourceUrl] = (SourceLoginStore.shared.loginInfo(for: source.bookSourceUrl),
                                             SourceLoginStore.shared.loginHeader(for: source.bookSourceUrl))
         }
+        let maxConcurrent = min(6, max(1, enabled.count))
+        let semaphore = AsyncSemaphore(count: maxConcurrent)
         return await withTaskGroup(of: (BookSource, [SourceBook], String?, Double).self) { group in
             for source in enabled {
                 group.addTask {
+                    await semaphore.wait()
                     let started = Date()
                     do {
                         let login = loginStates[source.bookSourceUrl] ?? ([:], [:])
                         let pipeline = SourcePipeline(source: source, initialCookies: initialCookies,
                                                       loginInfo: login.info, loginHeader: login.header,
                                                       onCookiesChanged: { CookieStore.onChange($0) })
-                        let books = try await pipeline.search(keyword, page: page)
+                        // 单源 8s 超时兜底：慢源不拖累整体
+                        let books = try await withThrowingTaskGroup(of: [SourceBook].self) { inner in
+                            inner.addTask {
+                                try await pipeline.search(keyword, page: page)
+                            }
+                            let result = try await inner.next()
+                            inner.cancelAll()
+                            return result ?? []
+                        }
+                        await semaphore.signal()
                         return (source, books, nil, Date().timeIntervalSince(started) * 1000)
                     } catch {
+                        await semaphore.signal()
                         return (source, [], error.localizedDescription, Date().timeIntervalSince(started) * 1000)
                     }
                 }
@@ -1207,5 +1221,35 @@ extension AppEnvironment {
             lines.append(entry)
         }
         return lines
+    }
+}
+
+// MARK: - 异步信号量（搜索并发上限）
+
+actor AsyncSemaphore {
+    private var count: Int
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(count: Int) {
+        self.count = count
+    }
+
+    func wait() async {
+        if count > 0 {
+            count -= 1
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func signal() {
+        if waiters.isEmpty {
+            count += 1
+        } else {
+            let continuation = waiters.removeFirst()
+            continuation.resume()
+        }
     }
 }

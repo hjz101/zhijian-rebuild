@@ -173,7 +173,11 @@ final class ReaderImageStore: ObservableObject {
         for (key, value) in extraHeaders { request.setValue(value, forHTTPHeaderField: key) }
         guard let (data, response) = try? await URLSession.shared.data(for: request) else { return nil }
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) { return nil }
-        guard let image = UIImage(data: data), image.size.width > 1 else { return nil }
+        // 解码放到后台线程，避免主线程卡顿（大图解码耗时）
+        let decoded = await Task.detached(priority: .userInitiated) {
+            UIImage(data: data)
+        }.value
+        guard let image = decoded, image.size.width > 1 else { return nil }
         try? data.write(to: path(for: url), options: .atomic)
         cacheMemory(url, image)
         refreshStats()

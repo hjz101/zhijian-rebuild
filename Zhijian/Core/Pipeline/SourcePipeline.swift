@@ -340,11 +340,18 @@ final class HTTPClient: @unchecked Sendable {
     var defaultTimeout: TimeInterval = 15
     /// 每次请求后回调最新 Cookie，供 App 侧持久化/共享给 WKWebView
     var onCookiesChanged: (([String: [String: String]]) -> Void)?
+    /// 登录失效检测关键词（HTTPClient 侧）
+    static let loginFailureMarkers = ["访问被拒绝", "未登录", "请先登录", "登录已过期", "登录失效", "unauthorized",
+                                      "login first", "需要登录", "请登录", "认证失败", "鉴权失败", "forbidden",
+                                      "invalid token", "token 失效", "token已失效", "session expired", "请重新登录"]
 
     private let session: URLSession
     private var sourceHeaders: [String: String]
     private let logLock = NSLock()
     private var records: [String] = []
+    /// 短时响应缓存（GET 200，20s）：同源同 URL 重复请求（如搜索后立刻详情）直接命中
+    private var responseCache: [String: (date: Date, response: EngineHTTPResponse)] = [:]
+    private let cacheLock = NSLock()
 
     init(jar: CookieJar = CookieJar(), limiter: RateLimiter = RateLimiter(interval: 1.0), headers: [String: String] = [:]) {
         self.jar = jar
@@ -526,6 +533,16 @@ final class HTTPClient: @unchecked Sendable {
     }
 
     private func perform(_ prepared: Prepared) throws -> EngineHTTPResponse {
+        // GET 且非 POST 表单：命中短时缓存直接返回（免网络 + 免限速等待）
+        if prepared.method == "GET" || prepared.method == "get" {
+            let cacheKey = prepared.url
+            cacheLock.lock()
+            if let cached = responseCache[cacheKey], Date().timeIntervalSince(cached.date) < 20 {
+                cacheLock.unlock()
+                return cached.response
+            }
+            cacheLock.unlock()
+        }
         var lastError: SourceEngineError = .unknown("请求未执行")
         let attempts = prepared.retry + 1
 
@@ -540,9 +557,28 @@ final class HTTPClient: @unchecked Sendable {
                 let bodyHint = response.isOK ? "" : " | " + String(response.body.prefix(120)).replacingOccurrences(of: "\n", with: " ")
                 note("\(prepared.method) \(prepared.url) → \(response.status) \(response.body.utf8.count)B \(elapsed)ms\(bodyHint)")
                 onCookiesChanged?(jar.export())
-                if response.isOK { return response }
+                if response.isOK {
+                    if prepared.method == "GET" || prepared.method == "get" {
+                        cacheLock.lock()
+                        responseCache[prepared.url] = (Date(), response)
+                        if responseCache.count > 200 {
+                            let expired = responseCache.filter { Date().timeIntervalSince($0.value.date) > 20 }
+                            for key in expired.keys { responseCache.removeValue(forKey: key) }
+                        }
+                        cacheLock.unlock()
+                    }
+                    return response
+                }
                 // 4xx 不重试（429 除外）；429 按 Retry-After 或 2.5s 退避
-                if (400..<500).contains(response.status), response.status != 429 { return response }
+                if (400..<500).contains(response.status), response.status != 429 {
+                    // 401/403 且响应体命中登录失效关键词 → 提示需要登录
+                    if (response.status == 401 || response.status == 403),
+                       response.body.count < 1200,
+                       Self.loginFailureMarkers.contains(where: { response.body.lowercased().contains($0) }) {
+                        throw SourceEngineError.needLogin
+                    }
+                    return response
+                }
                 if response.status == 429 {
                     let retryAfter = response.headers.first { $0.key.lowercased() == "retry-after" }
                         .flatMap { TimeInterval($0.value) }
@@ -1156,8 +1192,10 @@ final class SourcePipeline {
 
     /// 后端用 200 + `{"error":"访问被拒绝"}` 表示未登录：映射为 -12 需要登录。
     static func authRejected(body: String) -> Bool {
-        guard body.count < 600 else { return false }
-        let markers = ["访问被拒绝", "未登录", "请先登录", "登录已过期", "token", "登录失效", "unauthorized"]
+        guard body.count < 1200 else { return false }
+        let markers = ["访问被拒绝", "未登录", "请先登录", "登录已过期", "登录失效", "unauthorized",
+                       "login first", "需要登录", "请登录", "认证失败", "鉴权失败", "forbidden",
+                       "invalid token", "token 失效", "token已失效", "session expired", "请重新登录"]
         return markers.contains { body.lowercased().contains($0.lowercased()) }
     }
 
