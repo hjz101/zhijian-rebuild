@@ -450,6 +450,11 @@ final class ReaderViewModel {
         }
     }
 
+    /// 正文/目录失败时是否提供「换源」入口（远程书才有意义）。
+    var canChangeSource: Bool {
+        !book.isLocal && !(book.sourceUrl ?? "").isEmpty
+    }
+
     func nextChapter() async {
         guard !isLoadingChapters, !isLoadingChapter, chapters.indices.contains(currentChapterIndex + 1) else { return }
         await loadChapter(currentChapterIndex + 1, landing: .first)

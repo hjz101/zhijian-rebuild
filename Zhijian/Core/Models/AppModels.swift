@@ -116,6 +116,8 @@ struct Chapter: Codable, Hashable, Identifiable, Sendable {
     var url: String
     var isVip: Bool = false
     var isPay: Bool = false
+    /// 卷名占位行（没有正文，阅读器不应加载）
+    var isVolume: Bool = false
 }
 
 struct ChapterContent: Codable, Hashable, Sendable {

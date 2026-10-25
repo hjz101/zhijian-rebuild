@@ -9,6 +9,8 @@ enum URLSchemeHandler {
         switch host {
         case "source", "importsource", "booksource":
             importSource(url)
+        case "booksource2":
+            importSource(url)
         case "theme", "importtheme":
             importTheme(url)
         case "backup", "restore":
@@ -18,9 +20,13 @@ enum URLSchemeHandler {
         }
     }
 
-    /// `zhijian://source?url=https%3A%2F%2F...` 或 `zhijian://source/https://...`
+    /// `zhijian://source?url=https%3A%2F%2F...`、`yuedu://booksource/importonline?src=https://...`
+    /// 或 `zhijian://source/https://...`
     private static func importSource(_ url: URL) {
-        guard let raw = url.queryItem("url") ?? url.pathRemainder() else { return }
+        let raw = url.queryItem("src")
+            ?? url.queryItem("url")
+            ?? url.pathRemainder()
+        guard let raw else { return }
         Task {
             let text: String?
             if raw.hasPrefix("http://") || raw.hasPrefix("https://") {

@@ -126,6 +126,42 @@ final class AppEnvironment: ObservableObject {
                 NSLog("[Seed] file not found %@", name)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-readerPathTest") {
+            Task { @MainActor in
+                var lines: [String] = []
+                guard let source = self.sources.sources.first(where: { ($0.bookSourceUrl).contains("vossc") || $0.bookSourceName.contains("书山") }) else {
+                    lines.append("no aggregate source")
+                    try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-path-test.txt"), atomically: true, encoding: .utf8)
+                    return
+                }
+                let service = BookContentService(books: self.books, sources: self.sources)
+                let pipeline = self.engines.makePipeline(source: source)
+                do {
+                    let categories = try await pipeline.exploreCategories()
+                    guard let category = categories.first else { lines.append("no categories"); return }
+                    let books = try await pipeline.explore(category: category, page: 1)
+                    guard let first = books.first else { lines.append("no books"); return }
+                    let book = Book.remote(first, source: source)
+                    lines.append("book=\(book.title) url=\(book.bookUrl?.prefix(50) ?? "-")")
+                    let chapters = try await service.chapters(for: book)
+                    lines.append("readerChapters=\(chapters.count)")
+                    for ch in chapters.prefix(3) {
+                        lines.append("  [\(ch.index)] \(ch.title.prefix(20)) url=\(ch.url.prefix(60))")
+                    }
+                    if let ch = chapters.first {
+                        do {
+                            let content = try await service.content(for: book, chapter: ch)
+                            lines.append("content chars=\(content.text.count) head=\(content.text.prefix(40).replacingOccurrences(of: "\n", with: " "))")
+                        } catch {
+                            lines.append("content error=\(error.localizedDescription)")
+                        }
+                    }
+                } catch {
+                    lines.append("error=\(error.localizedDescription)")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-path-test.txt"), atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-readerDiag") {
             Task { @MainActor in
                 var lines: [String] = []
@@ -182,6 +218,9 @@ final class AppEnvironment: ObservableObject {
                                     lines.append("  detail ok name=\(info.name) toc=\(info.tocUrl.prefix(70)) cover=\(info.coverUrl.prefix(50))")
                                     let toc = try await pipeline.toc(info)
                                     lines.append("  toc chapters=\(toc.count) first=\(toc.first?.title ?? "-")")
+                                    for (i, ch) in toc.prefix(4).enumerated() {
+                                        lines.append("    [\(i)] vol=\(ch.isVolume) title=\(ch.title.prefix(24)) url=\(ch.url.prefix(90))")
+                                    }
                                     if let ch = toc.first(where: { !$0.isVolume }) {
                                         let content = try await pipeline.content(ch, book: info)
                                         lines.append("  content len=\(content.content.count) head=\(content.content.prefix(50).replacingOccurrences(of: "\n", with: " "))")

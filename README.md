@@ -99,6 +99,7 @@ xcrun simctl launch booted com.zhijian.reader
 | `-importSourceFile=<文件名>` | 启动时从 App 容器导入书源 JSON（联调真实书源） |
 | `-exploreDiag` / `-exploreDetail` | 发现页诊断（分类/列表/详情/目录/正文写 explore-diag.txt） |
 | `-readerDiag` | 阅读链路自检（搜索→详情→目录→正文，写 reader-diag.txt） |
+| `-readerPathTest` | 走 `BookContentService` 的完整阅读路径自检（写 reader-path-test.txt） |
 | `-showShelfLayout` | 打开书架布局设置 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |

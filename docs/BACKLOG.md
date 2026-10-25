@@ -51,7 +51,11 @@
   - `java.androidId()/deviceID()` 改为稳定 16 位 hex（原 `zhijian-ios` 被聚合后端判为「伪造设备码」并 429）；
   - 429 增加 `Retry-After` 退避；
   - 该源正文由聚合后端加密下发（且解码密钥长度非法），已识别为「加密正文」并给出可读提示，不再展示乱码；
-  - 顺带修复 P1-04 引入的回归：无图片的 HTML 正文未清洗标签。
+  - 顺带修复 P1-04 引入的回归：无图片的 HTML 正文未清洗标签；
+  - 卷名行（`isVolume=true`、`chapterUrl` 为空）不再进入阅读章节列表，修复「[-11] 规则无结果：chapterUrl 为空」；
+  - 支持 `yuedu://booksource/importonline?src=…`（官方书源更新链接）与 `src` 参数，一键导入/更新书源；
+  - 阅读器错误页新增「换源」入口；
+  - 该源 5.61/5.66 的正文都需账号登录后才会返回明文（服务端按 `getSecretKey()` 决定是否加密），未登录时给出明确引导。
   - 后续（同日）：`java.ajax` 记录末次响应，后端鉴权失败映射为 `-12`；详情页给出「登录该书源」入口；loginUrl 自动 `login()`；loginUi 按钮逐个执行源内 action；表单 POST 补 `application/x-www-form-urlencoded`；JS 错误不再把所有 `is not an object` 误判为「缺失 JS API」。
 - **对应差距**：栖阅 `ExploreFilterEngine` + 分类/筛选/信息流/网格；我们完全缺失。
 - **范围**：

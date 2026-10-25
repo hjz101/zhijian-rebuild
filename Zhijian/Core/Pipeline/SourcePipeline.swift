@@ -989,7 +989,9 @@ final class SourcePipeline {
     func content(_ chapter: SourceChapter, book: SourceBookInfo? = nil) async throws -> SourceChapterContent {
         let clock = StageClock(Self.contentTimeout)
         currentChapter = chapter
-        guard !chapter.url.isEmpty else { throw SourceEngineError.ruleNoResult("chapterUrl 为空") }
+        guard !chapter.url.isEmpty else {
+            throw SourceEngineError.ruleNoResult(chapter.isVolume ? "该目录项是卷名（没有正文）" : "chapterUrl 为空（目录规则未取到章节地址）")
+        }
         let pseudoChapter = PseudoURL.isData(chapter.url)
         var response: EngineHTTPResponse
         if pseudoChapter {
@@ -1054,7 +1056,7 @@ final class SourcePipeline {
         let text = extracted.text
         let images = extracted.images
         if Self.looksLikeCiphertext(text) {
-            throw SourceEngineError.emptyContent("站点返回的是加密正文（非可读文本），可能需要更新书源或在书源内登录后再试")
+            throw SourceEngineError.emptyContent("站点返回加密正文：请在「书源 → 登录」完成该书源账号登录，或更新到最新书源版本后再试")
         }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             // 站点可能把登录/付费提示放在 msg/code 等非 content 字段里（如 {"code":-1,"msg":"...上限..."}），

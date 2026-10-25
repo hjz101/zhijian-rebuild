@@ -651,7 +651,21 @@ private struct ReaderSurface: View {
                     .foregroundStyle(theme.text)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    if model.canChangeSource {
+                        Button {
+                            showChangeSource = true
+                        } label: {
+                            Text("换源")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(theme.text)
+                                .padding(.horizontal, 18)
+                                .frame(height: 38)
+                                .background(Capsule().fill(theme.text.opacity(0.08)))
+                                .overlay(Capsule().strokeBorder(theme.text.opacity(0.12), lineWidth: 0.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
                     Button {
                         Task { await model.retry() }
                     } label: {

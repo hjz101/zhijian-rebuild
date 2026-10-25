@@ -94,7 +94,10 @@ final class BookContentService: ReaderContentProviding {
         let info = try await fetchInfo(for: book, pipeline: pipeline)
         let toc = try await pipeline.toc(info)
 
-        let chapters = toc.enumerated().map { position, chapter in
+        // 卷名行没有正文（chapterUrl 为空），直接不进入阅读章节列表，
+        // 否则书城/阅读器会把它当成普通章节并报「chapterUrl 为空」。
+        let readable = toc.filter { !$0.isVolume && !$0.url.isEmpty }
+        let chapters = readable.enumerated().map { position, chapter in
             Chapter(
                 id: "\(book.id)#\(position)",
                 index: position,
@@ -103,7 +106,8 @@ final class BookContentService: ReaderContentProviding {
                     : chapter.title,
                 url: chapter.url,
                 isVip: false,
-                isPay: false
+                isPay: false,
+                isVolume: false
             )
         }
         guard !chapters.isEmpty else { throw ReaderContentError.emptyBook(book.title) }
