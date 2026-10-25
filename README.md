@@ -124,7 +124,7 @@ Zhijian/
 
 ## 与栖阅对比
 
-详细逐项对比（引擎/阅读器/TTS/同步/生态/安全 + 优先补齐建议）见 [docs/QIREADER-COMPARISON.md](docs/QIREADER-COMPARISON.md)。
+详细逐项对比（引擎/阅读器/TTS/同步/生态/安全 + 优先补齐建议）见 [docs/QIREADER-COMPARISON.md](docs/QIREADER-COMPARISON.md)；按对比拆出的可执行任务清单见 [docs/BACKLOG.md](docs/BACKLOG.md)。
 
 ## 已知缺口 / 下一步
 

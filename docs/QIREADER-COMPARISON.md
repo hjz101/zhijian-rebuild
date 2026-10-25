@@ -2,6 +2,7 @@
 
 > 对照依据：[栖阅逆向分析报告](file:///Users/a706/Documents/deepseek-harness/default-workspace/qireader/report/栖阅-QiReader-逆向分析报告.md)（360 个源文件、25,294 个函数名、364 个 ObjC 类）与本仓库当前代码/文档（81 个 Swift 文件、约 2.5 万行）。
 > 图例：✅ 对齐或更好 · 🟡 部分实现/语义有差异 · ❌ 缺失。
+> 可执行任务清单见 [BACKLOG.md](BACKLOG.md)（39 项 / 约 82–126 人天）。
 
 ## 0. 一句话结论
 
