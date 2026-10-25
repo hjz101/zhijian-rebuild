@@ -197,8 +197,13 @@ final class ReaderImageStore: ObservableObject {
     }
 
     nonisolated static func placeholder(size: CGSize, text: String) -> UIImage {
+        // 占位图缓存（非隔离全局，避免主线程隔离问题）
+        let key = "\(Int(size.width))x\(Int(size.height))|\(text)"
+        if let cached = PlaceholderCache.shared.image(key) {
+            return cached
+        }
         let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
+        let image = renderer.image { context in
             UIColor(white: 0.5, alpha: 0.10).setFill()
             context.fill(CGRect(origin: .zero, size: size))
             let attributes: [NSAttributedString.Key: Any] = [
@@ -211,6 +216,8 @@ final class ReaderImageStore: ObservableObject {
                                    y: (size.height - labelSize.height) / 2),
                        withAttributes: attributes)
         }
+        PlaceholderCache.shared.store(image, key: key)
+        return image
     }
 }
 
@@ -226,5 +233,23 @@ enum ReaderImageCache {
     /// 仅内存命中（不触发下载），供同步排版使用。
     nonisolated static func memoryImage(_ url: String) -> UIImage? {
         MainActor.assumeIsolated { ReaderImageStore.shared.cachedImage(url) }
+    }
+}
+
+/// 占位图缓存（非隔离，避免主线程隔离限制）
+final class PlaceholderCache: @unchecked Sendable {
+    static let shared = PlaceholderCache()
+    private var store: [String: UIImage] = [:]
+    private let lock = NSLock()
+
+    func image(_ key: String) -> UIImage? {
+        lock.lock(); defer { lock.unlock() }
+        return store[key]
+    }
+
+    func store(_ image: UIImage, key: String) {
+        lock.lock(); defer { lock.unlock() }
+        if store.count > 60 { store.removeAll() }
+        store[key] = image
     }
 }

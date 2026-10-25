@@ -290,7 +290,26 @@ enum CSSSelector {
 
     // MARK: 解析
 
+    /// 选择器解析缓存（同一规则字符串只解析一次，书源列表/目录解析性能关键）
+    private static var parseCache: [String: [CSSComplex]] = [:]
+    private static let parseCacheLock = NSLock()
+
     static func parseList(_ query: String) -> [CSSComplex] {
+        parseCacheLock.lock()
+        if let cached = parseCache[query] {
+            parseCacheLock.unlock()
+            return cached
+        }
+        parseCacheLock.unlock()
+        let result = parseListUncached(query)
+        parseCacheLock.lock()
+        if parseCache.count > 200 { parseCache.removeAll() }
+        parseCache[query] = result
+        parseCacheLock.unlock()
+        return result
+    }
+
+    private static func parseListUncached(_ query: String) -> [CSSComplex] {
         var groups: [CSSComplex] = []
         for part in splitTopLevel(query, separator: ",") {
             let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)

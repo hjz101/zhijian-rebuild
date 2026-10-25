@@ -805,7 +805,27 @@ final class ReaderViewModel {
         return mutable
     }
 
+    /// 页文本缓存（renderVersion / 批注 / TTS 高亮变化时失效）
+    private var pageTextCache: [Int: NSAttributedString] = [:]
+    private var pageTextCacheVersion = -1
+
     func attributedText(forPage index: Int) -> NSAttributedString {
+        // 缓存命中：renderVersion 与 TTS 高亮未变时直接复用（避免每次翻页重建）
+        if pageTextCacheVersion == renderVersion, let cached = pageTextCache[index] {
+            return cached
+        }
+        defer {
+            pageTextCacheVersion = renderVersion
+            if pageTextCache.count > 40 { pageTextCache.removeAll() }
+        }
+        let result = buildPageText(forPage: index)
+        if pageTextCacheVersion != renderVersion {
+            pageTextCache[index] = result
+        }
+        return result
+    }
+
+    private func buildPageText(forPage index: Int) -> NSAttributedString {
         guard let attributedChapter, pages.indices.contains(index) else { return NSAttributedString() }
         let range = pages[index].range
         guard range.location >= 0, range.location + range.length <= attributedChapter.length else {

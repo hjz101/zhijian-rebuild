@@ -113,9 +113,24 @@ enum ReplaceRuleEngine {
         return Result(text: value, applied: applied, failures: failures)
     }
 
+    private static var regexCache: [String: NSRegularExpression] = [:]
+    private static let regexLock = NSLock()
+
+    /// 正则编译缓存（替换规则每次应用都编译，缓存避免重复编译）
     private static func makeRegex(_ rule: ReplaceRule) -> NSRegularExpression? {
         let pattern = rule.isRegex ? rule.pattern : NSRegularExpression.escapedPattern(for: rule.pattern)
-        return try? NSRegularExpression(pattern: pattern, options: [])
+        regexLock.lock()
+        if let cached = regexCache[pattern] {
+            regexLock.unlock()
+            return cached
+        }
+        regexLock.unlock()
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
+        regexLock.lock()
+        if regexCache.count > 300 { regexCache.removeAll() }
+        regexCache[pattern] = regex
+        regexLock.unlock()
+        return regex
     }
 
     private static func expandedReplacement(_ template: String, match: NSTextCheckingResult, in text: String) -> String {
