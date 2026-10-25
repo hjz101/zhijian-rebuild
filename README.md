@@ -25,6 +25,7 @@
 | 网络代理 | ✅ | HTTP/SOCKS5 代理（仅本 App） |
 | 稳定坐标 | ✅ | 批注前文锚点，重排后重定位 |
 | 外观系统 | ✅ | origo-x seed 方案：任意强调色（色盘/hex/18 色快捷/5 预设）驱动整套色板；外观模式（系统/浅/深） |
+| 状态文档 | ✅ | 真机验证清单（DEVICE-TEST-CHECKLIST）+ 已知限制（KNOWN-LIMITATIONS） |
 | 简繁转换 | ✅ | 阅读正文一键繁体（内嵌字表） |
 | 图片 json 协议 | ✅ | `<img src="url,{headers,js,imageDecode}">` 单引号 JSON 解析 + 自定义请求头 |
 | 发现网格 | ✅ | 发现页列表/网格切换 |
