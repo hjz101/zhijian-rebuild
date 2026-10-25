@@ -1077,7 +1077,8 @@ final class SourcePipeline {
             let rendered = try? await HeadlessWebViewEngine.shared.renderDetailed(
                 html: response.body, baseURL: response.finalURL, url: nil,
                 javaScript: webJs, timeout: 25,
-                captureNetwork: true, captureWait: 2.5
+                captureNetwork: true, captureWait: 2.5,
+                headerOverrides: source.headerMap
             )
             let matched = rendered?.responses.first { item in
                 Self.regexMatches(sourceRegex, item.body) || Self.regexMatches(sourceRegex, item.url)

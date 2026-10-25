@@ -57,6 +57,10 @@ final class BackupService: ObservableObject {
         var chapterComments: [ChapterComment]?
         /// P2-03：本地书正文（local/ 相对路径 → 数据）
         var localBooks: [String: Data]?
+        /// 主题包 / 字体 / Cookie（备份分类扩展）
+        var themePresets: [ReaderThemePreset]?
+        var fontEntries: [CustomFontEntry]?
+        var cookies: [String: [String: String]]?
     }
 
     private static let stateFile = "backup_state.json"
@@ -119,6 +123,19 @@ final class BackupService: ObservableObject {
         zip.add(try Self.encodeJSON(AnnotationStore.shared.backup()), name: "annotations.json")
         zip.add(try Self.encodeJSON(ParagraphCommentStore.shared.all()), name: "paragraph_comments.json")
         zip.add(try Self.encodeJSON(ChapterCommentStore.shared.all()), name: "chapter_comments.json")
+        // 主题包 / 字体 / Cookie（备份分类扩展）
+        let customPresets = ReaderThemePackageStore.shared.all.filter { !$0.isBuiltIn }
+        if !customPresets.isEmpty {
+            zip.add(try Self.encodeJSON(customPresets), name: "reader_theme.json")
+        }
+        if let fontEntries = AppData.load([CustomFontEntry].self, "custom_fonts.json"), !fontEntries.isEmpty {
+            zip.add(try Self.encodeJSON(fontEntries), name: "custom_fonts.json")
+        } else if let payload = try? Data(contentsOf: AppData.root.appendingPathComponent("custom_fonts.json")) {
+            zip.add(payload, name: "custom_fonts.json")
+        }
+        if let cookies = try? Data(contentsOf: AppData.root.appendingPathComponent("cookies.json")) {
+            zip.add(cookies, name: "cookies.json")
+        }
         if includeLocalBooks {
             addLocalBooks(to: &zip, manifest: manifest)
         }
@@ -166,6 +183,8 @@ final class BackupService: ObservableObject {
     private func makeManifest(includeLocalBooks: Bool = false) -> BackupManifest {
         let shortVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let themeCount = ReaderThemePackageStore.shared.all.filter { !$0.isBuiltIn }.count
+        let fontCount = (AppData.load([CustomFontEntry].self, "custom_fonts.json") ?? []).count
         let counts: [String: Int] = [
             "bookshelf": books.books.count,
             "sources": sources.sources.count,
@@ -174,8 +193,12 @@ final class BackupService: ObservableObject {
             "annotations": AnnotationStore.shared.annotations.count,
             "paragraphComments": ParagraphCommentStore.shared.items.count,
             "chapterComments": ChapterCommentStore.shared.items.count,
+            "readerTheme": themeCount,
+            "customFonts": fontCount,
+            "cookies": 1,
         ]
-        var categories = ["bookshelf", "sources", "settings", "tts_sources", "annotations", "paragraph_comments", "chapter_comments"]
+        var categories = ["bookshelf", "sources", "settings", "tts_sources", "annotations", "paragraph_comments", "chapter_comments",
+                          "reader_theme", "custom_fonts", "cookies"]
         if includeLocalBooks { categories.append("local_books") }
         return BackupManifest(
             version: Self.supportedVersion,
@@ -250,6 +273,18 @@ final class BackupService: ObservableObject {
         }
         if let newChapterComments = payload.chapterComments {
             ChapterCommentStore.shared.replaceAll(newChapterComments)
+        }
+        // 主题包 / 字体 / Cookie 恢复（备份分类扩展）
+        if let themePresets = payload.themePresets {
+            AppData.save(themePresets, "reader_theme_presets.json")
+            ReaderThemePackageStore.shared.reload()
+        }
+        if let fontEntries = payload.fontEntries {
+            AppData.save(fontEntries, "custom_fonts.json")
+            CustomFontStore.shared.reload()
+        }
+        if let cookies = payload.cookies {
+            CookieStore.shared.replaceAll(cookies)
         }
 
         let now = Date()
@@ -431,6 +466,12 @@ final class BackupService: ObservableObject {
                 }
             }
         }
+        let themePresets = try? decodeArray(ReaderThemePreset.self, zip: zip, names: ["reader_theme.json"])
+        let fontEntries = try? decodeArray(CustomFontEntry.self, zip: zip, names: ["custom_fonts.json"])
+        var cookies: [String: [String: String]]? = nil
+        if zip.contains("cookies.json"), let data = try? zip.read("cookies.json") {
+            cookies = try? Self.decodeJSON([String: [String: String]].self, from: data)
+        }
 
         return BackupPayload(
             manifest: manifest,
@@ -441,7 +482,10 @@ final class BackupService: ObservableObject {
             annotations: annotations,
             paragraphComments: paragraphComments,
             chapterComments: chapterComments,
-            localBooks: localBooks
+            localBooks: localBooks,
+            themePresets: themePresets,
+            fontEntries: fontEntries,
+            cookies: cookies
         )
     }
 

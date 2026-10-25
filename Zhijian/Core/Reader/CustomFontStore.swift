@@ -60,6 +60,12 @@ final class CustomFontStore: ObservableObject {
         persist()
     }
 
+    /// 从磁盘重载（备份恢复后调用）。
+    func reload() {
+        fonts = AppData.load([CustomFontEntry].self, file) ?? []
+        registerAll()
+    }
+
     func font(named postScriptName: String, size: CGFloat) -> UIFont? {
         UIFont(name: postScriptName, size: size)
     }

@@ -140,7 +140,26 @@ enum SelfTestSuite {
         check("DP-extract", extracted.images.first?.dpCount == 2,
               "dp=\(extracted.images.first?.dpCount ?? 0) imgs=\(extracted.images.count)")
 
-        // 15) PSL eTLD+1
+        // 15) 备份分类扩展：导出包含主题/字体/Cookie 条目
+        do {
+            // 自检在 AppEnvironment init 中运行，不能访问 AppEnvironment.shared（递归）
+            let service = BackupService(books: BookStore(), sources: SourceStore(), settings: SettingsStore())
+            let data = try service.makeBackupData()
+            let reader = try ZipReader(data: data)
+            let hasTheme = reader.contains("reader_theme.json")
+            let hasCookies = reader.contains("cookies.json")
+            NSLog("[SelfTest] backup theme=\(hasTheme) cookies=\(hasCookies)")
+            // cookies.json 必有；reader_theme.json 仅在存在自定义主题时有（无自定义主题是合理空）
+            let hasCustomTheme = !ReaderThemePackageStore.shared.all.filter { !$0.isBuiltIn }.isEmpty
+            if hasCustomTheme {
+                check("Backup-theme-entry", hasTheme, "reader_theme.json \(hasTheme ? "有" : "无")")
+            }
+            check("Backup-cookies-entry", hasCookies, "cookies.json \(hasCookies ? "有" : "无")")
+        } catch {
+            check("Backup-export", false, "\(error.localizedDescription)")
+        }
+
+        // 16) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

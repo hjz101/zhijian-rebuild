@@ -221,6 +221,14 @@ final class ReaderThemePackageStore: ObservableObject {
         AppData.save(Payload(presets: presets, selectedID: selectedID), file)
     }
 
+    /// 从磁盘重载（备份恢复后调用）。
+    func reload() {
+        if let payload = AppData.load(Payload.self, file) {
+            presets = payload.presets
+            selectedID = payload.selectedID
+        }
+    }
+
     enum ThemeError: LocalizedError {
         case invalidPackage
         var errorDescription: String? { "主题包无效：缺少 theme.json 或内容格式不正确" }

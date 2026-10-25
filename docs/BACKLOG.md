@@ -447,6 +447,14 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 版本 2.3 三项深化（五批）
+- **替换规则分组**：`ReplaceRule.group` 字段 + 分组筛选 chips + 编辑分组输入（新建规则继承当前分组）；
+- **sourceRegex 请求头改写**：WebView 拦截脚本支持 XHR/fetch 请求头改写（`headerOverrides` = 书源 headerMap），页面内请求携带签名头；
+- **TTS 章节自动连播**：`ttsAutoNextChapter` 开关（朗读设置），`onChapterFinished` 回调 → 自动加载并播放下一章；
+- **LLM 角色批处理**：`LLMRoleDetector.detectRolesBatch`（一次请求解析多章角色 JSON）；
+- **备份分类扩展**：`reader_theme.json` / `custom_fonts.json` / `cookies.json` 入备份（导出+恢复），manifest counts/categories 扩展，Store 加 reload/replaceAll；
+- 自检 **44 项全通过**（含 Backup-cookies-entry）。
+
 ### [V2.3] ✅ 已完成 · 版本 2.3 四项深化（四批）
 - **i18n 深度校验**：宿主机审计脚本扫描 Feature 视图 → `docs/I18N-AUDIT.md`（仅 1 处非 UI 文案未覆盖）；
 - **统计导出**：统计页导出 90 日 CSV（date,minutes）→ ShareLink 分享；

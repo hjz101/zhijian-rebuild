@@ -17,6 +17,22 @@ struct ReplaceRulesView: View {
     @State private var sampleText = "正文第一段。\n本站域名 www.example.com 请勿相信。\n【广告】点击下载 App。\n正文第二段。"
     @State private var preview = ""
     @State private var showPreview = false
+    @State private var groupFilter: String? = nil
+
+    /// 所有分组（空串为「默认」）
+    private var groups: [String] {
+        var result = Array(Set(store.rules.map { $0.group })).sorted()
+        if let index = result.firstIndex(of: "") {
+            result.remove(at: index)
+            result.insert("", at: 0)
+        }
+        return result
+    }
+
+    private var filteredRules: [ReplaceRule] {
+        guard let groupFilter else { return store.rules }
+        return store.rules.filter { $0.group == groupFilter }
+    }
 
     var body: some View {
         ScrollView {
@@ -45,15 +61,38 @@ struct ReplaceRulesView: View {
                           value: "\(store.rules.count) 条 · \(store.rules.filter(\.enabled).count) 启用")
                 }
 
+                QiSettingsSection(title: "分组筛选") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Button("全部") { groupFilter = nil }
+                                .font(.system(size: 11, weight: groupFilter == nil ? .semibold : .regular))
+                                .foregroundStyle(groupFilter == nil ? .white : ZJ.textSecondary)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(groupFilter == nil ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
+                                .buttonStyle(.plain)
+                            ForEach(groups, id: \.self) { group in
+                                Button(group.isEmpty ? "默认" : group) { groupFilter = group }
+                                    .font(.system(size: 11, weight: groupFilter == group ? .semibold : .regular))
+                                    .foregroundStyle(groupFilter == group ? .white : ZJ.textSecondary)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(groupFilter == group ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
+                                    .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                    }
+                    .padding(.vertical, 8)
+                }
+
                 QiSettingsSection(title: "替换规则") {
-                    if store.rules.isEmpty {
+                    if filteredRules.isEmpty {
                         Text("暂无规则，点右上角 + 新建")
                             .font(.system(size: 12))
                             .foregroundStyle(ZJ.textSecondary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 14)
                     }
-                    ForEach(Array(store.rules.enumerated()), id: \.element.id) { index, rule in
+                    ForEach(Array(filteredRules.enumerated()), id: \.element.id) { index, rule in
                         HStack(spacing: 12) {
                             Button {
                                 editing = rule
@@ -85,7 +124,7 @@ struct ReplaceRulesView: View {
                             Button { editing = rule; showEditor = true } label: { Label("编辑", systemImage: "pencil") }
                             Button(role: .destructive) { store.remove(rule) } label: { Label("删除", systemImage: "trash") }
                         }
-                        if index < store.rules.count - 1 { QiDivider() }
+                        if index < filteredRules.count - 1 { QiDivider() }
                     }
                     footer("按顺序执行；支持 $1 捕获组、\\n 换行；单条规则超时自动跳过。")
                 }
@@ -108,7 +147,8 @@ struct ReplaceRulesView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    editing = ReplaceRule(name: "", pattern: "", replacement: "", order: store.rules.count)
+                    editing = ReplaceRule(name: "", pattern: "", replacement: "", order: store.rules.count,
+                                          group: groupFilter ?? "")
                     showEditor = true
                 } label: { Image(systemName: "plus") }
             }
@@ -248,6 +288,7 @@ struct ReplaceRuleEditorView: View {
         NavigationStack {
             Form {
                 Section {
+                    TextField("分组（如：广告 / 站内）", text: $draft.group)
                     TextField("名称（如：删除广告行）", text: $draft.name)
                     TextField("匹配内容 / 正则", text: $draft.pattern, axis: .vertical)
                         .font(.system(size: 12, design: .monospaced))

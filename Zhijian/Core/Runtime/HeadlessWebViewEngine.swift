@@ -45,14 +45,16 @@ final class HeadlessWebViewEngine {
     /// 详细渲染：可选网络拦截（XHR/fetch），返回页面 HTML + 捕获响应。
     func renderDetailed(html: String?, baseURL: String?, url: String?, headers: [String: String] = [:],
                         javaScript: String?, timeout: TimeInterval = 20,
-                        captureNetwork: Bool = false, captureWait: TimeInterval = 2.5) async throws -> HeadlessRenderResult {
+                        captureNetwork: Bool = false, captureWait: TimeInterval = 2.5,
+                        headerOverrides: [String: String] = [:]) async throws -> HeadlessRenderResult {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         let collector = captureNetwork ? NetworkCaptureCollector() : nil
         if let collector {
             configuration.userContentController.add(collector, name: "zjcapture")
             configuration.userContentController.addUserScript(
-                WKUserScript(source: Self.captureScript, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+                WKUserScript(source: Self.captureScript(headerOverrides: headerOverrides),
+                             injectionTime: .atDocumentStart, forMainFrameOnly: false)
             )
         }
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: configuration)
@@ -98,39 +100,57 @@ final class HeadlessWebViewEngine {
                                     responses: collector?.responses ?? [])
     }
 
-    /// 注入到页面的 XHR/fetch 拦截脚本
-    static let captureScript = """
-    (function(){
-      if (window.__zjCaptureInstalled) { return; }
-      window.__zjCaptureInstalled = true;
-      function post(obj){ try { window.webkit.messageHandlers.zjcapture.postMessage(obj); } catch(e){} }
-      var open = XMLHttpRequest.prototype.open;
-      var send = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function(method, url){ this.__zjUrl = String(url || ''); return open.apply(this, arguments); };
-      XMLHttpRequest.prototype.send = function(body){
-        var xhr = this;
-        xhr.addEventListener('load', function(){
-          var text = '';
-          try { text = (xhr.responseType === '' || xhr.responseType === 'text') ? xhr.responseText : ''; } catch(e) {}
-          post({type:'xhr', url: String(xhr.__zjUrl || ''), status: xhr.status, body: text || ''});
-        });
-        return send.apply(this, arguments);
-      };
-      if (window.fetch) {
-        var origFetch = window.fetch;
-        window.fetch = function(input, init){
-          var url = (typeof input === 'string') ? input : ((input && input.url) || '');
-          return origFetch.apply(this, arguments).then(function(resp){
-            try {
-              var clone = resp.clone();
-              clone.text().then(function(text){ post({type:'fetch', url:String(url), status:resp.status, body:text || ''}); }).catch(function(){});
-            } catch(e) {}
-            return resp;
-          });
-        };
-      }
-    })();
-    """
+    /// 注入到页面的 XHR/fetch 拦截脚本（可带请求头改写）
+    static func captureScript(headerOverrides: [String: String]) -> String {
+        let headersJSON = (try? JSONSerialization.data(withJSONObject: headerOverrides))
+            .map { String(data: $0, encoding: .utf8) } ?? "{}"
+        return """
+        (function(){
+          if (window.__zjCaptureInstalled) { return; }
+          window.__zjCaptureInstalled = true;
+          var __zjHeaders = \(headersJSON) || {};
+          function post(obj){ try { window.webkit.messageHandlers.zjcapture.postMessage(obj); } catch(e){} }
+          function applyHeaders(h){
+            var target = h || {};
+            for (var k in __zjHeaders) {
+              if (__zjHeaders.hasOwnProperty(k)) { target[k] = __zjHeaders[k]; }
+            }
+            return target;
+          }
+          var open = XMLHttpRequest.prototype.open;
+          var send = XMLHttpRequest.prototype.send;
+          var setH = XMLHttpRequest.prototype.setRequestHeader;
+          XMLHttpRequest.prototype.open = function(method, url){ this.__zjUrl = String(url || ''); return open.apply(this, arguments); };
+          XMLHttpRequest.prototype.send = function(body){
+            var xhr = this;
+            for (var k in __zjHeaders) {
+              if (__zjHeaders.hasOwnProperty(k)) { try { setH.call(xhr, k, __zjHeaders[k]); } catch(e){} }
+            }
+            xhr.addEventListener('load', function(){
+              var text = '';
+              try { text = (xhr.responseType === '' || xhr.responseType === 'text') ? xhr.responseText : ''; } catch(e) {}
+              post({type:'xhr', url: String(xhr.__zjUrl || ''), status: xhr.status, body: text || ''});
+            });
+            return send.apply(this, arguments);
+          };
+          if (window.fetch) {
+            var origFetch = window.fetch;
+            window.fetch = function(input, init){
+              var url = (typeof input === 'string') ? input : ((input && input.url) || '');
+              var options = init || {};
+              options.headers = applyHeaders(options.headers || {});
+              return origFetch.call(this, input, options).then(function(resp){
+                try {
+                  var clone = resp.clone();
+                  clone.text().then(function(text){ post({type:'fetch', url:String(url), status:resp.status, body:text || ''}); }).catch(function(){});
+                } catch(e) {}
+                return resp;
+              });
+            };
+          }
+        })();
+        """
+    }
 
     /// 同步桥（供 JSRuntime / 规则引擎在非主线程调用）；主线程调用时泵 RunLoop 防死锁。
     nonisolated static func renderSync(html: String?, baseURL: String?, url: String?,

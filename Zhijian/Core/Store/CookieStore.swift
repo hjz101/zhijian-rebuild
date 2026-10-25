@@ -16,6 +16,13 @@ final class CookieStore: ObservableObject {
 
     private let file = "cookies.json"
 
+    /// 整体替换（备份恢复后调用）。
+    func replaceAll(_ cookies: [String: [String: String]]) {
+        self.cookies = cookies
+        updatedAt = Date()
+        persist()
+    }
+
     private init() {
         if let snapshot = AppData.load(CookieSnapshot.self, file) {
             cookies = snapshot.cookies

@@ -26,10 +26,12 @@ struct ReplaceRule: Codable, Identifiable, Hashable, Sendable {
     var order: Int = 0
     /// 单条规则超时（秒），默认 1s，防止灾难性回溯
     var timeout: Double = 1.0
+    /// 规则分组（空 = 默认）
+    var group: String = ""
 
     init(id: String = UUID().uuidString, name: String = "", pattern: String = "",
          replacement: String = "", isRegex: Bool = true, scope: Scope = .content,
-         enabled: Bool = true, order: Int = 0, timeout: Double = 1.0) {
+         enabled: Bool = true, order: Int = 0, timeout: Double = 1.0, group: String = "") {
         self.id = id
         self.name = name
         self.pattern = pattern
@@ -39,10 +41,11 @@ struct ReplaceRule: Codable, Identifiable, Hashable, Sendable {
         self.enabled = enabled
         self.order = order
         self.timeout = timeout
+        self.group = group
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, pattern, replacement, isRegex, scope, enabled, order, timeout
+        case id, name, pattern, replacement, isRegex, scope, enabled, order, timeout, group
     }
 
     init(from decoder: Decoder) throws {

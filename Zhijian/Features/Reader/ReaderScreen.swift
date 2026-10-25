@@ -62,9 +62,25 @@ struct ReaderScreen: View {
             }
         }
         .onAppear(perform: prepareModel)
+        .onAppear {
+            // TTS 读完一章自动连播下一章（开关在朗读设置）
+            env.tts.onChapterFinished = { [weak model] in
+                guard let model, model.chapters.indices.contains(model.currentChapterIndex + 1) else { return }
+                let settings = AppEnvironment.shared.settings.settings
+                guard settings.ttsAutoNextChapter else { return }
+                let target = model.currentChapterIndex + 1
+                Task { @MainActor in
+                    await model.selectChapter(target)
+                    AppEnvironment.shared.tts.play(text: model.currentPageText,
+                                                   bookTitle: model.book.title,
+                                                   chapterTitle: model.chapterTitle)
+                }
+            }
+        }
         .onDisappear {
             model?.persistNow()
             model?.stopTTS()
+            env.tts.onChapterFinished = nil
         }
     }
 

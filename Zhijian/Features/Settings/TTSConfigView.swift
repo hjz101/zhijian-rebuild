@@ -125,6 +125,11 @@ private struct TTSConfigContent: View {
                 set: { tts.multiRoleEnabled = $0 }
             ))
             QiDivider()
+            QiToggleRow(icon: "forward.end.alt", title: "读完一章自动连播", isOn: Binding(
+                get: { AppEnvironment.shared.settings.settings.ttsAutoNextChapter },
+                set: { AppEnvironment.shared.settings.settings.ttsAutoNextChapter = $0 }
+            ))
+            QiDivider()
             QiSliderRow(title: "语速", value: Binding(
                 get: { Double(tts.rate) },
                 set: { tts.setRate(Float($0)) }
