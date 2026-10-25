@@ -40,15 +40,18 @@ private struct BackupContent: View {
     }
 
     var body: some View {
-        Form {
-            localSection
-            webdavSection
-            if webdav.activeConfig != nil {
-                remoteSection
+        ScrollView {
+            VStack(spacing: 18) {
+                localSection
+                webdavSection
+                if webdav.activeConfig != nil {
+                    remoteSection
+                }
+                infoSection
             }
-            infoSection
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .scrollContentBackground(.hidden)
         .background(QiBackground())
         .tint(ZJ.accent)
         .navigationTitle("备份与同步")
@@ -127,65 +130,54 @@ private struct BackupContent: View {
     // MARK: 本地
 
     private var localSection: some View {
-        Section {
-            HStack {
-                Label("最近本地备份", systemImage: "clock")
-                Spacer()
-                Text(displayDate(backup.lastLocalBackupAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Toggle(isOn: $encryptBackup) {
-                Label("加密备份（AES-GCM）", systemImage: "lock.shield")
-            }
-            .tint(ZJ.accent)
-
+        QiSettingsSection(title: "本地备份") {
+            QiRow(icon: "clock", title: "最近本地备份", value: displayDate(backup.lastLocalBackupAt))
+            QiDivider()
+            QiToggleRow(icon: "lock.shield", title: "加密备份（AES-GCM）", isOn: $encryptBackup)
             if encryptBackup {
+                QiDivider()
                 SecureField("备份密码", text: $backupPassword)
                     .textContentType(.newPassword)
+                    .font(.system(size: 14))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
             }
-
-            Button {
-                exportBackup()
-            } label: {
-                Label("导出 .zjbk 备份", systemImage: "square.and.arrow.up")
-            }
-
-            Button {
-                showImporter = true
-            } label: {
-                Label("从文件恢复…", systemImage: "arrow.down.doc")
-            }
+            QiDivider()
+            primaryAction("导出 .zjbk 备份", icon: "square.and.arrow.up") { exportBackup() }
+            QiDivider()
+            actionRow("从文件恢复…", icon: "arrow.down.doc") { showImporter = true }
 
             if let summary = backup.lastRestoreSummary {
-                VStack(alignment: .leading, spacing: 3) {
+                QiDivider()
+                VStack(alignment: .leading, spacing: 4) {
                     Text("最近恢复：\(displayDate(summary.restoredAt))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(ZJ.textSecondary)
                     Text(summary.localizedDescription)
-                        .font(.footnote)
+                        .font(.system(size: 12))
+                        .foregroundStyle(ZJ.textPrimary)
                     if let name = summary.remoteFileName {
                         Text(name)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 10))
+                            .foregroundStyle(ZJ.textTertiary)
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-        } header: {
-            Text("本地备份")
-        } footer: {
-            Text("备份容器为 ZIP + manifest.json，包含 bookshelf / sources / settings / tts_sources；不复制本地书正文与 QiReader 资源。开启加密后使用 PBKDF2-HMAC-SHA256 + AES-GCM，恢复时需要密码。")
+            footer("备份容器为 ZIP + manifest.json，包含 bookshelf / sources / settings / tts_sources；不复制本地书正文。开启加密后使用 PBKDF2-HMAC-SHA256 + AES-GCM，恢复时需要密码。")
         }
     }
 
-    // MARK: WebDAV 配置
-
     private var webdavSection: some View {
-        Section {
+        QiSettingsSection(title: "WebDAV") {
             if webdav.configs.isEmpty {
                 Text("尚未配置 WebDAV")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
             }
 
             ForEach(webdav.configs) { config in
@@ -194,161 +186,197 @@ private struct BackupContent: View {
                 } label: {
                     HStack(spacing: ZJ.s3) {
                         Image(systemName: webdav.activeConfigID == config.id ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(webdav.activeConfigID == config.id ? ZJ.celadon : ZJ.textTertiary)
+                            .foregroundStyle(webdav.activeConfigID == config.id ? ZJ.accent : ZJ.textTertiary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(config.name)
+                                .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(ZJ.textPrimary)
                             Text(config.url.isEmpty ? "未配置 URL" : "\(config.url)/\(config.directory)")
-                                .font(.caption2)
+                                .font(.system(size: 10.5))
                                 .foregroundStyle(ZJ.textTertiary)
                                 .lineLimit(1)
                         }
                         Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(ZJ.textTertiary)
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                .contextMenu {
+                    Button { editingConfig = config } label: { Label("编辑", systemImage: "pencil") }
                     Button(role: .destructive) {
                         webdav.remove(config)
                         if webdav.activeConfigID != config.id { remoteBackups = [] }
-                    } label: {
-                        Label("删除", systemImage: "trash")
-                    }
-                    Button {
-                        editingConfig = config
-                    } label: {
-                        Label("编辑", systemImage: "pencil")
-                    }
-                    .tint(ZJ.celadon)
+                    } label: { Label("删除", systemImage: "trash") }
                 }
+                QiDivider()
             }
 
-            Button {
-                editingConfig = webdav.makeBlank()
-            } label: {
-                Label("新增 WebDAV 配置", systemImage: "plus.circle")
-            }
+            actionRow("新增 WebDAV 配置", icon: "plus.circle") { editingConfig = webdav.makeBlank() }
 
             if let active = webdav.activeConfig {
-                Button {
-                    uploadBackup(active)
-                } label: {
-                    Label("上传备份到 WebDAV", systemImage: "icloud.and.arrow.up")
-                }
-
-                Button {
-                    downloadLatestBackup(active)
-                } label: {
-                    Label("下载最新备份", systemImage: "icloud.and.arrow.down")
-                }
-
-                Button {
-                    testWebDAV(active)
-                } label: {
-                    Label("测试 WebDAV 连接", systemImage: "network")
-                }
-
-                HStack {
-                    Label("最近上传", systemImage: "clock.arrow.circlepath")
-                    Spacer()
-                    Text(displayDate(backup.lastWebDAVUploadAt))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                HStack {
-                    Label("最近下载", systemImage: "clock.arrow.circlepath")
-                    Spacer()
-                    Text(displayDate(backup.lastWebDAVDownloadAt))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                QiDivider()
+                primaryAction("上传备份到 WebDAV", icon: "icloud.and.arrow.up") { uploadBackup(active) }
+                QiDivider()
+                actionRow("下载最新备份", icon: "icloud.and.arrow.down") { downloadLatestBackup(active) }
+                QiDivider()
+                actionRow("测试 WebDAV 连接", icon: "network") { testWebDAV(active) }
+                QiDivider()
+                QiRow(icon: "clock.arrow.circlepath", title: "最近上传", value: displayDate(backup.lastWebDAVUploadAt))
+                QiDivider()
+                QiRow(icon: "clock.arrow.circlepath", title: "最近下载", value: displayDate(backup.lastWebDAVDownloadAt))
 
                 if let downloadedURL {
-                    VStack(alignment: .leading, spacing: 4) {
+                    QiDivider()
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("已下载：\(downloadedURL.lastPathComponent)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(ZJ.textSecondary)
                         Button {
                             pendingRestoreURL = downloadedURL
                             showRestoreConfirm = true
                         } label: {
                             Label("恢复此备份", systemImage: "arrow.counterclockwise")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(ZJ.accent, in: Capsule())
                         }
+                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-        } header: {
-            Text("WebDAV")
-        } footer: {
-            Text("⚠️ WebDAV 密码当前以明文保存在 Application Support/Zhijian/webdav.json（未使用 Keychain）。备份包可在上方开启 AES-GCM 加密，上传第三方 WebDAV 前建议开启。")
+            footer("⚠️ WebDAV 密码当前以明文保存在 Application Support/Zhijian/webdav.json（未使用 Keychain）。备份包可开启 AES-GCM 加密，上传第三方 WebDAV 前建议开启。")
         }
     }
 
-    // MARK: 远程列表
-
     private var remoteSection: some View {
-        Section {
+        QiSettingsSection(title: "WebDAV 文件") {
             HStack {
-                Text("远程备份")
+                Text("远程备份").font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
                 Spacer()
                 Button {
                     if let active = webdav.activeConfig { refreshRemote(active) }
                 } label: {
-                    Label("刷新", systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
+                    Label("刷新", systemImage: "arrow.clockwise").font(.system(size: 12))
                 }
-                .font(.caption)
+                .foregroundStyle(ZJ.accent)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+
+            QiDivider()
 
             if remoteBackups.isEmpty {
                 Text("暂无远程备份，可先上传一份")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(ZJ.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
             }
 
             ForEach(remoteBackups) { item in
                 HStack(spacing: ZJ.s3) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.fileName)
-                            .font(.footnote)
+                            .font(.system(size: 13))
+                            .foregroundStyle(ZJ.textPrimary)
                             .lineLimit(1)
                         Text(remoteSubtitle(item))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 10))
+                            .foregroundStyle(ZJ.textTertiary)
                     }
                     Spacer()
                     Button {
                         if let active = webdav.activeConfig { download(item, from: active) }
                     } label: {
                         Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 18))
+                            .foregroundStyle(ZJ.accent)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("下载 \(item.fileName)")
-                }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        if let active = webdav.activeConfig {
-                            deleteRemote(item, from: active)
-                        }
+                    Button {
+                        if let active = webdav.activeConfig { deleteRemote(item, from: active) }
                     } label: {
-                        Label("删除", systemImage: "trash")
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundStyle(ZJ.textTertiary)
                     }
+                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                QiDivider()
             }
-        } header: {
-            Text("WebDAV 文件")
         }
     }
 
     private var infoSection: some View {
-        Section("说明") {
-            Text("· 备份格式：`.zjbk` = 标准 ZIP（store），根目录 `manifest.json` 带版本/时间/设备/计数；可用系统解压工具查看。")
-                .font(.footnote)
-            Text("· 恢复是整体替换：书架、书源、阅读设置、TTS 源；本地书正文文件不包含在备份中。")
-                .font(.footnote)
-            Text("· WebDAV 采用 PROPFIND / MKCOL / PUT / GET，目录不存在会自动创建；仅上传 `.zjbk` 文件。")
-                .font(.footnote)
+        QiSettingsSection(title: "说明") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("· 备份格式：`.zjbk` = 标准 ZIP（store），根目录 `manifest.json` 带版本/时间/设备/计数；可用系统解压工具查看。")
+                Text("· 恢复是整体替换：书架、书源、阅读设置、TTS 源；本地书正文文件不包含在备份中。")
+                Text("· WebDAV 采用 PROPFIND / MKCOL / PUT / GET，目录不存在会自动创建；仅上传 `.zjbk` 文件。")
+            }
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func actionRow(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ZJ.accent)
+                    .frame(width: 30, height: 30)
+                    .background(ZJ.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(ZJ.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func primaryAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+                Text(title).font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(ZJ.accent, in: Capsule())
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func footer(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: 操作

@@ -41,14 +41,17 @@ private struct TTSConfigContent: View {
     }
 
     var body: some View {
-        Form {
-            systemSection
-            characterSection
-            httpSection
-            cacheSection
-            helpSection
+        ScrollView {
+            VStack(spacing: 18) {
+                systemSection
+                characterSection
+                httpSection
+                cacheSection
+                helpSection
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .scrollContentBackground(.hidden)
         .background(QiBackground())
         .tint(ZJ.accent)
         .navigationTitle("朗读 / TTS")
@@ -114,170 +117,206 @@ private struct TTSConfigContent: View {
     // MARK: 系统朗读
 
     private var systemSection: some View {
-        Section {
-            Toggle("多角色（旁白 / 对话）", isOn: Binding(
+        QiSettingsSection(title: "系统朗读") {
+            QiToggleRow(icon: "person.2.wave.2", title: "多角色（旁白 / 对话）", isOn: Binding(
                 get: { tts.multiRoleEnabled },
                 set: { tts.multiRoleEnabled = $0 }
             ))
-
-            HStack(spacing: ZJ.s3) {
-                Text("语速")
-                Slider(value: Binding(
-                    get: { Double(tts.rate) },
-                    set: { tts.setRate(Float($0)) }
-                ), in: 0.3...0.9, step: 0.05)
-                Text(String(format: "%.2f", tts.rate))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 34, alignment: .trailing)
-            }
-
-            Picker("旁白语音", selection: Binding(
+            QiDivider()
+            QiSliderRow(title: "语速", value: Binding(
+                get: { Double(tts.rate) },
+                set: { tts.setRate(Float($0)) }
+            ), range: 0.3...0.9, step: 0.05) { String(format: "%.2f", $0) }
+            QiDivider()
+            voicePickerRow("旁白语音", icon: "text.bubble", autoLabel: "自动（推荐）", selection: Binding(
                 get: { tts.narratorVoiceID ?? "" },
                 set: { tts.narratorVoiceID = $0.isEmpty ? nil : $0 }
-            )) {
-                Text("自动（推荐）").tag("")
-                ForEach(voices) { voice in
-                    Text("\(voice.name) · \(voice.qualityLabel)").tag(voice.id)
-                }
-            }
-
-            Picker("对话语音", selection: Binding(
+            ))
+            QiDivider()
+            voicePickerRow("对话语音", icon: "quote.bubble", autoLabel: "自动（不同于旁白）", selection: Binding(
                 get: { tts.dialogueVoiceID ?? "" },
                 set: { tts.dialogueVoiceID = $0.isEmpty ? nil : $0 }
-            )) {
-                Text("自动（不同于旁白）").tag("")
-                ForEach(voices) { voice in
-                    Text("\(voice.name) · \(voice.qualityLabel)").tag(voice.id)
-                }
-            }
-
-            HStack(spacing: ZJ.s3) {
-                Text("对话语速")
-                Slider(value: Binding(
-                    get: { tts.dialogueRateFactor },
-                    set: { tts.dialogueRateFactor = $0 }
-                ), in: 0.7...1.3, step: 0.05)
-                Text(String(format: "×%.2f", tts.dialogueRateFactor))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, alignment: .trailing)
-            }
-
-            HStack(spacing: ZJ.s3) {
+            ))
+            QiDivider()
+            QiSliderRow(title: "对话语速", value: Binding(
+                get: { tts.dialogueRateFactor },
+                set: { tts.dialogueRateFactor = $0 }
+            ), range: 0.7...1.3, step: 0.05) { String(format: "×%.2f", $0) }
+            QiDivider()
+            HStack(spacing: 10) {
                 Button {
                     tts.play(text: sampleText, bookTitle: "试听", chapterTitle: "系统朗读")
                 } label: {
-                    Label("试听", systemImage: "play.circle")
+                    Label("试听", systemImage: "play.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(ZJ.accent, in: Capsule())
                 }
+                .buttonStyle(.plain)
                 Button {
                     tts.stop()
                 } label: {
-                    Label("停止试听", systemImage: "stop.circle")
+                    Label("停止", systemImage: "stop.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(ZJ.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(ZJ.bgElev2, in: Capsule())
                 }
+                .buttonStyle(.plain)
                 .disabled(!tts.isActive)
+                .opacity(tts.isActive ? 1 : 0.5)
             }
-        } header: {
-            Text("系统朗读")
-        } footer: {
-            Text("系统语音来自 AVSpeechSynthesizer；增强/精品语音需在系统设置下载。多角色会把引号内内容标为对话，并可从「阿禾说/问道」等提示语中提取角色名。")
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            footer("系统语音来自 AVSpeechSynthesizer；增强/精品语音需在系统设置下载。多角色会把引号内内容标为对话，并可从「阿禾说/问道」等提示语中提取角色名。")
         }
+    }
+
+    private func voicePickerRow(_ title: String, icon: String, autoLabel: String, selection: Binding<String>) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(ZJ.accent)
+                .frame(width: 30, height: 30)
+                .background(ZJ.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
+            Spacer()
+            Picker("", selection: selection) {
+                Text(autoLabel).tag("")
+                ForEach(voices) { voice in
+                    Text("\(voice.name) · \(voice.qualityLabel)").tag(voice.id)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .tint(ZJ.accent)
+            .font(.system(size: 12))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
     // MARK: 智能角色
 
     private var characterSection: some View {
-        Section {
-            Toggle("自动分配角色音色", isOn: Binding(
+        QiSettingsSection(title: "角色音色（智能识别）") {
+            QiToggleRow(icon: "person.crop.circle.badge.questionmark", title: "自动分配角色音色", isOn: Binding(
                 get: { tts.autoCharacterVoices },
                 set: { tts.autoCharacterVoices = $0 }
             ))
+            QiDivider()
             if tts.recognizedCharacters.isEmpty {
                 Text("朗读一章后自动识别角色，并按角色分配不同语音")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(ZJ.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
             } else {
                 ForEach(tts.recognizedCharacters, id: \.self) { name in
-                    Picker(name, selection: Binding(
-                        get: { tts.characterVoices[name] ?? "" },
-                        set: { newValue in
-                            if newValue.isEmpty {
-                                tts.characterVoices.removeValue(forKey: name)
-                            } else {
-                                tts.characterVoices[name] = newValue
+                    HStack(spacing: 12) {
+                        Text(name)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(ZJ.textPrimary)
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: { tts.characterVoices[name] ?? "" },
+                            set: { newValue in
+                                if newValue.isEmpty {
+                                    tts.characterVoices.removeValue(forKey: name)
+                                } else {
+                                    tts.characterVoices[name] = newValue
+                                }
+                            }
+                        )) {
+                            Text("自动").tag("")
+                            ForEach(voices) { voice in
+                                Text("\(voice.name) · \(voice.qualityLabel)").tag(voice.id)
                             }
                         }
-                    )) {
-                        Text("自动").tag("")
-                        ForEach(voices) { voice in
-                            Text("\(voice.name) · \(voice.qualityLabel)").tag(voice.id)
-                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .tint(ZJ.accent)
+                        .font(.system(size: 12))
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
                 }
             }
-        } header: {
-            Text("角色音色（智能识别）")
-        } footer: {
-            Text("本地启发式识别：引号归属（“……”阿禾说 / 阿禾：“……”）与「说道/问道/笑道」等提示语；每个角色自动分配不同中文语音，可逐角色覆盖。")
+            footer("本地启发式识别：引号归属（“…… ”阿禾说 / 阿禾：“……”）与「说道/问道/笑道」等提示语；每个角色自动分配不同中文语音，可逐角色覆盖。")
         }
     }
 
     // MARK: HTTP TTS 源
 
     private var httpSection: some View {
-        Section {
+        QiSettingsSection(title: "HTTP TTS 源") {
             if sources.sources.isEmpty {
                 Text("尚未导入 HTTP TTS 源")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
             }
 
             ForEach(sources.sources) { source in
                 sourceRow(source)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    .contextMenu {
+                        Button { editingSource = source } label: { Label("编辑", systemImage: "pencil") }
                         Button(role: .destructive) {
                             sources.remove(source)
                             refreshCacheStats()
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                        Button {
-                            editingSource = source
-                        } label: {
-                            Label("编辑", systemImage: "pencil")
-                        }
-                        .tint(ZJ.celadon)
+                        } label: { Label("删除", systemImage: "trash") }
                     }
+                QiDivider()
             }
 
-            Button {
+            actionRow("新增 HTTP TTS 源", icon: "plus.circle") {
                 editingSource = sources.makeBlank()
-            } label: {
-                Label("新增 HTTP TTS 源", systemImage: "plus.circle")
             }
-
-            Button {
-                showFileImporter = true
-            } label: {
-                Label("导入 JSON 文件", systemImage: "doc.badge.plus")
-            }
-
-            Button {
-                showPasteImport = true
-            } label: {
-                Label("粘贴 JSON 导入", systemImage: "doc.on.clipboard")
-            }
-
-            Button {
-                exportSources()
-            } label: {
-                Label("导出 JSON", systemImage: "square.and.arrow.up")
-            }
-            .disabled(sources.sources.isEmpty)
-        } header: {
-            Text("HTTP TTS 源")
-        } footer: {
-            Text("URL 三种写法：① 模板 `{{speakText}}` / `{{speakSpeed}}`；② `URL,{JSON}` POST（body 支持模板）；③ `@js:` 独立 JavaScriptCore 脚本，返回 URL、请求对象或 base64 音频。header 支持 JSON 对象或每行 `Key: Value`。")
+            QiDivider()
+            actionRow("导入 JSON 文件", icon: "doc.badge.plus") { showFileImporter = true }
+            QiDivider()
+            actionRow("粘贴 JSON 导入", icon: "doc.on.clipboard") { showPasteImport = true }
+            QiDivider()
+            actionRow("导出 JSON", icon: "square.and.arrow.up", disabled: sources.sources.isEmpty) { exportSources() }
+            footer("URL 三种写法：① 模板 `{{speakText}}` / `{{speakSpeed}}`；② `URL,{JSON}` POST（body 支持模板）；③ `@js:` 独立 JavaScriptCore 脚本。header 支持 JSON 对象或每行 `Key: Value`。")
         }
+    }
+
+    private func actionRow(_ title: String, icon: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ZJ.accent)
+                    .frame(width: 30, height: 30)
+                    .background(ZJ.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(ZJ.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(ZJ.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.45 : 1)
+    }
+
+    private func footer(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func sourceRow(_ source: HttpTTS) -> some View {
@@ -293,9 +332,10 @@ private struct TTSConfigContent: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.name)
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(ZJ.textPrimary)
                 Text(source.url.isEmpty ? "未配置 URL" : source.url)
-                    .font(.caption2)
+                    .font(.system(size: 10.5))
                     .foregroundStyle(ZJ.textTertiary)
                     .lineLimit(1)
                 if let contentType = source.contentType, !contentType.isEmpty {
@@ -308,14 +348,14 @@ private struct TTSConfigContent: View {
             Spacer(minLength: 4)
 
             if testingSourceID == source.id {
-                ProgressView()
-                    .controlSize(.small)
+                ProgressView().controlSize(.small)
             } else {
                 Button {
                     test(source)
                 } label: {
                     Image(systemName: "play.circle")
                         .font(.system(size: 18))
+                        .foregroundStyle(ZJ.accent)
                 }
                 .buttonStyle(.plain)
                 .disabled(source.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -332,44 +372,39 @@ private struct TTSConfigContent: View {
             .buttonStyle(.plain)
             .accessibilityLabel("编辑 \(source.name)")
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
         .contentShape(Rectangle())
     }
 
     // MARK: 缓存 / 说明
 
     private var cacheSection: some View {
-        Section {
-            HStack {
-                Text("音频缓存")
-                Spacer()
-                Text("\(cacheCount) 段 · \(formattedBytes(cacheBytes))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Button(role: .destructive) {
+        QiSettingsSection(title: "缓存") {
+            QiRow(icon: "waveform.path.ecg", title: "音频缓存",
+                  subtitle: "Caches/ZhijianTTS",
+                  value: "\(cacheCount) 段 · \(formattedBytes(cacheBytes))")
+            QiDivider()
+            actionRow("清理 TTS 音频缓存", icon: "trash", disabled: cacheCount == 0) {
                 HTTPTTSDriver.shared.clearCache()
                 refreshCacheStats()
-            } label: {
-                Label("清理 TTS 音频缓存", systemImage: "trash")
             }
-            .disabled(cacheCount == 0)
-        } header: {
-            Text("缓存")
-        } footer: {
-            Text("缓存位于 Caches/ZhijianTTS，按「源 id + 文本 + 语速」去重；清理不会影响 TTS 源配置。")
+            footer("缓存按「源 id + 文本 + 语速」去重；清理不会影响 TTS 源配置。")
         }
     }
 
     private var helpSection: some View {
-        Section("说明与缺口") {
-            Text("· Header / 登录 Header 会注入每次 HTTP TTS 请求；勾选 enabledCookieJar 时还会带 HTTPCookieStorage 中的 Cookie。")
-                .font(.footnote)
-            Text("· `loginUrl/loginUi/loginCheckJs` 字段已保留，但内置浏览器登录流程尚未接入；登录 Header 可先在编辑页手动填写。")
-                .font(.footnote)
-            Text("· WebSocket 流式朗读已有 URLSessionWebSocketTask 骨架（TTSWebSocketStream），尚未接入播放器与 UI。")
-                .font(.footnote)
-            Text("· HTTP 音频用 AVAudioPlayer 解码 mp3 / wav / m4a / aac；连续 3 句失败会停止，单句失败用系统语音兜底。")
-                .font(.footnote)
+        QiSettingsSection(title: "说明与缺口") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("· Header / 登录 Header 会注入每次 HTTP TTS 请求；勾选 enabledCookieJar 时还会带 HTTPCookieStorage 中的 Cookie。")
+                Text("· `loginUrl/loginUi/loginCheckJs` 字段已保留，但内置浏览器登录流程尚未接入；登录 Header 可先在编辑页手动填写。")
+                Text("· WebSocket 流式朗读已有 URLSessionWebSocketTask 骨架（TTSWebSocketStream），尚未接入播放器与 UI。")
+                Text("· HTTP 音频用 AVAudioPlayer 解码 mp3 / wav / m4a / aac；连续 3 句失败会停止，单句失败用系统语音兜底。")
+            }
+            .font(.system(size: 10.5))
+            .foregroundStyle(ZJ.textTertiary)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
