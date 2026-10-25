@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var showReaderSettings = false
     @State private var showSources = false
     @State private var placeholder: String?
+    @State private var showAppearance = false
 
     private var version: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1"
@@ -25,6 +26,7 @@ struct SettingsView: View {
                         .padding(.top, 6)
 
                     localCard
+                    appearanceSection
                     contentSection
                     readingSection
                     dataSection
@@ -46,6 +48,7 @@ struct SettingsView: View {
             .sheet(isPresented: $showReaderSettings) {
                 ReaderSettingsSheet(settingsStore: env.settings)
             }
+            .sheet(isPresented: $showAppearance) { AppearanceSettingsView() }
             .sheet(isPresented: $showSources) {
                 SourcesView().environmentObject(env)
             }
@@ -72,6 +75,16 @@ struct SettingsView: View {
             Spacer()
         }
         .qiCard()
+    }
+
+    private var appearanceSection: some View {
+        sectionCard("界面与布局") {
+            row("paintbrush.fill", "外观 / 配色", value: ZJPaletteStore.current.name) { showAppearance = true }
+            row("circle.lefthalf.filled", "深浅色", value: ZJPaletteStore.current.isDark ? "深色" : "浅色") { showAppearance = true }
+            row("rectangle.grid.3x2", "书架布局", value: "3 列网格") {
+                placeholder = "列表/网格切换与列数设置将在 P0-07 上线。"
+            }
+        }
     }
 
     private var contentSection: some View {
@@ -183,5 +196,6 @@ struct SettingsView: View {
         if args.contains("-autoOpenCookies") { path = [.cookies] }
         if args.contains("-autoOpenCloud") { path = [.cloud] }
         if args.contains("-showReaderSettings") { showReaderSettings = true }
+        if args.contains("-showAppearance") { showAppearance = true }
     }
 }

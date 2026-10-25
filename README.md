@@ -25,7 +25,7 @@
 | **WebView 兜底** | ✅ | 离屏 WKWebView：`@webjs:` 规则、`java.webView/webViewGetSource/webViewGetOverrideUrl`、`ruleContent.webJs`；**网络拦截**（XHR/fetch → `ruleContent.sourceRegex` 匹配响应体/URL）；引擎自检 13/13 |
 | 批量测试 | ✅ | 多关键词 × 多源、可选深度四阶段、并发 1–4、逐项结果/耗时、报告文本分享与复制 |
 | 漫画阅读 | ✅ | CBZ/ZIP → 图片仓库 + manifest；横向分页、双指/双击缩放、页码滑杆、页码目录、进度持久化 |
-| 设计系统 | ✅ | **栖阅式 UI**：三 Tab（书架/统计/设置）、浅色青白玻璃渐变、墨色强调、圆角磨砂卡片、大标题；阅读器仍保留米宣纸/深墨/护眼绿三主题 |
+| 设计系统 | ✅ | **栖阅式 UI**：三 Tab（书架/统计/设置）、浅色玻璃渐变、圆角磨砂卡片、大标题；**5 套可切换配色**（青白玻璃/月白宣纸/雾蓝灰/暖沙可可/暗墨玻璃）；阅读器保留米宣纸/深墨/护眼绿三主题 |
 | 发布准备 | ✅ | 2.1 (2)、App Icon、深色启动屏、隐私清单、2.1 未签名 IPA、未签名 Archive；签名/iCloud 检查清单与风险见 [docs/RELEASE.md](docs/RELEASE.md) |
 
 已验证路径：本地示例书分页/跨章/主题切换；真实书源「关于小说」搜索《剑来》→ 详情 1,320 章 → 首章正文分页（1/10 页）；朗读条与 TTS 设置；备份页；Debug 模拟器构建 + Release iphoneos 构建均通过。
@@ -76,6 +76,7 @@ xcrun simctl launch booted com.zhijian.reader
 | `-showHealth` / `-showHealthDetail` | 打开书源体检 / 首个书源详情 |
 | `-seedLoginSource` / `-showSourceLogin` | 导入登录测试源 / 打开其登录表单 |
 | `-seedExploreSource` / `-autoExplore` | 导入发现测试源 / 打开发现页 |
+| `-showAppearance` / `-palette=qingbai\|yuebai\|wulan\|nuansha\|anmo` | 打开外观页 / 切换配色 |
 | `-autoSubmitLogin` | 登录 Sheet 自动提交（调试） |
 | `-autoHealthCheck` | 打开体检后自动跑全部书源 |
 | `-engineSelfTest` | 打开引擎自检（fastjson/Gson/ZIP/WebView） |

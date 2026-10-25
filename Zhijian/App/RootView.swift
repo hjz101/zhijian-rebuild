@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @StateObject private var env = AppEnvironment.shared
     @State private var tab: Int = RootView.initialTab
+    @State private var paletteID = ZJPaletteStore.currentID
 
     private static var initialTab: Int {
         let args = ProcessInfo.processInfo.arguments
@@ -20,7 +21,11 @@ struct RootView: View {
         }
         .environmentObject(env)
         .tint(ZJ.accent)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(ZJPaletteStore.current.isDark ? .dark : .light)
+        .id(paletteID)
+        .onReceive(NotificationCenter.default.publisher(for: .zjPaletteChanged)) { _ in
+            paletteID = ZJPaletteStore.currentID
+        }
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
     }

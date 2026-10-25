@@ -73,6 +73,9 @@ final class AppEnvironment: ObservableObject {
                           text: "山雾与书庐的意象很统一。")
             }
         }
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-palette=") }) {
+            ZJPaletteStore.apply(String(arg.dropFirst(9)))
+        }
         if ProcessInfo.processInfo.arguments.contains("-seedReadingStats") {
             ReadingStatsStore.shared.seedDemo()
         }

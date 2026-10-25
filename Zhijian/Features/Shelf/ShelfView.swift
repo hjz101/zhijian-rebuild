@@ -80,7 +80,7 @@ struct ShelfView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("书库")
+            Text("书架")
                 .font(.system(size: 36, weight: .bold))
                 .foregroundStyle(ZJ.textPrimary)
             Spacer()
