@@ -74,7 +74,7 @@ final class AppEnvironment: ObservableObject {
             }
         }
         if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-palette=") }) {
-            ZJPaletteStore.apply(String(arg.dropFirst(9)))
+            ZJPaletteStore.applyPreset(String(arg.dropFirst(9)))
         }
         if ProcessInfo.processInfo.arguments.contains("-seedReplaceRules") {
             let existing = ReplaceRuleStore.shared.rules

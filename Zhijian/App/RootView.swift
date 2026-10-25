@@ -29,7 +29,8 @@ struct RootView: View {
         }
         .environmentObject(env)
         .tint(ZJ.accent)
-        .preferredColorScheme(ZJPaletteStore.current.isDark ? .dark : .light)
+        .preferredColorScheme(ZJPaletteStore.appearanceMode == .dark ? .dark
+            : (ZJPaletteStore.appearanceMode == .light ? .light : nil))
         .id(paletteID)
         .animation(.easeInOut(duration: 0.28), value: paletteID)
         .animation(.easeInOut(duration: 0.22), value: tab)

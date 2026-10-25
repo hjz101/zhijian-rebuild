@@ -1,4 +1,6 @@
-// 设计令牌：颜色 / 间距 / 圆角 / 字体（栖阅式浅色玻璃 + 可切换配色）
+// 设计令牌：颜色 / 间距 / 圆角 / 字体
+// 外观重构（借鉴 origo-x）：App 主题 = 中性基底（亮/暗）+ 单一强调色 seed 动态生成整套色板。
+// 用户可任意选择强调色（色盘/hex/18 色快捷/5 套预设），亮暗可跟随系统。
 import SwiftUI
 
 extension Color {
@@ -14,9 +16,36 @@ extension Color {
     static func rgba(_ r: Double, _ g: Double, _ b: Double, _ a: Double) -> Color {
         Color(.sRGB, red: r / 255, green: g / 255, blue: b / 255, opacity: a)
     }
+    init?(hexString: String) {
+        var value = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("#") { value.removeFirst() }
+        guard value.count == 6, let number = UInt64(value, radix: 16) else { return nil }
+        self.init(hex: UInt32(number), alpha: 1)
+    }
+    var hexString: String {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
+    }
 }
 
-// MARK: - 可切换配色
+// MARK: - App 外观模型（seed + 亮暗）
+
+enum AppAppearanceMode: String, CaseIterable, Sendable {
+    case system, light, dark
+    var name: String {
+        switch self { case .system: return "跟随系统"; case .light: return "浅色"; case .dark: return "深色" }
+    }
+}
+
+struct ZJPalettePreset: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let subtitle: String
+    let seedHex: String
+    let isDark: Bool
+}
 
 struct ZJPalette: Identifiable, Hashable {
     let id: String
@@ -40,79 +69,119 @@ struct ZJPalette: Identifiable, Hashable {
 }
 
 enum ZJPaletteStore {
-    static let key = "zhijian.app.palette"
+    static let seedKey = "zhijian.app.accentSeed"
+    static let modeKey = "zhijian.app.appearanceMode"
+    static let legacyKey = "zhijian.app.palette" // v2.1 之前整组配色
+
+    // MARK: - 预设（5 套场景，作为强调色快捷入口）
+
+    static let presets: [ZJPalettePreset] = [
+        ZJPalettePreset(id: "qingbai", name: "青白玻璃", subtitle: "墨黑强调 · 浅色", seedHex: "#15181D", isDark: false),
+        ZJPalettePreset(id: "yuebai", name: "月白宣纸", subtitle: "朱砂点睛 · 浅色", seedHex: "#B4552F", isDark: false),
+        ZJPalettePreset(id: "wulan", name: "雾蓝灰", subtitle: "深蓝灰 · 浅色", seedHex: "#1E2A38", isDark: false),
+        ZJPalettePreset(id: "nuansha", name: "暖沙可可", subtitle: "可可 · 浅色", seedHex: "#8A6A4F", isDark: false),
+        ZJPalettePreset(id: "anmo", name: "暗墨玻璃", subtitle: "灰蓝 · 深色", seedHex: "#4F7385", isDark: true)
+    ]
+
+    static var appearanceMode: AppAppearanceMode {
+        get {
+            let raw = UserDefaults.standard.string(forKey: modeKey) ?? ""
+            return AppAppearanceMode(rawValue: raw) ?? .system
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: modeKey)
+            NotificationCenter.default.post(name: .zjPaletteChanged, object: nil)
+        }
+    }
+
+    static var seedHex: String {
+        get {
+            // 迁移旧整组配色 key → 对应预设 seed
+            if let legacy = UserDefaults.standard.string(forKey: legacyKey),
+               let preset = presets.first(where: { $0.id == legacy }) {
+                UserDefaults.standard.set(preset.seedHex, forKey: seedKey)
+                UserDefaults.standard.removeObject(forKey: legacyKey)
+                return preset.seedHex
+            }
+            return UserDefaults.standard.string(forKey: seedKey) ?? "15181D"
+        }
+        set { UserDefaults.standard.set(newValue, forKey: seedKey) }
+    }
+
+    static var isDarkEffective: Bool {
+        switch appearanceMode {
+        case .dark: return true
+        case .light: return false
+        case .system: return UITraitCollection.current.userInterfaceStyle == .dark
+        }
+    }
 
     static var currentID: String {
-        UserDefaults.standard.string(forKey: key) ?? "qingbai"
+        let hex = seedHex.uppercased()
+        return presets.first(where: { $0.seedHex.uppercased() == hex })?.id ?? "custom"
     }
 
-    static var current: ZJPalette {
-        all.first { $0.id == currentID } ?? all[0]
-    }
-
-    static func apply(_ id: String) {
-        guard all.contains(where: { $0.id == id }) else { return }
-        UserDefaults.standard.set(id, forKey: key)
+    static func apply(seedHex: String, mode: AppAppearanceMode? = nil) {
+        self.seedHex = seedHex
+        if let mode { self.appearanceMode = mode }
         NotificationCenter.default.post(name: .zjPaletteChanged, object: nil)
     }
 
-    static let all: [ZJPalette] = [
-        ZJPalette(
-            id: "qingbai", name: "青白玻璃", subtitle: "清透青白 · 墨色强调（默认）", isDark: false,
-            accent: Color(hex: 0x15181D), accentPressed: Color(hex: 0x000000),
-            celadon: Color(hex: 0x5C8D86), gold: Color(hex: 0xC79A4A),
-            bgBase: Color(hex: 0xF3FAFE), bgElev1: Color.white.opacity(0.72),
-            bgElev2: Color(hex: 0xE7F1F8), textPrimary: Color(hex: 0x11151A),
-            textSecondary: Color.rgba(17, 21, 26, 0.58), textTertiary: Color.rgba(17, 21, 26, 0.38),
-            separator: Color.rgba(17, 21, 26, 0.08), error: Color(hex: 0xC94A3D),
-            gradient: [Color(hex: 0xF8FDFF), Color(hex: 0xEAF4FB), Color(hex: 0xF2FAFE)],
-            cardBorder: Color.white.opacity(0.65)
-        ),
-        ZJPalette(
-            id: "yuebai", name: "月白宣纸", subtitle: "暖白纸感 · 朱砂点睛", isDark: false,
-            accent: Color(hex: 0x2B2620), accentPressed: Color(hex: 0x17130F),
-            celadon: Color(hex: 0x6E7F63), gold: Color(hex: 0xB8893F),
-            bgBase: Color(hex: 0xF7F4EC), bgElev1: Color(hex: 0xFFFDF8).opacity(0.78),
-            bgElev2: Color(hex: 0xEDE6D7), textPrimary: Color(hex: 0x1E1A14),
-            textSecondary: Color.rgba(30, 26, 20, 0.60), textTertiary: Color.rgba(30, 26, 20, 0.40),
-            separator: Color.rgba(30, 26, 20, 0.09), error: Color(hex: 0xB4552F),
-            gradient: [Color(hex: 0xFBF8F1), Color(hex: 0xF1EBDD), Color(hex: 0xF7F3EA)],
-            cardBorder: Color.white.opacity(0.72)
-        ),
-        ZJPalette(
-            id: "wulan", name: "雾蓝灰", subtitle: "冷静雾蓝 · 低饱和", isDark: false,
-            accent: Color(hex: 0x1E2A38), accentPressed: Color(hex: 0x0E1720),
-            celadon: Color(hex: 0x4C7A8C), gold: Color(hex: 0xA98B52),
-            bgBase: Color(hex: 0xEEF3F7), bgElev1: Color.white.opacity(0.70),
-            bgElev2: Color(hex: 0xDEE8EF), textPrimary: Color(hex: 0x16202A),
-            textSecondary: Color.rgba(22, 32, 42, 0.58), textTertiary: Color.rgba(22, 32, 42, 0.38),
-            separator: Color.rgba(22, 32, 42, 0.08), error: Color(hex: 0xBF4B45),
-            gradient: [Color(hex: 0xF4F8FB), Color(hex: 0xE6EEF4), Color(hex: 0xEDF3F8)],
-            cardBorder: Color.white.opacity(0.66)
-        ),
-        ZJPalette(
-            id: "nuansha", name: "暖沙可可", subtitle: "暖沙可可 · 柔和护眼", isDark: false,
-            accent: Color(hex: 0x3A2C24), accentPressed: Color(hex: 0x241A14),
-            celadon: Color(hex: 0x8A7A5E), gold: Color(hex: 0xB98A4E),
-            bgBase: Color(hex: 0xF6EFE7), bgElev1: Color(hex: 0xFFFCF7).opacity(0.76),
-            bgElev2: Color(hex: 0xEADDD0), textPrimary: Color(hex: 0x241C16),
-            textSecondary: Color.rgba(36, 28, 22, 0.58), textTertiary: Color.rgba(36, 28, 22, 0.38),
-            separator: Color.rgba(36, 28, 22, 0.09), error: Color(hex: 0xA9714B),
-            gradient: [Color(hex: 0xFBF5EE), Color(hex: 0xF0E4D6), Color(hex: 0xF6EEE5)],
-            cardBorder: Color.white.opacity(0.70)
-        ),
-        ZJPalette(
-            id: "anmo", name: "暗墨玻璃", subtitle: "深色 OLED · 夜间", isDark: true,
-            accent: Color(hex: 0x4F7385), accentPressed: Color(hex: 0x3F5D6D),
-            celadon: Color(hex: 0x7FA6A0), gold: Color(hex: 0xC9A25C),
-            bgBase: Color(hex: 0x0E1116), bgElev1: Color(hex: 0x1A2029).opacity(0.86),
-            bgElev2: Color(hex: 0x232B36), textPrimary: Color(hex: 0xE8EDF3),
-            textSecondary: Color.rgba(232, 237, 243, 0.64), textTertiary: Color.rgba(232, 237, 243, 0.42),
-            separator: Color.rgba(255, 255, 255, 0.10), error: Color(hex: 0xE06B5A),
-            gradient: [Color(hex: 0x12161D), Color(hex: 0x0B0E13), Color(hex: 0x10151B)],
-            cardBorder: Color.white.opacity(0.12)
-        )
-    ]
+    static func applyPreset(_ id: String) {
+        guard let preset = presets.first(where: { $0.id == id }) else { return }
+        apply(seedHex: preset.seedHex, mode: preset.isDark ? .dark : .light)
+    }
+
+    // MARK: - 动态生成色板
+
+    static var current: ZJPalette {
+        let dark = isDarkEffective
+        return palette(seedHex: seedHex, dark: dark)
+    }
+
+    static func palette(seedHex: String, dark: Bool) -> ZJPalette {
+        let seed = Color(hexString: seedHex) ?? Color(hex: 0x15181D)
+        let ui = UIColor(seed)
+        var hue: CGFloat = 0, sat: CGFloat = 0, bright: CGFloat = 0, alpha: CGFloat = 0
+        ui.getHue(&hue, saturation: &sat, brightness: &bright, alpha: &alpha)
+
+        // 强调色：深色模式用更亮的 seed，浅色模式用更深的 seed 保证对比（origo seed→scheme 思路）
+        let accentBright: CGFloat = dark ? min(bright + 0.18, 0.95) : max(bright - 0.10, 0.18)
+        let accent = Color(hue: hue, saturation: dark ? max(sat - 0.10, 0.15) : sat, brightness: accentBright)
+        let accentPressed = Color(hue: hue, saturation: sat, brightness: max(accentBright - 0.14, 0.12))
+        let celadon = Color(hue: fmod(hue + 0.10, 1.0), saturation: min(sat + 0.05, 0.5), brightness: dark ? 0.62 : 0.42)
+        let gold = Color(hue: fmod(hue + 0.16, 1.0), saturation: min(sat + 0.05, 0.55), brightness: dark ? 0.72 : 0.55)
+
+        if dark {
+            return ZJPalette(
+                id: currentID, name: "自定义", subtitle: "深色 · \(seedHex)", isDark: true,
+                accent: accent, accentPressed: accentPressed, celadon: celadon, gold: gold,
+                bgBase: Color(hex: 0x0E1116), bgElev1: Color(hex: 0x1A2029).opacity(0.86),
+                bgElev2: Color(hex: 0x232B36), textPrimary: Color(hex: 0xE8EDF3),
+                textSecondary: Color.rgba(232, 237, 243, 0.64), textTertiary: Color.rgba(232, 237, 243, 0.42),
+                separator: Color.rgba(255, 255, 255, 0.10), error: Color(hex: 0xE06B5A),
+                gradient: [Color(hex: 0x12161D), Color(hex: 0x0B0E13), Color(hex: 0x10151B)],
+                cardBorder: Color.white.opacity(0.12)
+            )
+        } else {
+            return ZJPalette(
+                id: currentID, name: "自定义", subtitle: "浅色 · \(seedHex)", isDark: false,
+                accent: accent, accentPressed: accentPressed, celadon: celadon, gold: gold,
+                bgBase: Color(hex: 0xF3FAFE), bgElev1: Color.white.opacity(0.72),
+                bgElev2: Color(hex: 0xE7F1F8), textPrimary: Color(hex: 0x11151A),
+                textSecondary: Color.rgba(17, 21, 26, 0.58), textTertiary: Color.rgba(17, 21, 26, 0.38),
+                separator: Color.rgba(17, 21, 26, 0.08), error: Color(hex: 0xC94A3D),
+                gradient: [Color(hex: 0xF8FDFF), Color(hex: 0xEAF4FB), Color(hex: 0xF2FAFE)],
+                cardBorder: Color.white.opacity(0.65)
+            )
+        }
+    }
+}
+
+extension Color {
+    init(hue: CGFloat, saturation: CGFloat, brightness: CGFloat, opacity: CGFloat = 1) {
+        self.init(UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: opacity))
+    }
 }
 
 extension Notification.Name {
@@ -149,7 +218,7 @@ enum ZJ {
     static let pageMargin: CGFloat = 20
 }
 
-/// 栖阅式玻璃背景：随配色切换。
+/// 玻璃背景：随外观（亮暗 + 强调色）切换。
 struct QiBackground: View {
     var body: some View {
         LinearGradient(colors: ZJPaletteStore.current.gradient,

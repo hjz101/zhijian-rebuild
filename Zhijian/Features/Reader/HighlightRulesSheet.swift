@@ -168,12 +168,3 @@ struct HighlightRuleEditorView: View {
         .buttonStyle(.plain)
     }
 }
-
-extension Color {
-    init?(hexString: String) {
-        var value = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
-        if value.hasPrefix("#") { value.removeFirst() }
-        guard value.count == 6, let number = UInt32(value, radix: 16) else { return nil }
-        self.init(hex: number)
-    }
-}

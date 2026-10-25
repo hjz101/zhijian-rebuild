@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [THEME-V2] ✅ 已完成（阶段二）· 外观重构为 origo-x seed 方案
+- App 外观 = 中性基底（亮/暗）+ 单一强调色 seed 动态生成整套色板（hue 调整生成 accent/celadon/gold）；
+- 外观页：预设场景 5 套 + 18 色快捷 + ColorPicker + hex + 外观模式（跟随系统/浅/深）；
+- 兼容迁移：旧 `zhijian.app.palette` 整组配色 key → seed；
+- `-palette=` 调试映射到 applyPreset；RootView preferredColorScheme 跟随模式；
+- 实测：`-palette=anmo` 深色底 `#070A0E` + seed 强调色即时生效；外观页 OCR 确认。
+
 ### [THEME-V2] ✅ 已完成（阶段一）· 主题系统 v2（借鉴 origo-x / 栖阅）
 - 内置阅读主题扩到 6 套：米宣纸 / 深墨 / 护眼绿 / 羊皮纸 / 暗夜青 / 素白；
 - 阅读 chrome 色：`ReaderTheme.surface`（控制栏/卡片），正文与 chrome 分离（origo 理念）；
