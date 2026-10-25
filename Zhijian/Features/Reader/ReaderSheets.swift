@@ -269,14 +269,14 @@ struct ReaderSettingsSheet: View {
                 .padding(.top, ZJ.s3)
                 .padding(.bottom, ZJ.s8)
             }
-            .background(theme.background)
+            .background(QiBackground())
             .navigationTitle("阅读设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
                         .font(.system(size: 14, weight: .semibold))
-                        .tint(theme.accent)
+                        .tint(ZJ.accent)
                 }
             }
         }
@@ -285,8 +285,8 @@ struct ReaderSettingsSheet: View {
         }
         .presentationDetents([.height(600), .large])
         .presentationDragIndicator(.visible)
-        .presentationBackground(theme.background)
-        .preferredColorScheme(theme.isDark ? .dark : .light)
+        .presentationBackground(ZJ.bgBase)
+        .preferredColorScheme(ZJPaletteStore.current.isDark ? .dark : .light)
     }
 
     // MARK: 主题
@@ -319,7 +319,7 @@ struct ReaderSettingsSheet: View {
                             }
                             Text(candidate.name)
                                 .font(.system(size: 11, weight: candidate == theme ? .semibold : .regular))
-                                .foregroundStyle(candidate == theme ? theme.accent : theme.secondary)
+                                .foregroundStyle(candidate == theme ? ZJ.accent : ZJ.textSecondary)
                         }
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle())
@@ -345,14 +345,14 @@ struct ReaderSettingsSheet: View {
             HStack {
                 Text("字号")
                     .font(.system(size: 13))
-                    .foregroundStyle(theme.text)
+                    .foregroundStyle(ZJ.textPrimary)
                 Spacer()
                 Text("\(Int(settings.fontSize)) pt")
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
-                    .foregroundStyle(theme.accent)
+                    .foregroundStyle(ZJ.accent)
             }
             Slider(value: bind(\.fontSize), in: 14...34, step: 1)
-                .tint(theme.accent)
+                .tint(ZJ.accent)
         }
     }
 
@@ -369,14 +369,14 @@ struct ReaderSettingsSheet: View {
             .labelsHidden()
 
             HStack {
-                Text("标题大小").font(.system(size: 13)).foregroundStyle(theme.text)
+                Text("标题大小").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
                 Spacer()
                 Text(String(format: "%.2fx", settings.chapterTitleScale))
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
-                    .foregroundStyle(theme.accent)
+                    .foregroundStyle(ZJ.accent)
             }
             Slider(value: bind(\.chapterTitleScale), in: 1.0...1.8, step: 0.02)
-                .tint(theme.accent)
+                .tint(ZJ.accent)
 
             Picker("装饰", selection: bind(\.chapterTitleDecoration)) {
                 ForEach(ReadingSettings.TitleDecoration.allCases, id: \.self) { value in
@@ -398,14 +398,14 @@ struct ReaderSettingsSheet: View {
                 HStack {
                     Label("高亮规则", systemImage: "highlighter")
                         .font(.system(size: 13))
-                        .foregroundStyle(theme.text)
+                        .foregroundStyle(ZJ.textPrimary)
                     Spacer()
                     Text("\(settings.highlightRules.filter(\.enabled).count) 条启用")
                         .font(.system(size: 12))
-                        .foregroundStyle(theme.secondary)
+                        .foregroundStyle(ZJ.textSecondary)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10))
-                        .foregroundStyle(theme.secondary)
+                        .foregroundStyle(ZJ.textSecondary)
                 }
             }
             .buttonStyle(.plain)
@@ -436,9 +436,9 @@ struct ReaderSettingsSheet: View {
             Toggle(isOn: bind(\.showPageNumber)) {
                 Text("显示页码")
                     .font(.system(size: 13))
-                    .foregroundStyle(theme.text)
+                    .foregroundStyle(ZJ.textPrimary)
             }
-            .tint(theme.accent)
+            .tint(ZJ.accent)
         }
     }
 
@@ -454,14 +454,14 @@ struct ReaderSettingsSheet: View {
             HStack {
                 Text(title)
                     .font(.system(size: 13))
-                    .foregroundStyle(theme.text)
+                    .foregroundStyle(ZJ.textPrimary)
                 Spacer()
                 Text("\(Int(value))")
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
-                    .foregroundStyle(theme.secondary)
+                    .foregroundStyle(ZJ.textSecondary)
             }
             Slider(value: binding, in: range, step: 1)
-                .tint(theme.accent)
+                .tint(ZJ.accent)
         }
     }
 
@@ -470,7 +470,7 @@ struct ReaderSettingsSheet: View {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
                 .tracking(1)
-                .foregroundStyle(theme.secondary)
+                .foregroundStyle(ZJ.textSecondary)
             content()
         }
         .padding(ZJ.s4)
@@ -481,7 +481,7 @@ struct ReaderSettingsSheet: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: ZJ.rLg, style: .continuous)
-                .strokeBorder(theme.text.opacity(0.07), lineWidth: 0.5)
+                .strokeBorder(ZJ.textPrimary.opacity(0.07), lineWidth: 0.5)
         )
     }
 
