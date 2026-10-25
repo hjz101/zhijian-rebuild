@@ -28,6 +28,7 @@ struct CachedChapterBody: Codable, Sendable {
     var nextChapterIndex: Int?
     var chapterUrl: String
     var savedAt: Date
+    var images: [ExtractedReaderImage] = []
 }
 
 @MainActor
@@ -114,14 +115,16 @@ final class ChapterCacheStore: ObservableObject {
             return nil
         }
         touch(url)
-        return BookChapterContent(title: cached.title, text: cached.text, nextChapterIndex: cached.nextChapterIndex)
+        return BookChapterContent(title: cached.title, text: cached.text,
+                                  nextChapterIndex: cached.nextChapterIndex, images: cached.images)
     }
 
     func saveContent(bookId: String, chapter: Chapter, content: BookChapterContent) {
         let dir = directory(for: bookId)
         let cached = CachedChapterBody(title: content.title, text: content.text,
                                        nextChapterIndex: content.nextChapterIndex,
-                                       chapterUrl: chapter.url, savedAt: Date())
+                                       chapterUrl: chapter.url, savedAt: Date(),
+                                       images: content.images)
         guard let data = try? JSONEncoder().encode(cached) else { return }
         try? data.write(to: bodyURL(bookId: bookId, index: chapter.index), options: .atomic)
         refreshStats()

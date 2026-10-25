@@ -20,7 +20,9 @@ enum ReaderTextBuilder {
         settings: ReadingSettings,
         theme: ReaderTheme,
         titleImage: UIImage? = nil,
-        pageWidth: CGFloat = 0
+        pageWidth: CGFloat = 0,
+        images: [ExtractedReaderImage] = [],
+        imageProvider: ((String) -> UIImage?)? = nil
     ) -> NSAttributedString {
         let fontSize = CGFloat(settings.fontSize)
         let baseFont = ZJFont.reader(settings.fontFamily, size: fontSize)
@@ -117,6 +119,44 @@ enum ReaderTextBuilder {
         for raw in lines {
             let line = raw.trimmingCharacters(in: .whitespaces)
             guard !line.isEmpty else { continue }
+
+            // 图片占位符：拆成 [文本][图片][文本]
+            if line.hasPrefix("[[IMG"), line.hasSuffix("]]"),
+               let index = Int(line.dropFirst(5).dropLast(2)),
+               images.indices.contains(index) {
+                let item = images[index]
+                let maxWidth = pageWidth > 1 ? pageWidth : 280
+                let paragraph = NSMutableParagraphStyle()
+                paragraph.alignment = .center
+                paragraph.paragraphSpacing = 8
+                paragraph.lineSpacing = 0
+
+                let attachment = NSTextAttachment()
+                if let image = imageProvider?(item.url) {
+                    attachment.image = image
+                    attachment.bounds = ReaderImageStore.bounds(for: image, maxWidth: maxWidth)
+                } else {
+                    let height = maxWidth * 0.34
+                    attachment.image = ReaderImageStore.placeholder(
+                        size: CGSize(width: maxWidth, height: height),
+                        text: item.alt.isEmpty ? "图片加载中…" : item.alt
+                    )
+                    attachment.bounds = CGRect(x: 0, y: 0, width: maxWidth, height: height)
+                }
+                let holder = NSMutableAttributedString(attachment: attachment)
+                holder.addAttribute(.paragraphStyle, value: paragraph,
+                                    range: NSRange(location: 0, length: holder.length))
+                holder.addAttribute(.readerImageURL, value: item.url,
+                                    range: NSRange(location: 0, length: holder.length))
+                result.append(holder)
+                result.append(NSAttributedString(string: "\n", attributes: [
+                    .font: UIFont.systemFont(ofSize: max(fontSize * 0.3, 6)),
+                    .foregroundColor: textColor,
+                    .paragraphStyle: paragraph
+                ]))
+                continue
+            }
+
             result.append(NSAttributedString(string: line + "\n", attributes: [
                 .font: baseFont,
                 .foregroundColor: textColor,

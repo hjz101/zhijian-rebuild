@@ -30,6 +30,8 @@ struct PagedReaderView: UIViewControllerRepresentable {
     var twoPage: Bool = false
     /// 翻页动画
     var animation: ReadingSettings.PageTurnAnimation = .slide
+    /// 点击正文图片
+    var onImageTap: ((String) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -126,6 +128,9 @@ struct PagedReaderView: UIViewControllerRepresentable {
                 guard let self else { return }
                 self.handleTap(location: location, width: controller?.view.bounds.width ?? 0)
             }
+            controller.onImageTap = { [weak self] url in
+                self?.parent.onImageTap?(url)
+            }
             controller.onHighlight = { [weak self] range, text in
                 guard let self else { return }
                 self.parent.onHighlight?(pageStart + range.location, range.length, text)
@@ -154,6 +159,9 @@ struct PagedReaderView: UIViewControllerRepresentable {
                 page.onTap = { [weak self, weak page] location in
                     guard let self, let page else { return }
                     self.handleTap(location: location, width: page.view.bounds.width)
+                }
+                page.onImageTap = { [weak self] url in
+                    self?.parent.onImageTap?(url)
                 }
                 page.onHighlight = { [weak self] range, text in
                     guard let self else { return }
@@ -313,6 +321,7 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
     private let textView = UITextView()
     private var bubbleButtons: [UIButton] = []
     var onTap: ((CGPoint) -> Void)?
+    var onImageTap: ((String) -> Void)?
     var onHighlight: ((NSRange, String) -> Void)?
     var onNote: ((NSRange, String) -> Void)?
     var onParagraphComment: ((Int) -> Void)?
@@ -335,7 +344,8 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(theme.background)
+        // 背景由 SwiftUI 层（含背景图）负责，这里保持透明
+        view.backgroundColor = .clear
 
         textView.translatesAutoresizingMaskIntoConstraints = false
         textView.backgroundColor = .clear
@@ -410,7 +420,23 @@ private final class ReaderPageViewController: UIViewController, UITextViewDelega
             textView.selectedRange = NSRange(location: 0, length: 0)
             return
         }
+        let point = gesture.location(in: textView)
+        if let url = imageURL(at: point) {
+            onImageTap?(url)
+            return
+        }
         onTap?(gesture.location(in: view))
+    }
+
+    /// 命中图片附件时返回其 URL。
+    private func imageURL(at point: CGPoint) -> String? {
+        let containerPoint = CGPoint(x: point.x - textView.textContainerInset.left,
+                                     y: point.y - textView.textContainerInset.top)
+        let index = textView.layoutManager.characterIndex(for: containerPoint,
+                                                          in: textView.textContainer,
+                                                          fractionOfDistanceBetweenInsertionPoints: nil)
+        guard index >= 0, index < textView.attributedText.length else { return nil }
+        return textView.attributedText.attribute(.readerImageURL, at: index, effectiveRange: nil) as? String
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,

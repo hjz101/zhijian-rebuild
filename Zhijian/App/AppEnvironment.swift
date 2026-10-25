@@ -89,6 +89,53 @@ final class AppEnvironment: ObservableObject {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("-readerBackgroundTest") {
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 600))
+            let image = renderer.image { context in
+                UIColor(red: 0.55, green: 0.72, blue: 0.62, alpha: 1).setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 400, height: 600))
+                UIColor(white: 1, alpha: 0.35).setFill()
+                context.fill(CGRect(x: 40, y: 120, width: 320, height: 200))
+            }
+            ReaderBackgroundStore.shared.setImage(image)
+            ReaderBackgroundStore.shared.opacity = 0.4
+            ReaderBackgroundStore.shared.blur = 8
+            let lines = [
+                "hasImage=\(ReaderBackgroundStore.shared.hasImage)",
+                "enabled=\(ReaderBackgroundStore.shared.enabled)",
+                "bytes=\(ReaderBackgroundStore.shared.imageData?.count ?? 0)"
+            ]
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-background-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
+        if ProcessInfo.processInfo.arguments.contains("-readerImageTest") {
+            let html = """
+            <div>第一段文字。</div><img src="/img/a.png" alt="山景"><div>第二段文字。</div>
+            <img src="https://example.com/b.png"><div>第三段文字。</div>
+            """
+            let extracted = ReaderImageExtractor.extract(from: html, baseURL: "https://demo.local/book/1")
+            var settings = ReadingSettings()
+            settings.theme = .paper
+            let sample = ReaderImageStore.placeholder(size: CGSize(width: 200, height: 100), text: "图片")
+            let attributed = ReaderTextBuilder.build(title: "第一章 入山", body: extracted.text,
+                                                     settings: settings, theme: .paper,
+                                                     pageWidth: 300,
+                                                     images: extracted.images,
+                                                     imageProvider: { _ in sample })
+            var attachmentCount = 0
+            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if value != nil { attachmentCount += 1 }
+            }
+            let lines = [
+                "images=\(extracted.images.count)",
+                "firstUrl=\(extracted.images.first?.url ?? "-")",
+                "text=\(extracted.text.replacingOccurrences(of: "\n", with: " | "))",
+                "attachments=\(attachmentCount)",
+                "length=\(attributed.length)"
+            ]
+            try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("reader-image-test.txt"),
+                                                     atomically: true, encoding: .utf8)
+        }
         if ProcessInfo.processInfo.arguments.contains("-titleTemplateTest") {
             Task { @MainActor in
                 var lines: [String] = []

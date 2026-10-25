@@ -96,6 +96,7 @@ private struct ReaderSurface: View {
     @State private var showCatalog = false
     @State private var showSettings = false
     @State private var showTitleDesigner = false
+    @State private var viewerItem: ImageViewerItem?
     @State private var noteDraft: NoteDraft?
     @State private var toast: String?
     @State private var showChangeSource = false
@@ -107,6 +108,11 @@ private struct ReaderSurface: View {
     @ObservedObject private var paragraphComments = ParagraphCommentStore.shared
 
     private var settings: ReadingSettings { settingsStore.settings }
+
+    private func presentImage(_ url: String) {
+        guard let remote = URL(string: url) else { return }
+        viewerItem = ImageViewerItem(url: remote, title: "正文图片")
+    }
 
     private func handleVolumeTurn(_ direction: Int) {
         guard settings.volumeButtonPageTurn, model.isPaged else { return }
@@ -166,6 +172,9 @@ private struct ReaderSurface: View {
         }
         .sheet(isPresented: $showTitleDesigner) {
             ChapterTitleDesignerView()
+        }
+        .fullScreenCover(item: $viewerItem) { item in
+            ImageViewerScreen(item: item)
         }
         .sheet(isPresented: $showChangeSource) {
             ChangeSourceSheet(model: model, theme: theme)
@@ -303,7 +312,8 @@ private struct ReaderSurface: View {
                                                                chapterIndex: model.currentChapterIndex),
                     onChapterComments: { showChapterComments = true },
                     twoPage: model.isTwoPage,
-                    animation: settings.pageTurnAnimation
+                    animation: settings.pageTurnAnimation,
+                    onImageTap: presentImage
                 )
                 .id("paged-\(settings.pageTurnAnimation.rawValue)")
             }
@@ -747,9 +757,9 @@ private struct NoteEditorSheet: View {
 
 private struct ReaderPaperBackground: View {
     let theme: ReaderTheme
+    @ObservedObject private var background = ReaderBackgroundStore.shared
     var body: some View {
-        theme.background
-            .ignoresSafeArea()
+        ReaderBackgroundView(theme: theme)
     }
 }
 

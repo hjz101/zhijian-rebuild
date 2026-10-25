@@ -210,13 +210,17 @@ final class ReaderViewModel {
 
             let sourceWidth = isTwoPage ? columnSize(for: pageSize).width : pageSize.width
             let titleImage = await titleSnapshot(title: content.title, width: sourceWidth)
+            let hasImages = !content.images.isEmpty
+            if hasImages { await prefetchImages(content.images) }
             let attributed = ReaderTextBuilder.build(
                 title: content.title,
                 body: content.text,
                 settings: settings,
                 theme: settings.theme,
                 titleImage: titleImage,
-                pageWidth: sourceWidth
+                pageWidth: sourceWidth,
+                images: content.images,
+                imageProvider: { ReaderImageCache.memoryImage($0) }
             )
             var layoutSize = pageSize
             if isTwoPage { layoutSize.width = columnSize(for: pageSize).width }
@@ -466,6 +470,24 @@ final class ReaderViewModel {
 
     // MARK: - 尺寸 / 设置
 
+    /// 预取本章图片（并发上限 3），保证首屏分页时图片附件尽量已就绪。
+    private func prefetchImages(_ images: [ExtractedReaderImage]) async {
+        guard !images.isEmpty else { return }
+        await withTaskGroup(of: Void.self) { group in
+            var iterator = images.makeIterator()
+            for _ in 0..<min(3, images.count) {
+                if let item = iterator.next() {
+                    group.addTask { _ = await ReaderImageCache.store.image(for: item.url) }
+                }
+            }
+            while await group.next() != nil {
+                if let item = iterator.next() {
+                    group.addTask { _ = await ReaderImageCache.store.image(for: item.url) }
+                }
+            }
+        }
+    }
+
     /// 章节标题快照（仅在启用模板时生成，按标题+宽度缓存）。
     private var titleSnapshotCache: [String: UIImage] = [:]
 
@@ -572,7 +594,9 @@ final class ReaderViewModel {
                 settings: newValue,
                 theme: newValue.theme,
                 titleImage: cachedTitle,
-                pageWidth: width
+                pageWidth: width,
+                images: content.images,
+                imageProvider: { ReaderImageCache.memoryImage($0) }
             )
             renderVersion += 1
         }

@@ -251,6 +251,7 @@ struct ReaderSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showHighlightRules = false
     @State private var showTitleDesigner = false
+    @State private var showBackground = false
 
     private var theme: ReaderTheme { settingsStore.settings.theme }
     private var settings: ReadingSettings { settingsStore.settings }
@@ -286,6 +287,9 @@ struct ReaderSettingsSheet: View {
         }
         .sheet(isPresented: $showTitleDesigner) {
             ChapterTitleDesignerView()
+        }
+        .sheet(isPresented: $showBackground) {
+            ReaderBackgroundSettingsView()
         }
         .presentationDetents([.height(600), .large])
         .presentationDragIndicator(.visible)
@@ -460,6 +464,19 @@ struct ReaderSettingsSheet: View {
                 .pickerStyle(.menu)
                 .tint(ZJ.accent)
             }
+
+            Button {
+                showBackground = true
+            } label: {
+                HStack {
+                    Text("阅读背景图").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                    Spacer()
+                    Text(ReaderBackgroundStore.shared.enabled ? "已启用" : "未启用")
+                        .font(.system(size: 11)).foregroundStyle(ZJ.textSecondary)
+                    Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(ZJ.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
 
             Button {
                 showTitleDesigner = true

@@ -683,6 +683,8 @@ struct SourceChapterContent {
     var title: String = ""
     var content: String = ""
     var chapter: SourceChapter = SourceChapter()
+    /// P1-04：正文内嵌图片
+    var images: [ExtractedReaderImage] = []
     /// 站点返回登录/付费提示：链路正常，正文被站点拦截（对应错误码 -12）
     var isPaywall: Bool = false
     var paywallHint: String?
@@ -956,7 +958,9 @@ final class SourcePipeline {
         let rawText = JSONValueUtil.text(raw)
         // `@html` / `@all` 等规则的正文是 HTML 片段：转成阅读器可用的纯文本。
         // 已经是纯文本（`@text` / `@textNodes`）的结果不含标签，不会被二次格式化。
-        let text = HtmlFormatter.formatIfNeeded(rawText)
+        let extracted = ReaderImageExtractor.extract(from: rawText, baseURL: response.finalURL)
+        let text = extracted.text
+        let images = extracted.images
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             // 站点可能把登录/付费提示放在 msg/code 等非 content 字段里（如 {"code":-1,"msg":"...上限..."}），
             // 此时应判为 -12 需要登录，而不是 -13 空正文。
@@ -983,6 +987,7 @@ final class SourcePipeline {
             title: title,
             content: text,
             chapter: chapter,
+            images: images,
             isPaywall: paywall,
             paywallHint: paywall ? "站点返回登录/付费提示：规则链路正常，正文被站点拦截" : nil
         )

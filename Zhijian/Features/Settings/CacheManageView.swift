@@ -28,6 +28,21 @@ struct CacheManageView: View {
                 Text("目录缓存 24 小时自动刷新；正文按 200 MB LRU 上限自动清理。断网可读已缓存章节。")
             }
 
+            Section("图片缓存") {
+                HStack {
+                    Label("正文图片", systemImage: "photo")
+                    Spacer()
+                    Text("\(ReaderImageStore.shared.fileCount) 张 · \(ReaderImageStore.shared.formattedSize)")
+                        .foregroundStyle(.secondary)
+                }
+                Button(role: .destructive) {
+                    ReaderImageStore.shared.clear()
+                } label: {
+                    Label("清理正文图片缓存", systemImage: "trash")
+                }
+                .disabled(ReaderImageStore.shared.fileCount == 0)
+            }
+
             Section("按书清理") {
                 if summaries.isEmpty {
                     Text("暂无缓存").foregroundStyle(.secondary)
@@ -60,6 +75,9 @@ struct CacheManageView: View {
         .navigationTitle("章节缓存")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: reload)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            reload()
+        }
         .confirmationDialog("清理全部缓存？", isPresented: $showClearAll, titleVisibility: .visible) {
             Button("清理", role: .destructive) {
                 ChapterCacheStore.shared.clearAll()

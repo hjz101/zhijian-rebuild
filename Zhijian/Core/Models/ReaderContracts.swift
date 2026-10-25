@@ -5,6 +5,16 @@ struct BookChapterContent: Sendable {
     var title: String
     var text: String
     var nextChapterIndex: Int?
+    /// P1-04：正文内嵌图片（与文本中的 `[[IMGn]]` 标记对应）
+    var images: [ExtractedReaderImage] = []
+
+    init(title: String, text: String, nextChapterIndex: Int? = nil,
+         images: [ExtractedReaderImage] = []) {
+        self.title = title
+        self.text = text
+        self.nextChapterIndex = nextChapterIndex
+        self.images = images
+    }
 }
 
 protocol ReaderContentProviding: AnyObject, Sendable {

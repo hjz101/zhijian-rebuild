@@ -153,7 +153,8 @@ final class BookContentService: ReaderContentProviding {
         let content = BookChapterContent(
             title: title,
             text: body,
-            nextChapterIndex: nextChapterIndex(after: chapter, bookId: book.id)
+            nextChapterIndex: nextChapterIndex(after: chapter, bookId: book.id),
+            images: result.images
         )
         cache.saveContent(bookId: book.id, chapter: chapter, content: content)
         return content

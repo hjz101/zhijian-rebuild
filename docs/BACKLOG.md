@@ -216,12 +216,21 @@
   - 实测：`snapshot=300x150`、`htmlBytes=1080`、导出 `zhijian-chapter-titles.json`、3 套模板。
   - 未做：拖拽缩放画布、图层顺序调整、图片元素导入（字段已预留）。
 
-### [P1-04] 正文内嵌图片 / 阅读背景
+### [P1-04] ✅ 已完成 · 正文内嵌图片 / 阅读背景
 - **对应差距**：栖阅 `NSTextAttachment` + 背景图/模糊；我们没有。
 - **范围**：文本阅读器图片附件、等比/占位、点击查看；阅读背景图（亮度/模糊）。
 - **验收**：含图章节分页正确；图片可点开；背景图不影响文字对比度。
 - **估算**：2–3 天
 - **依赖**：无
+- **完成情况（2026-10-25）**：
+  - `ReaderImageExtractor`：正文 HTML 中 `<img>`（含 `data-src`/`data-original`）→ 提取 URL + `[[IMGn]]` 标记，保留 alt；
+  - `ReaderImageStore`：正文图片下载 + `Caches/ReaderImages` 磁盘缓存 + 内存表 + 并发去重；占位图与等比 bounds；
+  - `BookChapterContent.images` / `SourceChapterContent.images` / 章节缓存三方透传；
+  - `ReaderTextBuilder` 以 `NSTextAttachment` 插入图片（按页宽等比），附件带 `.readerImageURL`；
+  - 点击正文图片 → `ImageViewerScreen` 全屏缩放查看（分页 + 双页均支持）；
+  - 阅读背景：`ReaderBackgroundStore`（相册选图、不透明度、模糊、启用开关，限制长边 2000px）+ `ReaderBackgroundView` 叠加主题底色；分页页背景改为透明以显示背景图；
+  - 设置页「阅读背景图」入口 + 预览；章节缓存页新增正文图片缓存统计/清理；
+  - 实测：`images=2 attachments=2`、背景图 `hasImage=true bytes=38241` 且阅读页可见。
 
 ### [P1-05] 主题 / 预设包导入导出
 - **对应差距**：栖阅 `.qitheme/.qipreset/.qired`；我们没有。
