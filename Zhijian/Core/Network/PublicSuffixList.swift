@@ -13,6 +13,16 @@ enum PublicSuffixList {
         "com.ec", "com.bo", "com.py", "com.uy", "com.cl", "com.mx",
         "com.kz", "com.uz", "com.by", "com.ge", "com.am", "com.az", "com.md"
     ]
+    /// 托管/动态 DNS 后缀（两段或多段，作为整体公共后缀，防止串 Cookie）
+    private static let hostedSuffixes: [String] = [
+        "github.io", "githubusercontent.com", "gitlab.io", "netlify.app", "vercel.app",
+        "pages.dev", "render.com", "fly.dev", "glitch.me", "repl.co", "codepen.io",
+        "js.org", "surge.sh", "now.sh", "onrender.com", "koyeb.app",
+        "blogspot.com", "wordpress.com", "wixsite.com", "weebly.com", "web.app",
+        "firebaseapp.com", "appspot.com", "azurewebsites.net", "cloudfront.net",
+        "herokuapp.com", "ngrok.io", "localtunnel.me"
+    ]
+
     private static let plainSuffixes: Set<String> = [
         "com", "net", "org", "edu", "gov", "mil", "int", "info", "biz", "name",
         "mobi", "pro", "asia", "xyz", "top", "club", "online", "site", "live",
@@ -27,6 +37,14 @@ enum PublicSuffixList {
         let last = labels[labels.count - 1].lowercased()
         let second = labels[labels.count - 2].lowercased()
 
+        // 托管后缀：整个作为公共后缀（github.io → x.github.io 之间不共享 Cookie）
+        for hosted in hostedSuffixes {
+            let parts = hosted.split(separator: ".").count
+            if host.hasSuffix("." + hosted), labels.count >= parts + 1 {
+                return String(labels[labels.count - parts - 1]) + "." + hosted
+            }
+            if host == hosted { return host }
+        }
         // 多段后缀：末两段在表内 → 取末三段
         let lastTwo = second + "." + last
         if multiSuffixes.contains(lastTwo), labels.count >= 3 {

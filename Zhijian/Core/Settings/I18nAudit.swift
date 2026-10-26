@@ -25,7 +25,7 @@ enum I18nAudit {
                                "书源地址", "语言 / Language", "外观", "网络代理", "文件管理",
                                "立即备份", "备份频率", "退出时", "每天", "每周", "镜像备份目录到 WebDAV（增量）",
                                "书源体检", "批量测试", "诊断", "去重", "试听", "分钟 / 分"])
-        let pattern = try! NSRegularExpression(pattern: #""([^"\\]|\\.)*[\u{4E00}-\u{9FFF}]+([^"\\]|\\.)*""#)
+        guard let pattern = try? NSRegularExpression(pattern: #""([^"\\]|\\.)*[\u{4E00}-\u{9FFF}]+([^"\\]|\\.)*""#) else { return ["正则初始化失败"] }
         var fileCount = 0
         var hitCount = 0
         while let entry = enumerator.nextObject() as? URL {

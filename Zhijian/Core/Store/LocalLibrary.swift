@@ -18,16 +18,56 @@ final class LocalLibrary: ObservableObject {
     static let shared = LocalLibrary()
     @Published private(set) var books: [String: LocalBookRecord] = [:]
     private let file = "local_library.json"
+    /// 章节正文独立目录：Library/<bookId>/<index>.txt（避免整书塞进单个 JSON）
+    private var chaptersRoot: URL { AppData.root.appendingPathComponent("Library", isDirectory: true) }
 
     private init() {
         books = AppData.load([String: LocalBookRecord].self, file) ?? [:]
     }
 
-    func record(for bookId: String) -> LocalBookRecord? { books[bookId] }
+    func record(for bookId: String) -> LocalBookRecord? {
+        guard var record = books[bookId] else { return nil }
+        // 懒加载：正文存独立文件时按需读取（旧数据 text 直接在 JSON 内则跳过）
+        if record.chapters.contains(where: { $0.text.isEmpty }) {
+            for index in record.chapters.indices {
+                if record.chapters[index].text.isEmpty {
+                    record.chapters[index].text = Self.readChapterFile(bookId: bookId, index: index) ?? ""
+                }
+            }
+        }
+        return record
+    }
 
     func save(_ record: LocalBookRecord) {
-        books[record.bookId] = record
+        var metaRecord = record
+        // 正文拆独立文件，JSON 只存元信息
+        for (index, chapter) in record.chapters.enumerated() {
+            guard !chapter.text.isEmpty else { continue }
+            Self.writeChapterFile(bookId: record.bookId, index: index, text: chapter.text)
+            metaRecord.chapters[index].text = ""
+        }
+        books[record.bookId] = metaRecord
         AppData.save(books, file)
+    }
+
+    // MARK: - 章节文件读写
+
+    private static func chapterFile(bookId: String, index: Int) -> URL {
+        AppData.root.appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("\(bookId)", isDirectory: true)
+            .appendingPathComponent("\(index).txt")
+    }
+
+    private static func writeChapterFile(bookId: String, index: Int, text: String) {
+        let fm = FileManager.default
+        let dir = AppData.root.appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("\(bookId)", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? text.write(to: chapterFile(bookId: bookId, index: index), atomically: true, encoding: .utf8)
+    }
+
+    private static func readChapterFile(bookId: String, index: Int) -> String? {
+        try? String(contentsOf: chapterFile(bookId: bookId, index: index), encoding: .utf8)
     }
 
     /// 离线示例书：不依赖网络，用于验证分页/TTS/备份

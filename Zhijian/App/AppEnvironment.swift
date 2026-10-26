@@ -14,6 +14,7 @@ final class AppEnvironment: ObservableObject {
     let tts: TTSController
     let backup: BackupService
     let localLibrary: LocalLibrary
+    private var darkScheduleTimer: Timer?
 
     private init() {
         CrashGuard.install()
@@ -28,12 +29,13 @@ final class AppEnvironment: ObservableObject {
         self.tts = TTSController()
         self.backup = BackupService(books: books, sources: sources, settings: settings)
         self.localLibrary = LocalLibrary.shared
-        // 夜间主题定时：每分钟检查（放 init 末尾，避免属性未初始化）
-        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        // 夜间主题定时：每分钟检查（持有 timer 防被释放；App 生命周期内常驻）
+        let timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.settings.runDarkSchedule()
             }
         }
+        darkScheduleTimer = timer
 #if DEBUG
         AppEnvironment.seedDemoSourceIfNeeded(into: sources)
         localLibrary.seedDemoBookIfNeeded(into: books)
@@ -789,9 +791,31 @@ enum AppData {
         guard let data = try? Data(contentsOf: url(name)) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
     }
+    /// 异步写队列：串行 + 同 key 合并（最后一次 save 为准），避免主线程磁盘 IO
+    private static let writeQueue = DispatchQueue(label: "zhijian.appdata.write", qos: .utility)
+    private static var pendingWrites: [String: Data] = [:]
+    private static let writeLock = NSLock()
+    private static var writeScheduled = false
+
     static func save<T: Encodable>(_ value: T, _ name: String) {
         guard let data = try? JSONEncoder().encode(value) else { return }
-        try? data.write(to: url(name), options: .atomic)
+        writeLock.lock()
+        pendingWrites[name] = data
+        let shouldSchedule = !writeScheduled
+        writeScheduled = true
+        writeLock.unlock()
+        guard shouldSchedule else { return }
+        // 节流：合并同一轮内多次 save 的同 key 写盘
+        writeQueue.async {
+            writeLock.lock()
+            let batch = pendingWrites
+            pendingWrites.removeAll()
+            writeScheduled = false
+            writeLock.unlock()
+            for (name, data) in batch {
+                try? data.write(to: url(name), options: .atomic)
+            }
+        }
     }
 }
 
@@ -858,6 +882,23 @@ final class SourceStore: ObservableObject {
     private let file = "sources.json"
 
     init() { sources = AppData.load([BookSource].self, file) ?? [] }
+
+    /// 校验文本是否为合法书源 JSON（导入前防御，防任意远程 JS 注入）
+    func isValidSourceJSON(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8) else { return false }
+        do {
+            let json = try JSONSerialization.jsonObject(with: data)
+            if let array = json as? [[String: Any]] {
+                return !array.isEmpty && array.allSatisfy { $0["bookSourceUrl"] is String }
+            }
+            if let dict = json as? [String: Any] {
+                return dict["bookSourceUrl"] is String
+            }
+            return false
+        } catch {
+            return false
+        }
+    }
 
     func importJSON(_ text: String) throws {
         let list = try BookSourceLoader.load(text)
@@ -982,6 +1023,7 @@ final class EngineRegistry: ObservableObject {
     private var pipelineCache: [String: SourcePipeline] = [:]
     private let pipelineCacheLimit = 6
     private var memoryObserver: NSObjectProtocol?
+    private var darkScheduleTimer: Timer?
     private var idleTask: Task<Void, Never>?
 
     init(sources: SourceStore, settings: SettingsStore) {

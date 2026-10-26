@@ -126,5 +126,13 @@ final class WebDAVConfigStore: ObservableObject {
         snapshot.configs = stripped
         snapshot.activeConfigID = activeConfigID
         AppData.save(snapshot, file)
+        // 中危修复：明文回退时至少加文件保护（设备解锁前不可读）
+        if usingFallbackStorage {
+            let url = AppData.root.appendingPathComponent(file)
+            if FileManager.default.fileExists(atPath: url.path) {
+                try? (url as NSURL).setResourceValue(URLFileProtection.completeUntilFirstUserAuthentication,
+                                                     forKey: .fileProtectionKey)
+            }
+        }
     }
 }

@@ -154,7 +154,10 @@ enum SelfTestSuite {
             if hasCustomTheme {
                 check("Backup-theme-entry", hasTheme, "reader_theme.json \(hasTheme ? "有" : "无")")
             }
-            check("Backup-cookies-entry", hasCookies, "cookies.json \(hasCookies ? "有" : "无")")
+            let cookieFileExists = FileManager.default.fileExists(atPath: AppData.root.appendingPathComponent("cookies.json").path)
+            if cookieFileExists {
+                check("Backup-cookies-entry", hasCookies, "cookies.json 文件存在但备份无")
+            }
             // 生态类（背景/替换规则）——文件存在时才应有条目（无数据是合理空）
             let bgFileExists = FileManager.default.fileExists(atPath: AppData.root.appendingPathComponent("reader_background.json").path)
             if bgFileExists {
@@ -178,7 +181,11 @@ enum SelfTestSuite {
             check("QR-generate", false, "抛错")
         }
 
-        // 17) PSL eTLD+1
+        // 17) PSL 托管后缀（github.io 不串站）
+        check("PSL-github", PublicSuffixList.eTLDPlusOne(host: "a.github.io") == "a.github.io"
+              && !PublicSuffixList.shouldShare("a.github.io", "b.github.io"), "github.io 应各自独立")
+
+        // 18) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

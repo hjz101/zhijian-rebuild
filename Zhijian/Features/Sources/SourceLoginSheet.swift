@@ -32,8 +32,10 @@ final class SourceLoginWebController: ObservableObject {
         let host = webView.url?.host ?? ""
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             let matched = cookies.filter { cookie in
-                host.isEmpty || cookie.domain.contains(host)
-                    || host.contains(cookie.domain.trimmingCharacters(in: CharacterSet(charactersIn: ".")))
+                guard !host.isEmpty else { return true }
+                let domain = cookie.domain.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                // 严格后缀匹配：host == domain 或 host 以 ".domain" 结尾（防跨域泄漏）
+                return host == domain || host.hasSuffix("." + domain)
             }
             let header = matched.sorted { $0.name < $1.name }
                 .map { "\($0.name)=\($0.value)" }

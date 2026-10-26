@@ -101,9 +101,14 @@ struct ShelfLayoutSettingsView: View {
 final class PaletteObserver: ObservableObject {
     static let shared = PaletteObserver()
     @Published private(set) var id = ZJPaletteStore.currentID
+    /// 持有 token 以便移除（修复观察者泄漏）
+    private var token: NSObjectProtocol?
     private init() {
-        NotificationCenter.default.addObserver(forName: .zjPaletteChanged, object: nil, queue: .main) { [weak self] _ in
+        token = NotificationCenter.default.addObserver(forName: .zjPaletteChanged, object: nil, queue: .main) { [weak self] _ in
             self?.id = ZJPaletteStore.currentID
         }
+    }
+    deinit {
+        if let token { NotificationCenter.default.removeObserver(token) }
     }
 }

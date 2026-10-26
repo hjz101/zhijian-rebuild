@@ -306,9 +306,19 @@ final class BackupService: ObservableObject {
         if let cookies = payload.cookies {
             CookieStore.shared.replaceAll(cookies)
         }
-        // 生态类恢复：直接写回原文件
+        // 生态类恢复：直接写回原文件（高危修复：路径白名单 + 目录穿越校验）
+        let allowedNames: Set<String> = ["reader_background.json", "chapter_title_templates.json",
+                                         "replace_rules.json", "chapter_rule_config.json"]
         for (fileName, data) in payload.rawEntries {
-            try? data.write(to: AppData.root.appendingPathComponent(fileName), options: .atomic)
+            // 白名单：仅允许已知的扁平文件名（拒绝任何含路径分隔符/.. 的条目）
+            guard allowedNames.contains(fileName),
+                  !fileName.contains("/"), !fileName.contains(".."),
+                  !fileName.hasPrefix(".") else { continue }
+            let target = AppData.root.appendingPathComponent(fileName).standardizedFileURL
+            let root = AppData.root.standardizedFileURL
+            // 双保险：标准化后必须在 root 之内
+            guard target.path.hasPrefix(root.path + "/") else { continue }
+            try? data.write(to: target, options: .atomic)
         }
         if payload.rawEntries["reader_background.json"] != nil {
             ReaderBackgroundStore.shared.reload()

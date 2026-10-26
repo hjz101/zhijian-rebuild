@@ -20,7 +20,7 @@
 | 项 | 状态 | 说明 |
 |---|---|---|
 | **JSC 私有 API** | ⚠️ | Debug 用 dlsym `JSContextGroupSetExecutionTimeLimit`；**Release 已 `#if DEBUG` 禁用**，不链接私有符号。上架构建=Release，无风险；留档说明。 |
-| **ATS 任意加载** | ⚠️ | `NSAllowsArbitraryLoads=true` 为兼容用户自导入 HTTP 书源。审核说明：书源为第三方网页、需明文 HTTP；已提供「书源 HTTPS 优先」开关。若被拒，可改为按域名例外或要求书源 HTTPS。 |
+| **ATS 任意加载** | ⚠️ | `NSAllowsArbitraryLoads=true` 为兼容用户自导入 HTTP 书源。已提供「书源 HTTPS 优先」开关。**审核问询应答话术**：① 本 App 不包含任何自有网络请求的明文 HTTP——所有明文请求均来自用户主动导入的第三方书源规则；② 书源格式为开源 Legado 规范，HTTP 是第三方站点的既有协议，App 无法替站点升级 HTTPS；③ 已默认开启「HTTPS 优先」，仅在源不支持 HTTPS 时回退明文；④ 若审核强制要求，可改为 NSExceptionDomains 逐域放行或要求书源 HTTPS，但会显著降低书源兼容性。 |
 | **WebDAV 明文回退** | ⚠️ | 未签名环境 Keychain 不可用时回退明文存 JSON（仅本机，含 UI 提示）。正式签名构建走 Keychain。 |
 | **第三方内容版权** | ⚠️ | 书源/书库由用户导入，App 不提供聚合/下载入口。需在审核备注说明「BYO 书源/文件」模式。 |
 | **WebSocket TTS** | ⚠️ | 自定义协议（二进制 PCM/文本帧），无内置服务端。 |

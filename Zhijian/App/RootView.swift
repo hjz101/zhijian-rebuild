@@ -6,6 +6,7 @@ struct RootView: View {
     @State private var paletteID = ZJPaletteStore.currentID
     @Environment(\.scenePhase) private var scenePhase
     @State private var appIconApplied = false
+    @State private var importConfirmation: ImportConfirmationRequest?
 
     private static var initialTab: Int {
         let args = ProcessInfo.processInfo.arguments
@@ -41,6 +42,19 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.22), value: tab)
         .onReceive(NotificationCenter.default.publisher(for: .zjPaletteChanged)) { _ in
             paletteID = ZJPaletteStore.currentID
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .urlSchemeConfirmImport)) { note in
+            if let request = note.userInfo?["request"] as? ImportConfirmationRequest {
+                importConfirmation = request
+            }
+        }
+        .alert(item: $importConfirmation) { request in
+            Alert(
+                title: Text(request.title),
+                message: Text(request.message),
+                primaryButton: .default(Text("导入")) { request.onConfirm(true) },
+                secondaryButton: .cancel { request.onConfirm(false) }
+            )
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

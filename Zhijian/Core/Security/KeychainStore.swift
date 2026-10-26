@@ -14,7 +14,9 @@ enum KeychainStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            // 中危修复：显式访问级别——设备首次解锁后可后台读、不参与 iCloud Keychain 同步
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
         if let group = accessGroup { item[kSecAttrAccessGroup as String] = group }
         let status = SecItemAdd(item as CFDictionary, nil)

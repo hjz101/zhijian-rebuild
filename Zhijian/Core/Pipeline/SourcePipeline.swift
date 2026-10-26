@@ -561,9 +561,11 @@ final class HTTPClient: @unchecked Sendable {
                     if prepared.method == "GET" || prepared.method == "get" {
                         cacheLock.lock()
                         responseCache[prepared.url] = (Date(), response)
-                        if responseCache.count > 200 {
-                            let expired = responseCache.filter { Date().timeIntervalSince($0.value.date) > 20 }
-                            for key in expired.keys { responseCache.removeValue(forKey: key) }
+                        // LRU 淘汰：超上限时移除最旧条目（修复：原逻辑仅删「已过期」导致实际无上限）
+                        while responseCache.count > 200 {
+                            if let oldest = responseCache.min(by: { $0.value.date < $1.value.date }) {
+                                responseCache.removeValue(forKey: oldest.key)
+                            } else { break }
                         }
                         cacheLock.unlock()
                     }

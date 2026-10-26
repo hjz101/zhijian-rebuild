@@ -447,6 +447,20 @@
 
 ## P4 · 发布与合规
 
+### [SECURITY] ✅ 已完成 · 安全审查修复（18 项）
+- **高危 1** URLSchemeHandler：guard + http/https 白名单 + 导入前确认框 + 书源 JSON 合法性校验（防 SSRF/强制解包/任意远程 JS）；
+- **高危 2** ChapterTitleRenderer：复用单 WKWebView + 轮询 scrollHeight 就绪（替代固定 260ms）+ 缓存改 40MB 字节上限（LRU）；
+- **高危 3** CrashGuard：signal handler 只 write(2) 到预打开 fd（async-signal-safe）；
+- **高危 4** BackupService rawEntries：白名单 + 路径分隔符拒绝 + standardizedFileURL 前缀校验（防目录穿越）；
+- **中危 5** BackupCrypto：PBKDF2 120k→600k + AAD 绑定 magic + 旧格式兼容解密；
+- **中危 6** WebDAVConfigStore：明文回退加 NSFileProtectionCompleteUntilFirstUserAuthentication；
+- **中危 7** KeychainStore：显式 kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly；
+- **中危 9** SourceLoginSheet Cookie：改严格后缀匹配（host == domain || hasSuffix("."+domain)）；
+- **中危 10** PublicSuffixList：补 25 个托管后缀（github.io 等，防 Cookie 串站）；
+- **性能 11/12** AppData 异步写队列（串行+同 key 合并）；**13** LocalLibrary 章节拆独立文件（JSON 只存元信息）；**14** WebViewJSExecutor 主线程断言；**15** responseCache LRU 修复；**17** JSVirtualMachinePool LRU 修复 + fatalError 降级；
+- **其他**：PaletteObserver token 移除、darkScheduleTimer 持有、I18nAudit try!→try?；
+- 自检 46 项通过；关于小说回归通过；书山聚合搜索失败经基线对比确认为**源侧故障**（非本次改动）。
+
 ### [UI-V2] ✅ 已完成 · Liquid Glass 细化（拾页设计稿二批）
 - **阅读设置栏玻璃化**：ReaderSheets section 容器改 liquidGlass（玻璃+暗边+高光，设计稿屏 03）；
 - **笔记卡玻璃化**：笔记列表每行 liquidGlass 卡（玻璃但内容不模糊，设计稿屏 05）+ 隐藏分隔线；

@@ -5,13 +5,18 @@ import CommonCrypto
 import Security
 
 enum BackupCrypto {
-    static let magic = Data("ZJBKENC1".utf8)
+    static let magic = Data("ZJBKENC2".utf8)
+    static let legacyMagic = Data("ZJBKENC1".utf8)
     static let saltLength = 16
-    static let iterations: UInt32 = 120_000
+    /// OWASP 2026 建议：PBKDF2-HMAC-SHA256 600k+（新备份用）
+    static let iterations: UInt32 = 600_000
+    /// 旧版 120k（兼容旧备份解密）
+    static let legacyIterations: UInt32 = 120_000
     static let keyLength = 32
 
     static func isEncrypted(_ data: Data) -> Bool {
-        data.count > magic.count + saltLength && data.prefix(magic.count) == magic
+        data.count > magic.count + saltLength
+            && (data.prefix(magic.count) == magic || data.prefix(legacyMagic.count) == legacyMagic)
     }
 
     static func encrypt(_ plaintext: Data, password: String) throws -> Data {
@@ -24,7 +29,8 @@ enum BackupCrypto {
             throw BackupError.encryptionFailed("生成随机盐失败")
         }
         let key = try deriveKey(password: password, salt: salt)
-        let sealed = try AES.GCM.seal(plaintext, using: key)
+        // AAD 绑定 magic（格式标识），防重排/篡改
+        let sealed = try AES.GCM.seal(plaintext, using: key, authenticating: magic)
         guard let combined = sealed.combined else {
             throw BackupError.encryptionFailed("AES-GCM 封装失败")
         }
@@ -33,18 +39,30 @@ enum BackupCrypto {
 
     static func decrypt(_ data: Data, password: String) throws -> Data {
         guard isEncrypted(data) else { throw BackupError.notBackup }
-        let salt = data.subdata(in: magic.count..<(magic.count + saltLength))
-        let combined = data.subdata(in: (magic.count + saltLength)..<data.count)
-        let key = try deriveKey(password: password, salt: salt)
+        let isLegacy = data.prefix(legacyMagic.count) == legacyMagic
+        let headerCount = isLegacy ? legacyMagic.count : magic.count
+        let salt = data.subdata(in: headerCount..<(headerCount + saltLength))
+        let combined = data.subdata(in: (headerCount + saltLength)..<data.count)
+        let aad = isLegacy ? legacyMagic : magic
+        // 新格式 600k；旧格式 120k
         do {
+            let key = try deriveKey(password: password, salt: salt, iterations: isLegacy ? legacyIterations : iterations)
             let box = try AES.GCM.SealedBox(combined: combined)
-            return try AES.GCM.open(box, using: key)
+            return try AES.GCM.open(box, using: key, authenticating: aad)
         } catch {
+            // 兼容：新格式备份在旧设备/旧实现上可能用 120k 加密过（极少见），尝试回退
+            if !isLegacy {
+                if let key = try? deriveKey(password: password, salt: salt, iterations: legacyIterations),
+                   let box = try? AES.GCM.SealedBox(combined: combined),
+                   let opened = try? AES.GCM.open(box, using: key, authenticating: legacyMagic) {
+                    return opened
+                }
+            }
             throw BackupError.wrongPassword
         }
     }
 
-    static func deriveKey(password: String, salt: Data) throws -> SymmetricKey {
+    static func deriveKey(password: String, salt: Data, iterations: UInt32 = iterations) throws -> SymmetricKey {
         let passwordBytes: [Int8] = Array(password.utf8).map { Int8(bitPattern: $0) }
         let saltBytes: [UInt8] = Array(salt)
         var keyBytes = [UInt8](repeating: 0, count: keyLength)

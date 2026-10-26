@@ -85,8 +85,12 @@ final class ChapterTitleSnapshotService {
 
     private var cache: [String: UIImage] = [:]
     private var order: [String] = []
-    private let limit = 60
+    private var cacheBytes: Int64 = 0
+    /// 缓存总量上限（40MB，按字节而非条数）
+    private let maxCacheBytes: Int64 = 40 * 1024 * 1024
+    /// 复用单个离屏 WebView（避免每次渲染新建，10-50ms 开销）
     private var webView: WKWebView?
+    private var lastSize: CGSize = .zero
 
     func snapshot(template: ChapterTitleTemplate, title: String, width: CGFloat,
                   theme: ReaderTheme = .paper) async -> UIImage? {
@@ -97,9 +101,13 @@ final class ChapterTitleSnapshotService {
         guard let image = await render(html: html, size: CGSize(width: width, height: height)) else { return nil }
         cache[key] = image
         order.append(key)
-        if order.count > limit {
+        cacheBytes += estimatedBytes(of: image)
+        // LRU 淘汰：按字节总量控制（≤40MB），而非条数
+        while cacheBytes > maxCacheBytes, !order.isEmpty {
             let removed = order.removeFirst()
-            cache.removeValue(forKey: removed)
+            if let evicted = cache.removeValue(forKey: removed) {
+                cacheBytes -= estimatedBytes(of: evicted)
+            }
         }
         return image
     }
@@ -107,19 +115,33 @@ final class ChapterTitleSnapshotService {
     func clearCache() {
         cache.removeAll()
         order.removeAll()
+        cacheBytes = 0
     }
 
-    private func render(html: String, size: CGSize) async -> UIImage? {
+    /// 估算图片内存字节（避免存 JPEG 再解码的开销；按位深近似）
+    private func estimatedBytes(of image: UIImage) -> Int64 {
+        Int64(image.size.width * image.size.height * 4)
+    }
+
+    private func makeWebView(size: CGSize) -> WKWebView {
+        if let webView, lastSize == size { return webView }
         let config = WKWebViewConfiguration()
         config.suppressesIncrementalRendering = true
         let view = WKWebView(frame: CGRect(origin: .zero, size: size), configuration: config)
         view.isOpaque = false
         view.backgroundColor = .clear
         webView = view
+        lastSize = size
+        return view
+    }
+
+    private func render(html: String, size: CGSize) async -> UIImage? {
+        let view = makeWebView(size: size)
         view.loadHTMLString(html, baseURL: nil)
 
-        // 等一小段时间让布局完成（离屏 WebView 无导航回调可依赖）
-        try? await Task.sleep(nanoseconds: 260_000_000)
+        // 轮询 `document.body.scrollHeight` 判断布局就绪（替代固定 260ms 猜测）
+        let ready = await waitForReady(view)
+        guard ready else { return nil }
         let snapshotConfig = WKSnapshotConfiguration()
         snapshotConfig.rect = CGRect(origin: .zero, size: size)
         snapshotConfig.snapshotWidth = NSNumber(value: Double(size.width))
@@ -128,6 +150,20 @@ final class ChapterTitleSnapshotService {
                 continuation.resume(returning: image)
             }
         }
+    }
+
+    /// 轮询 body 高度判断渲染就绪：最多 30 次 × 20ms = 600ms 上限
+    private func waitForReady(_ view: WKWebView) async -> Bool {
+        for _ in 0..<30 {
+            let ready = await withCheckedContinuation { continuation in
+                view.evaluateJavaScript("document.body && document.body.scrollHeight > 0") { result, _ in
+                    continuation.resume(returning: (result as? Bool) ?? false)
+                }
+            }
+            if ready { return true }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return false
     }
 
     private static func key(template: ChapterTitleTemplate, title: String, width: CGFloat,

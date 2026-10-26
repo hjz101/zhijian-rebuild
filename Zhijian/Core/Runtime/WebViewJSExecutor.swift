@@ -42,6 +42,8 @@ final class WebViewJSExecutor: NSObject, @unchecked Sendable, WKNavigationDelega
     }
 
     func evaluate(_ code: String) throws -> String {
+        // 修复：同步信号量等待禁止在主线程调用（会阻塞 UI / 死锁），用运行期断言显式失败
+        dispatchPrecondition(condition: .notOnQueue(.main))
         // 等待就绪（最多 1s，不阻塞主线程等待信号量→由调用方决定在哪等）
         _ = readySemaphore.wait(timeout: .now() + 1.0)
         var result: Result<String, Error>?
