@@ -29,6 +29,7 @@ enum ReaderTextBuilder {
         let palette = settings.resolvedPalette(theme)
         let textColor = UIColor(palette.text)
         let titleColor = UIColor(palette.text)
+        let letterSpacing = CGFloat(settings.letterSpacing)
 
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var lines = body
@@ -185,7 +186,8 @@ enum ReaderTextBuilder {
             result.append(NSAttributedString(string: line + "\n", attributes: [
                 .font: baseFont,
                 .foregroundColor: textColor,
-                .paragraphStyle: bodyParagraph
+                .paragraphStyle: bodyParagraph,
+                .kern: letterSpacing
             ]))
         }
 

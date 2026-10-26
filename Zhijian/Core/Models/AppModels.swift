@@ -248,6 +248,8 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var lineHeight: Double = 10
     var paragraphSpacing: Double = 10
     var horizontalPadding: Double = 22
+    /// 字距（0 = 默认）
+    var letterSpacing: Double = 0
     var theme: ReaderTheme = .paper
     var pageMode: PageMode = .paged
     /// iPad / 横屏双页（左右两栏）
@@ -339,6 +341,7 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         lineHeight = try container.decodeIfPresent(Double.self, forKey: .lineHeight) ?? 10
         paragraphSpacing = try container.decodeIfPresent(Double.self, forKey: .paragraphSpacing) ?? 10
         horizontalPadding = try container.decodeIfPresent(Double.self, forKey: .horizontalPadding) ?? 22
+        letterSpacing = try container.decodeIfPresent(Double.self, forKey: .letterSpacing) ?? 0
         theme = try container.decodeIfPresent(ReaderTheme.self, forKey: .theme) ?? .paper
         pageMode = try container.decodeIfPresent(PageMode.self, forKey: .pageMode) ?? .paged
         twoPageEnabled = try container.decodeIfPresent(Bool.self, forKey: .twoPageEnabled) ?? false

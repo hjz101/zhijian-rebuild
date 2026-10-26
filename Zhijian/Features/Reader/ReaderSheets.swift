@@ -475,6 +475,7 @@ struct ReaderSettingsSheet: View {
         section("排版") {
             sliderRow("行距", value: settings.lineHeight, binding: bind(\.lineHeight), range: 0...24)
             sliderRow("段距", value: settings.paragraphSpacing, binding: bind(\.paragraphSpacing), range: 0...28)
+            sliderRow("字距", value: settings.letterSpacing, binding: bind(\.letterSpacing), range: 0...6)
             sliderRow("页边距", value: settings.horizontalPadding, binding: bind(\.horizontalPadding), range: 12...40)
         }
     }

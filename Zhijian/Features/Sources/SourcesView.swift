@@ -21,6 +21,7 @@ struct SourcesView: View {
     @State private var exploreSource: BookSource?
     @State private var editingSource: BookSource?
     @State private var sourceGroupFilter: String?
+    @State private var sourceSortMode: Int = 0 // 0 默认 / 1 名称 / 2 URL
     @State private var exportURL: URL?
     @State private var showExport = false
     @State private var page = 1
@@ -236,7 +237,42 @@ struct SourcesView: View {
         ScrollView {
             VStack(spacing: 12) {
                 if !env.sources.groups.isEmpty {
-                    groupChips
+                    HStack(spacing: 0) {
+                        groupChips
+                        Spacer(minLength: 0)
+                        Menu {
+                            Picker("排序", selection: $sourceSortMode) {
+                                Text("默认").tag(0)
+                                Text("按名称").tag(1)
+                                Text("按 URL").tag(2)
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(ZJ.textSecondary)
+                                .frame(width: 32, height: 26)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                        .padding(.trailing, 12)
+                    }
+                } else if sourceSortMode != 0 {
+                    HStack {
+                        Spacer()
+                        Menu {
+                            Picker("排序", selection: $sourceSortMode) {
+                                Text("默认").tag(0)
+                                Text("按名称").tag(1)
+                                Text("按 URL").tag(2)
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(ZJ.textSecondary)
+                                .frame(width: 32, height: 26)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                        .padding(.trailing, 12)
+                    }
                 }
                 if env.sources.sources.isEmpty {
                     VStack(spacing: 10) {
@@ -339,8 +375,18 @@ struct SourcesView: View {
     }
 
     private var filteredSources: [BookSource] {
-        guard let group = sourceGroupFilter else { return env.sources.sources }
-        return env.sources.sources.filter { $0.bookSourceGroup == group }
+        var list: [BookSource]
+        if let group = sourceGroupFilter {
+            list = env.sources.sources.filter { $0.bookSourceGroup == group }
+        } else {
+            list = env.sources.sources
+        }
+        switch sourceSortMode {
+        case 1: list.sort { $0.bookSourceName.localizedStandardCompare($1.bookSourceName) == .orderedAscending }
+        case 2: list.sort { $0.bookSourceUrl.localizedStandardCompare($1.bookSourceUrl) == .orderedAscending }
+        default: break
+        }
+        return list
     }
 
     private var groupChips: some View {
