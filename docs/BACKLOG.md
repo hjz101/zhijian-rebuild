@@ -447,6 +447,12 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 提醒/定时补全（十五批）
+- **定时备份**：`AutoBackupFrequency.scheduled` + `scheduledHour`（到点且当日未备份才触发）+ 频率 chips 加「定时」+ 小时选择；
+- **阅读提醒**：`ReadingReminderStore`（每日提醒 + 小时选择 + 本地通知 UNCalendarNotificationTrigger 每日重复）+ 设置 UI；
+- **确认已有**：书源编辑分组（TextField）；
+- 自检 46 项通过。
+
 ### [V2.3] ✅ 已完成 · 阅读体验补全（十四批）
 - **屏幕常亮**：`keepScreenOn`（默认开）+ 阅读页 idleTimerDisabled（进入/退出设置）；
 - **正文图片保存**：ImageViewer 加「保存到相册」（本地直接存，远程先下载）+ NSPhotoLibraryAddUsageDescription；

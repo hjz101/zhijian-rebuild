@@ -78,20 +78,22 @@ struct CloudSyncView: View {
                         set: { on in autoBackup.frequency = on ? .daily : .never }
                     ))
                     QiDivider()
-                    HStack(spacing: 8) {
-                        Text("频率").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
-                        Spacer()
-                        ForEach([AutoBackupFrequency.daily, AutoBackupFrequency.weekly, AutoBackupFrequency.onExit], id: \.self) { f in
-                            Button(f.name) { autoBackup.frequency = f }
-                                .font(.system(size: 11, weight: autoBackup.frequency == f ? .semibold : .regular))
-                                .foregroundStyle(autoBackup.frequency == f ? .white : ZJ.textSecondary)
-                                .padding(.horizontal, 9).padding(.vertical, 4)
-                                .background(autoBackup.frequency == f ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
-                                .buttonStyle(.plain)
+                    frequencyRow
+                    if autoBackup.frequency == .scheduled {
+                        HStack {
+                            Text("时间").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                            Spacer()
+                            Picker("", selection: Binding(
+                                get: { autoBackup.scheduledHour },
+                                set: { autoBackup.scheduledHour = $0 }
+                            )) {
+                                ForEach(0..<24, id: \.self) { Text("\($0):00").tag($0) }
+                            }
+                            .pickerStyle(.menu).labelsHidden().tint(ZJ.accent)
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 8)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
                     QiDivider()
                     actionRow("立即备份一次", icon: "bolt", disabled: working) {
                         Task {
@@ -148,6 +150,33 @@ struct CloudSyncView: View {
                            ? "备份文件会写入 iCloud Drive/指尖阅读/Documents。"
                            : "当前构建未启用 iCloud 容器（需签名与 ubiquity 容器 entitlement）；可用「备份与同步」导出到「文件」App。")
                 }
+
+                QiSettingsSection(title: "阅读提醒") {
+                    QiToggleRow(icon: "bell", title: "每日提醒", isOn: Binding(
+                        get: { ReadingReminderStore.shared.enabled },
+                        set: {
+                            ReadingReminderStore.shared.enabled = $0
+                            if $0 { ReadingReminderStore.shared.requestAuthorizationIfNeeded() }
+                        }
+                    ))
+                    if ReadingReminderStore.shared.enabled {
+                        QiDivider()
+                        HStack {
+                            Text("时间").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+                            Spacer()
+                            Picker("", selection: Binding(
+                                get: { ReadingReminderStore.shared.hour },
+                                set: { ReadingReminderStore.shared.hour = $0 }
+                            )) {
+                                ForEach(0..<24, id: \.self) { Text("\($0):00").tag($0) }
+                            }
+                            .pickerStyle(.menu).labelsHidden().tint(ZJ.accent)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                    }
+                    footer("到设定时间发送本地通知提醒阅读（不联网、无收集）。")
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -169,6 +198,34 @@ struct CloudSyncView: View {
             }
             Button("取消", role: .cancel) { restoringFile = nil }
         }
+    }
+
+    private var frequencyRow: some View {
+        HStack(spacing: 8) {
+            Text("频率").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
+            Spacer()
+            HStack(spacing: 6) {
+                frequencyChip(.daily)
+                frequencyChip(.weekly)
+                frequencyChip(.onExit)
+                frequencyChip(.scheduled)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private func frequencyChip(_ f: AutoBackupFrequency) -> some View {
+        Button {
+            autoBackup.frequency = f
+        } label: {
+            Text(f.name)
+                .font(.system(size: 11, weight: autoBackup.frequency == f ? .semibold : .regular))
+                .foregroundStyle(autoBackup.frequency == f ? .white : ZJ.textSecondary)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(autoBackup.frequency == f ? ZJ.accent : ZJ.bgElev2.opacity(0.6), in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func actionRow(_ title: String, icon: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {

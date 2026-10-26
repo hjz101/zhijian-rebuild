@@ -3,13 +3,14 @@ import Foundation
 import Combine
 
 enum AutoBackupFrequency: String, Codable, CaseIterable, Sendable {
-    case never, onExit, daily, weekly
+    case never, onExit, daily, weekly, scheduled
     var name: String {
         switch self {
         case .never: return "关闭"
         case .onExit: return "退出 App 时"
         case .daily: return "每天"
         case .weekly: return "每周"
+        case .scheduled: return "定时"
         }
     }
 }
@@ -21,12 +22,17 @@ final class AutoBackupStore: ObservableObject {
     @Published var frequency: AutoBackupFrequency {
         didSet { persist() }
     }
+    /// 定时备份的小时（0-23）
+    @Published var scheduledHour: Int {
+        didSet { persist() }
+    }
     @Published private(set) var lastAutoBackupAt: Date?
     @Published private(set) var lastAutoBackupNote: String?
 
     private let file = "auto_backup.json"
     private struct Snapshot: Codable {
         var frequency: AutoBackupFrequency = .never
+        var scheduledHour: Int = 22
         var lastAutoBackupAt: Date?
         var lastAutoBackupNote: String?
     }
@@ -34,6 +40,7 @@ final class AutoBackupStore: ObservableObject {
     private init() {
         let snapshot = AppData.load(Snapshot.self, file) ?? Snapshot()
         frequency = snapshot.frequency
+        scheduledHour = snapshot.scheduledHour
         lastAutoBackupAt = snapshot.lastAutoBackupAt
         lastAutoBackupNote = snapshot.lastAutoBackupNote
     }
@@ -55,11 +62,20 @@ final class AutoBackupStore: ObservableObject {
         case .weekly:
             guard let last = lastAutoBackupAt else { return true }
             return Date().timeIntervalSince(last) >= 7 * 24 * 3600
+        case .scheduled:
+            // 设定小时且今天尚未备份
+            let hour = Calendar.current.component(.hour, from: Date())
+            guard hour == scheduledHour else { return false }
+            if let last = lastAutoBackupAt {
+                return !Calendar.current.isDateInToday(last)
+            }
+            return true
         }
     }
 
     private func persist() {
         AppData.save(Snapshot(frequency: frequency,
+                              scheduledHour: scheduledHour,
                               lastAutoBackupAt: lastAutoBackupAt,
                               lastAutoBackupNote: lastAutoBackupNote), file)
     }
