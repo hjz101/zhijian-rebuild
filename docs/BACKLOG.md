@@ -447,6 +447,12 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 三项深补（十批）——对齐度 95%→97%
+- **Widget target 全流程**：App Group 共享层 + 源码（swiftc 类型检查通过）+ 集成 README；extension target 需 Xcode 手动新建（pbxproj 手改两次尝试均回退，plutil 不支持 OpenStep 回写，保留安全方案）；
+- **startBrowser 完整版**：离屏 WKWebView 加载 URL + 执行 js → 返回 {url, html, jsResult} JSON；`-startBrowserTest` 验证机制通（同步信号量 + 后台队列 + JSON 序列化）；
+- **滚动连续阅读**：滚动模式滚到底（>0.98）自动加载下一章（连续阅读，防重复触发）；
+- 自检 44 项 + 真实源回归通过。
+
 ### [V2.3] ✅ 已完成 · 功能补齐（九批）——对齐度 90%→95%
 - **作家说**：ParagraphComment.Kind（comment/authorSay）+ 面板「作家说」标签 + 发布模式切换；
 - **自动换源**：`autoSwitchSource` 开关，章节加载失败自动聚合搜索其他源并切换重载（防重入）；

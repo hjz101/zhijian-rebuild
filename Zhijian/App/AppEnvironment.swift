@@ -278,6 +278,31 @@ final class AppEnvironment: ObservableObject {
                                                       atomically: true, encoding: .utf8)
             NSLog("[I18nAudit] %@", lines.first ?? "")
         }
+        if ProcessInfo.processInfo.arguments.contains("-startBrowserTest") {
+            // 构造一个最小书源调 startBrowser 验证返回 JSON
+            Task { @MainActor in
+                var source = BookSource()
+                source.bookSourceName = "测试"
+                source.bookSourceUrl = "https://example.com"
+                let client = HTTPClient()
+                let runtime = JSRuntime(source: source, http: client, jar: CookieJar())
+                let code = "java.startBrowser('https://example.com', 'document.title')"
+                var lines: [String] = []
+                do {
+                    let value = try runtime.evaluateJS(code, bindings: RuleBindings())
+                    if let str = value as? String {
+                        lines.append("startBrowser=JSON 返回")
+                        lines.append(String(str.prefix(120)))
+                    } else {
+                        lines.append("startBrowser=✗ 非字符串")
+                    }
+                } catch {
+                    lines.append("startBrowser=✗ \(error.localizedDescription)")
+                }
+                try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("startbrowser-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("-webViewJSExecTest") {
             Task {
                 let executor = WebViewJSExecutor.shared

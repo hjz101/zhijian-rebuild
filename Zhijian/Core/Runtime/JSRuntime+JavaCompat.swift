@@ -734,21 +734,59 @@ extension JSRuntime {
         }
         java.setObject(refreshExplore, forKeyedSubscript: "refreshExplore" as NSString)
 
-        // WebView 系列：明确抛 unsupported（书源里出现时能给出可读诊断）
+        // startBrowser / startBrowserAwait：离屏 WKWebView 加载 URL + 执行 js，返回 {url, html, jsResult}
+        let startBrowser: NativeBlock2 = { [weak self] urlValue, jsValue in
+            guard let self else { return JSValue(undefinedIn: JSContext.current()) }
+            let urlString = Self.stringArg(urlValue)
+            let js = Self.stringArg(jsValue)
+            guard !urlString.isEmpty else {
+                return self.nativeFailure("startBrowser: URL 为空")
+            }
+            // 同步语义：后台队列跑 async renderDetailed，信号量等待（最多 25s）
+            let semaphore = DispatchSemaphore(value: 0)
+            var output: [String: String] = [:]
+            let engine = HeadlessWebViewEngine.shared
+            DispatchQueue.global(qos: .userInitiated).async {
+                Task {
+                    do {
+                        let result = try await engine.renderDetailed(
+                            html: nil, baseURL: urlString, url: urlString,
+                            headers: ["User-Agent": HTTPClient.defaultUserAgent],
+                            javaScript: js.isEmpty ? nil : js,
+                            timeout: 20
+                        )
+                        output["url"] = urlString
+                        output["html"] = result.html ?? ""
+                        output["jsResult"] = result.javaScriptResult ?? ""
+                        output["error"] = ""
+                    } catch {
+                        output["url"] = urlString
+                        output["html"] = ""
+                        output["jsResult"] = ""
+                        output["error"] = error.localizedDescription
+                    }
+                    semaphore.signal()
+                }
+            }
+            _ = semaphore.wait(timeout: .now() + 25)
+            guard let data = try? JSONSerialization.data(withJSONObject: output),
+                  let json = String(data: data, encoding: .utf8) else {
+                return self.nativeFailure("startBrowser: 结果序列化失败")
+            }
+            return JSValue(object: json, in: self.context)
+        }
+        java.setObject(startBrowser, forKeyedSubscript: "startBrowser" as NSString)
+        java.setObject(startBrowser, forKeyedSubscript: "startBrowserAwait" as NSString)
+
+        // getVerificationCode / 其它：明确抛 unsupported（可读诊断）
         let unsupportedWebView: NativeBlock1 = { [weak self] nameValue in
             guard let self else { return JSValue(undefinedIn: JSContext.current()) }
             let name = Self.stringArg(nameValue).isEmpty ? "webView" : Self.stringArg(nameValue)
-            if name == "startBrowser" || name == "startBrowserAwait" {
-                // 交互浏览器（验证码/手动登录）：iOS 端通过「登录面板 → 浏览器模式（loginUrl WebView）」完成
-                return self.nativeFailure("需要浏览器交互（验证码/手动登录）：请在书源登录面板使用浏览器模式（loginUrl WebView），startBrowser 不支持同步调用")
-            }
             if name == "getVerificationCode" {
-                return self.nativeFailure("需要图形验证码识别：当前书源需在浏览器模式下手动输入验证码")
+                return self.nativeFailure("需要图形验证码识别：当前书源需在浏览器模式下手动输入验证码（loginUrl WebView）")
             }
             return self.nativeFailure("UnsupportedApi: java.\(name) 需要 WKWebView 执行环境（请改用 @js:/@css:/@xpath: 规则）")
         }
-        java.setObject(unsupportedWebView, forKeyedSubscript: "startBrowserAwait" as NSString)
-        java.setObject(unsupportedWebView, forKeyedSubscript: "startBrowser" as NSString)
         java.setObject(unsupportedWebView, forKeyedSubscript: "getVerificationCode" as NSString)
         java.setObject(unsupportedWebView, forKeyedSubscript: "queryBase64TTF" as NSString)
         java.setObject(unsupportedWebView, forKeyedSubscript: "queryTTF" as NSString)

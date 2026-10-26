@@ -235,6 +235,7 @@ final class ReaderViewModel {
             var layoutSize = pageSize
             if isTwoPage { layoutSize.width = columnSize(for: pageSize).width }
             columnWidth = layoutSize.width
+            continuousReadTriggered = false
             // R2-04：滚动模式下超长章节自动切分页
             forcedPagedForLongChapter = settings.pageMode == .scroll
                 && settings.longChapterAutoPaged
@@ -691,12 +692,23 @@ final class ReaderViewModel {
 
     // MARK: - 滚动进度
 
+    /// 滚动模式连续阅读：滚到底自动加载下一章（7 章窗口的轻量版）
+    @ObservationIgnored private var continuousReadTriggered = false
+
     func updateScrollRatio(_ ratio: Double) {
         let clamped = Self.clampRatio(ratio)
         if abs(clamped - scrollRatio) > 0.001 {
             scrollRatio = clamped
         }
         schedulePersist()
+        // 滚动模式 + 滚到底（>0.98）+ 未触发过当前章 + 开关开 → 自动进入下一章
+        if settings.pageMode == .scroll, clamped >= 0.98, !continuousReadTriggered,
+           !forcedPagedForLongChapter, chapters.indices.contains(currentChapterIndex + 1) {
+            continuousReadTriggered = true
+            Task { @MainActor [weak self] in
+                await self?.nextChapter()
+            }
+        }
     }
 
     // MARK: - TTS
