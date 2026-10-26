@@ -447,6 +447,10 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 书源 QR 导出（十二批）
+- **QR 码分享**：书源导出 sheet 显示二维码（CoreImage，M 纠错级，>6000 字符降级提示）；栖阅对齐（JSON/URL/剪贴板/QR 四通道）；
+- `QRCodeGenerator` 独立组件 + 自检 2 项（生成/空文本）；自检 46 项全通过。
+
 ### [V2.3] ✅ 已完成 · 备份分类补全（十一批）——对齐度 97%→98%
 - **备份分类 9→14 类**：新增 reader_background / title_templates / replace_rules / chapter_rules（背景设置/章节标题模板/替换规则/目录规则）；
 - 三个 Store 加 reload（ReaderBackgroundStore / ChapterTitleTemplateStore / ReplaceRuleStore）；

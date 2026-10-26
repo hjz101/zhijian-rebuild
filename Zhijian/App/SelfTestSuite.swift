@@ -168,7 +168,17 @@ enum SelfTestSuite {
             check("Backup-export", false, "\(error.localizedDescription)")
         }
 
-        // 16) PSL eTLD+1
+        // 16) QR 码生成（书源导出）
+        do {
+            let qr = try QRCodeGenerator.generate(text: "https://example.com/bookSource")
+            check("QR-generate", qr != nil, qr == nil ? "QR 生成失败" : "OK")
+            let empty = try QRCodeGenerator.generate(text: "")
+            check("QR-empty", empty == nil, "空文本应返回 nil")
+        } catch {
+            check("QR-generate", false, "抛错")
+        }
+
+        // 17) PSL eTLD+1
         check("PSL-com", PublicSuffixList.eTLDPlusOne(host: "www.example.com") == "example.com")
         check("PSL-cn", PublicSuffixList.eTLDPlusOne(host: "a.b.example.com.cn") == "example.com.cn")
         check("PSL-share", PublicSuffixList.shouldShare("a.example.com", "b.example.com")

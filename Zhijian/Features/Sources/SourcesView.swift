@@ -87,6 +87,17 @@ struct SourcesView: View {
                                 .font(.system(size: 44)).foregroundStyle(ZJ.accent)
                             Text("已生成 \(env.sources.sources.count) 个书源 JSON")
                                 .font(.system(size: 13)).foregroundStyle(ZJ.textSecondary)
+                            // QR 码分享（栖阅对齐：JSON/URL/剪贴板/QR）
+                            if let qr = try? QRCodeGenerator.generate(text: (try? String(contentsOf: url, encoding: .utf8)) ?? "") {
+                                Image(uiImage: qr)
+                                    .interpolation(.none)
+                                    .resizable()
+                                    .frame(width: 120, height: 120)
+                                    .padding(8)
+                                    .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+                            } else {
+                                Text("QR 生成失败（书源数据过大）").font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
                             ShareLink(item: url) {
                                 Label("分享 / 存储", systemImage: "square.and.arrow.up")
                             }
@@ -421,6 +432,12 @@ struct SourcesView: View {
             }
             if arg == "-showHealth" { showHealth = true }
             if arg == "-showSourceList" { mode = .sources }
+            if arg == "-exportAllSources" {
+                mode = .sources
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    exportAll()
+                }
+            }
             if arg == "-editFirstSource" {
                 mode = .sources
                 editingSource = env.sources.sources.first
