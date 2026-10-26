@@ -497,7 +497,7 @@ final class ReaderViewModel {
         guard !images.isEmpty else { return }
         await withTaskGroup(of: Void.self) { group in
             var iterator = images.makeIterator()
-            for _ in 0..<min(3, images.count) {
+            for _ in 0..<min(4, images.count) {
                 if let item = iterator.next() {
                     group.addTask { _ = await ReaderImageCache.store.image(for: item.url,
                                                                                headers: item.headers,

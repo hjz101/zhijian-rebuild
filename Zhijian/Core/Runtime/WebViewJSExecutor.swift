@@ -11,7 +11,9 @@ protocol RuleJSSyncExecutor: Sendable {
 }
 
 /// 离屏 WKWebView 执行器（同步语义：信号量等待，默认 8s 超时）。
+/// 复用单例 WebView，避免每次执行都新建 WKWebView（开销大）。
 final class WebViewJSExecutor: NSObject, @unchecked Sendable, WKNavigationDelegate, RuleJSSyncExecutor {
+    static let shared = WebViewJSExecutor()
     private let webView: WKWebView
     private let queue = DispatchQueue(label: "zhijian.webview.js")
     private let readySemaphore = DispatchSemaphore(value: 0)

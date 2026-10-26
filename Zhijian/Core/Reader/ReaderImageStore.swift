@@ -135,7 +135,7 @@ final class ReaderImageStore: ObservableObject {
         let wrapped = "(function(){ try { return String((" + code + ")('" + input + "')); } catch(e) { return ''; } })()"
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                let executor = WebViewJSExecutor()
+                let executor = WebViewJSExecutor.shared
                 let result = try? executor.evaluate(wrapped)
                 continuation.resume(returning: result)
             }

@@ -23,7 +23,21 @@ final class JSRuntime: RuleJSEvaluating {
     private let queue = DispatchQueue(label: "zhijian.engine.js")
     private var bindings = RuleBindings()
     var cache: [String: String] = [:]
+    private var cacheOrder: [String] = []
+    private static let cacheLimit = 1000
     private var sourceVariables: String = ""
+
+    /// 带上限的缓存写入（FIFO 淘汰，防止书源长期积累内存）
+    func setCache(_ key: String, _ value: String) {
+        if cache[key] == nil {
+            cacheOrder.append(key)
+            if cacheOrder.count > Self.cacheLimit {
+                let oldest = cacheOrder.removeFirst()
+                cache.removeValue(forKey: oldest)
+            }
+        }
+        cache[key] = value
+    }
     var loginInfo: [String: Any] = [:]
     /// 登录头（java.putLoginHeader 写入；下次请求由 SourcePipeline 合并）。
     var loginHeaders: [String: String] = [:]
@@ -132,7 +146,7 @@ final class JSRuntime: RuleJSEvaluating {
 
     /// 自检用：直接跑 WebView 执行器（不依赖 JSRuntime 实例）。
     static func webViewFallbackTest(_ code: String) throws -> Any? {
-        let executor = WebViewJSExecutor()
+        let executor = WebViewJSExecutor.shared
         let wrapped = "(function(){ try { var v = " + code + "; if (v === undefined) return ''; if (typeof v === 'object') return JSON.stringify(v); return String(v); } catch(e) { return ''; } })()"
         guard let result = try? executor.evaluate(wrapped), !result.isEmpty else { return nil }
         if let data = result.data(using: .utf8), let json = try? JSONSerialization.jsonObject(with: data) {
@@ -157,7 +171,7 @@ final class JSRuntime: RuleJSEvaluating {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
         let wrapped = "(function(){ try { var v = eval('" + escaped + "'); if (v === undefined) return ''; if (typeof v === 'object') return JSON.stringify(v); return String(v); } catch(e) { return ''; } })()"
-        let executor = WebViewJSExecutor()
+        let executor = WebViewJSExecutor.shared
         guard let result = try? executor.evaluate(wrapped), !result.isEmpty else {
             return nil
         }
@@ -399,7 +413,7 @@ final class JSRuntime: RuleJSEvaluating {
         // 缓存
         let put: @convention(block) (JSValue, JSValue) -> JSValue = { [weak self] key, value in
             guard let self else { return JSValue(undefinedIn: JSContext.current()) }
-            self.cache[Self.stringArg(key)] = JSONValueUtil.text(Self.any(from: value))
+            self.setCache(Self.stringArg(key), JSONValueUtil.text(Self.any(from: value)))
             return value
         }
         java.setObject(put, forKeyedSubscript: "put" as NSString)
@@ -698,7 +712,7 @@ final class JSRuntime: RuleJSEvaluating {
 
         let put: @convention(block) (JSValue, JSValue) -> JSValue = { [weak self] key, value in
             guard let self else { return JSValue(undefinedIn: JSContext.current()) }
-            self.cache[Self.stringArg(key)] = JSONValueUtil.text(Self.any(from: value))
+            self.setCache(Self.stringArg(key), JSONValueUtil.text(Self.any(from: value)))
             return value
         }
         object.setObject(put, forKeyedSubscript: "put" as NSString)

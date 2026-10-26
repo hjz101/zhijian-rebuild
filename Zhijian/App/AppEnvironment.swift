@@ -274,7 +274,7 @@ final class AppEnvironment: ObservableObject {
         }
         if ProcessInfo.processInfo.arguments.contains("-webViewJSExecTest") {
             Task {
-                let executor = WebViewJSExecutor()
+                let executor = WebViewJSExecutor.shared
                 var lines: [String] = []
                 do {
                     let sum = try await Task.detached { try executor.evaluate("1+2*3") }.value

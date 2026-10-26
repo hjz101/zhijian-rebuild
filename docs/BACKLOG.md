@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 深度代码审查（八批）
+- **JS cache 上限**：`JSRuntime.cache` 无限增长 → 1000 条 FIFO 淘汰（防长期内存增长）；
+- **WebViewJSExecutor 单例**：每次执行 new WKWebView → 复用单例（大幅降开销）；
+- **图片预取并发 3→4**：正文图片页显示更快；
+- **审查确认无问题**：HTTP 信号量在后台线程（无主线程死锁）、Task 全 [weak self] 无泄漏、observer 全 deinit 清理、logLines/records/elementTable 全有上限、分页在后台队列；
+- 自检 44 项通过 + 真实源回归通过。
+
 ### [V2.3] ✅ 已完成 · 流畅性代码审查优化（七批）
 - **页文本缓存**：`attributedText(forPage:)` 结果缓存（renderVersion 变化失效），翻页不再重复重建/叠加批注高亮；
 - **占位图缓存**：同一尺寸+文本只生成一次（避免阅读页反复 UIGraphics 重绘）；
