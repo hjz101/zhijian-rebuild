@@ -17,6 +17,31 @@ struct ExploreView: View {
     @State private var hasMore = true
     @State private var detail: SourceHit?
     @State private var layoutMode: Int = 0 // 0 列表 / 1 网格
+    @State private var filterKind: String? = nil
+    @State private var sortMode: Int = 0 // 0 默认 / 1 字数 / 2 章节
+
+    /// 筛选后的书籍列表（kind 过滤 + 排序）
+    private var displayedBooks: [SourceBook] {
+        var list = books
+        if let filterKind {
+            list = list.filter { $0.kind == filterKind }
+        }
+        switch sortMode {
+        case 1: list.sort { wordCountValue($0.wordCount) > wordCountValue($1.wordCount) }
+        case 2: list.sort { $0.lastChapter > $1.lastChapter }
+        default: break
+        }
+        return list
+    }
+
+    private func wordCountValue(_ raw: String) -> Int {
+        Int(raw.filter(\.isNumber)) ?? 0
+    }
+
+    /// 发现页可用的 kind 集合（去重，最多 8 个）
+    private var availableKinds: [String] {
+        Array(Set(books.map(\.kind).filter { !$0.isEmpty })).sorted().prefix(8).map { $0 }
+    }
     @State private var notice: String?
     var initialSource: BookSource? = nil
 
@@ -74,7 +99,7 @@ struct ExploreView: View {
                 ScrollView {
                     if layoutMode == 0 {
                         LazyVStack(spacing: 12) {
-                            ForEach(books, id: \.bookUrl) { book in
+                            ForEach(displayedBooks, id: \.bookUrl) { book in
                                 Button {
                                     detail = SourceHit(book: book, source: selectedSource ?? BookSource())
                                 } label: {
@@ -86,7 +111,7 @@ struct ExploreView: View {
                     } else {
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
                                   spacing: 16) {
-                            ForEach(books, id: \.bookUrl) { book in
+                            ForEach(displayedBooks, id: \.bookUrl) { book in
                                 Button {
                                     detail = SourceHit(book: book, source: selectedSource ?? BookSource())
                                 } label: {
@@ -121,6 +146,26 @@ struct ExploreView: View {
         .navigationTitle(LocalizationManager.tr("discover.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("类型", selection: $filterKind) {
+                        Text("全部").tag(String?.none)
+                        ForEach(availableKinds, id: \.self) { kind in
+                            Text(kind).tag(String?.some(kind))
+                        }
+                    }
+                    Divider()
+                    Picker("排序", selection: $sortMode) {
+                        Text("默认").tag(0)
+                        Text("字数").tag(1)
+                        Text("章节").tag(2)
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(ZJ.textPrimary)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("完成") { dismiss() }
             }

@@ -12,6 +12,8 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
     var secondaryHex: String = "#6B6459"
     var accentHex: String = "#C2552E"
     var surfaceHex: String = "#EDE5D6"
+    /// 主题包内背景图（.qitheme 资源提取；可选）
+    var backgroundImageData: Data? = nil
     var fontName: String = ""
     var fontSize: Double = 20
     var lineHeight: Double = 10
@@ -20,7 +22,7 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
     var isBuiltIn: Bool = false
 
     enum CodingKeys: String, CodingKey {
-        case id, name, themeName, backgroundHex, textHex, secondaryHex, accentHex, surfaceHex
+        case id, name, themeName, backgroundHex, textHex, secondaryHex, accentHex, surfaceHex, backgroundImageData
         case fontName, fontSize, lineHeight, paragraphSpacing, horizontalPadding, isBuiltIn
     }
 
@@ -36,6 +38,7 @@ struct ReaderThemePreset: Codable, Identifiable, Hashable, Sendable {
         secondaryHex = try c.decodeIfPresent(String.self, forKey: .secondaryHex) ?? "#6B6459"
         accentHex = try c.decodeIfPresent(String.self, forKey: .accentHex) ?? "#C2552E"
         surfaceHex = try c.decodeIfPresent(String.self, forKey: .surfaceHex) ?? "#EDE5D6"
+        backgroundImageData = try c.decodeIfPresent(Data.self, forKey: .backgroundImageData)
         fontName = try c.decodeIfPresent(String.self, forKey: .fontName) ?? ""
         fontSize = try c.decodeIfPresent(Double.self, forKey: .fontSize) ?? 20
         lineHeight = try c.decodeIfPresent(Double.self, forKey: .lineHeight) ?? 10
@@ -209,6 +212,11 @@ final class ReaderThemePackageStore: ObservableObject {
             surfaceHex: preset.surfaceHex,
             isDark: preset.isDarkHint
         )
+        // .qitheme 背景图资源：应用到阅读背景
+        if let imageData = preset.backgroundImageData, let image = UIImage(data: imageData) {
+            ReaderBackgroundStore.shared.enabled = true
+            ReaderBackgroundStore.shared.setImage(image)
+        }
         if !preset.fontName.isEmpty, CustomFontStore.shared.fonts.contains(where: { $0.postScriptName == preset.fontName }) {
             settings.customFontName = preset.fontName
         }

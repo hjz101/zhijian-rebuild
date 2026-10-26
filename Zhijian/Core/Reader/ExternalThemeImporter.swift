@@ -91,7 +91,26 @@ enum ExternalThemeImporter {
         preset.accentHex = normalizeHex(appTheme.accentColorHex ?? "#C2552E")
         // chrome（surface）：用 background 加深/变暗近似
         preset.surfaceHex = surfaceFrom(backgroundHex: preset.backgroundHex)
+        // 提取归档内背景图资源（按 backgroundImageName 匹配任意扩展名）
+        if let imageName = light?.backgroundImageName, !imageName.isEmpty {
+            let base = (imageName as NSString).deletingPathExtension.lowercased()
+            for file in zip.fileNames {
+                let fileBase = (file as NSString).deletingPathExtension.lowercased()
+                let fileName = (file as NSString).lastPathComponent
+                if fileBase.contains(base) || (base.isEmpty && Self.looksLikeImage(fileName)) {
+                    if let data = try? zip.read(file), UIImage(data: data) != nil {
+                        preset.backgroundImageData = data
+                        break
+                    }
+                }
+            }
+        }
         return preset
+    }
+
+    private static func looksLikeImage(_ name: String) -> Bool {
+        let ext = (name as NSString).pathExtension.lowercased()
+        return ["png", "jpg", "jpeg", "webp", "heic"].contains(ext)
     }
 
     private static func surfaceFrom(backgroundHex: String) -> String {

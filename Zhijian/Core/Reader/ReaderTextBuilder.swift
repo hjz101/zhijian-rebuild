@@ -189,7 +189,13 @@ enum ReaderTextBuilder {
             ]))
         }
 
-        applyHighlightRules(settings.highlightRules, to: result, from: bodyStart)
+        // 标题区（0..<bodyStart）应用 title/both 规则；正文区应用 content/both 规则
+        if bodyStart > 0 {
+            applyHighlightRules(settings.highlightRules.filter { $0.scope != .content },
+                                to: result, from: 0, until: bodyStart)
+        }
+        applyHighlightRules(settings.highlightRules.filter { $0.scope != .title },
+                            to: result, from: bodyStart)
 
         // 只有标题没有正文时补一个空行，保证有可渲染内容。
         if result.length == 0 {
@@ -214,24 +220,50 @@ enum ReaderTextBuilder {
                        alpha: alpha)
     }
 
-    private static func applyHighlightRules(_ rules: [HighlightRule], to text: NSMutableAttributedString, from start: Int) {
+    private static func applyHighlightRules(_ rules: [HighlightRule], to text: NSMutableAttributedString, from start: Int, until end: Int? = nil) {
         guard !rules.isEmpty, start < text.length else { return }
-        let fullRange = NSRange(location: start, length: text.length - start)
+        let limit = min(end ?? text.length, text.length)
+        let fullRange = NSRange(location: start, length: max(0, limit - start))
+        guard fullRange.length > 0 else { return }
         for rule in rules where rule.enabled && !rule.pattern.isEmpty {
             let color = Self.color(hex: rule.colorHex, alpha: 0.42)
             if rule.isRegex {
                 guard let regex = try? NSRegularExpression(pattern: rule.pattern) else { continue }
                 for match in regex.matches(in: text.string, range: fullRange) where match.range.length > 0 {
-                    text.addAttribute(.backgroundColor, value: color, range: match.range)
+                    applyAttributes(match.range, rule: rule, color: color, to: text)
                 }
             } else {
                 var cursor = start
-                while cursor < text.length {
+                while cursor < limit {
                     let range = (text.string as NSString).range(of: rule.pattern, options: [.literal],
-                                                              range: NSRange(location: cursor, length: text.length - cursor))
+                                                              range: NSRange(location: cursor, length: limit - cursor))
                     guard range.location != NSNotFound, range.length > 0 else { break }
-                    text.addAttribute(.backgroundColor, value: color, range: range)
+                    applyAttributes(range, rule: rule, color: color, to: text)
                     cursor = range.location + range.length
+                }
+            }
+        }
+    }
+
+    /// 应用高亮 + 样式（下划线/加粗/斜体）
+    private static func applyAttributes(_ range: NSRange, rule: HighlightRule, color: UIColor, to text: NSMutableAttributedString) {
+        text.addAttribute(.backgroundColor, value: color, range: range)
+        if rule.underline {
+            text.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range)
+        }
+        if rule.bold {
+            if let font = text.attribute(.font, at: range.location, effectiveRange: nil) as? UIFont {
+                let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitBold))
+                if let descriptor {
+                    text.addAttribute(.font, value: UIFont(descriptor: descriptor, size: font.pointSize), range: range)
+                }
+            }
+        }
+        if rule.italic {
+            if let font = text.attribute(.font, at: range.location, effectiveRange: nil) as? UIFont {
+                let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitItalic))
+                if let descriptor {
+                    text.addAttribute(.font, value: UIFont(descriptor: descriptor, size: font.pointSize), range: range)
                 }
             }
         }

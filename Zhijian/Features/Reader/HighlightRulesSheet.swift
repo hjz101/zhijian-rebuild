@@ -121,6 +121,15 @@ struct HighlightRuleEditorView: View {
                     TextField("名称（如：人名 / 地名）", text: $draft.name)
                     TextField("关键词或正则", text: $draft.pattern)
                     Toggle("作为正则表达式", isOn: $draft.isRegex)
+                    Picker("作用域", selection: $draft.scope) {
+                        ForEach(HighlightRule.Scope.allCases, id: \.self) { scope in
+                            Text(scope.name).tag(scope)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    Toggle("下划线", isOn: $draft.underline)
+                    Toggle("加粗", isOn: $draft.bold)
+                    Toggle("斜体", isOn: $draft.italic)
                 }
                 Section("颜色") {
                     HStack(spacing: 14) {

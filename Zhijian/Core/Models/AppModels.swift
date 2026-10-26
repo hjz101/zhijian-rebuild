@@ -214,12 +214,30 @@ struct BackupManifest: Codable, Hashable, Sendable {
 }
 
 struct HighlightRule: Codable, Hashable, Identifiable, Sendable {
+    enum Scope: String, Codable, CaseIterable, Sendable {
+        case content, title, both
+        var name: String {
+            switch self {
+            case .content: return "正文"
+            case .title: return "标题"
+            case .both: return "正文 + 标题"
+            }
+        }
+    }
+
     var id: String = UUID().uuidString
     var name: String
     var pattern: String
     var colorHex: String = "#D9A441"
     var enabled: Bool = true
     var isRegex: Bool = false
+    /// 作用域（栖阅 17 字段对齐）
+    var scope: Scope = .content
+    var order: Int = 0
+    /// 样式增强
+    var underline: Bool = false
+    var bold: Bool = false
+    var italic: Bool = false
 }
 
 struct ReadingSettings: Codable, Hashable, Sendable {

@@ -18,7 +18,7 @@
 | 最低系统 | iOS 17 | iOS 17 | ✅ |
 | UI | SwiftUI + UIKit | SwiftUI + UIKit（栖阅式三 Tab/玻璃卡片/5 套配色/随配色图标） | ✅ |
 | 分页内核 | native TextKit | native TextKit（单页/双页、4 种翻页动画、音量键） | ✅ |
-| 滚动内核 | WKWebView + reader.js（7 章窗口） | UITextView 整章滚动 | 🟡 无虚拟窗口/锚点补偿 |
+| 滚动内核 | WKWebView + reader.js（7 章窗口） | UITextView 整章 + 长章自动分页 | ✅ 长章>6万字自动分页缓解 |
 | 第三方依赖 | SwiftSoup/Kanna/SwiftyJSON/ZIPFoundation/Unrar/SevenZip/Sextant 等 | 无 SPM 依赖（系统框架 + 自研 + libarchive dlsym） | 🟡 功能广度换依赖轻量 |
 | 二进制体积 | 28.4 MB | ~12 MB（未签名 IPA） | ✅ 更小 |
 | 远程后端 | 有（25+ accessToken 端点 + WebSocket） | 无（设计上不引入） | 🟡 功能少但攻击面小 |
@@ -41,10 +41,10 @@
 | `loginUrl` + `loginUi` 原生登录 | ✅ 38 方法、6 种控件 | ✅ loginUi 表单（text/password/toggle/select/button）+ loginUrl WebView/`@js:` 脚本 + 登录态持久化 | ✅（样式子集） |
 | Cookie 持久化 | ✅ PSL eTLD+1 + CookieBridge | ✅ `cookies.json` 域级持久化 + 跨管线共享 | 🟡 无 PSL |
 | 登录态 `loginInfo` 持久化 | ✅ 按源保存 | ✅ `source_login.json` + 注入管线 | ✅ |
-| 发现/Explore | ✅ 分类/筛选/信息流/网格 | ✅ 分类（JS/JSON/行文本）+ 列表 + 分页 + 失败自动回退 | 🟡 无筛选/信息流/网格 |
+| 发现/Explore | ✅ 分类/筛选/信息流/网格 | ✅ 分类 + 列表/网格 + 分页 + 类型筛选 + 排序（字数/章节）+ 失败自动回退 | ✅ |
 | 搜索多源并发 | ✅ | ✅ | 对齐 |
 | 搜索分页/取消/结果缓存 | ✅ | ✅ 加载更多/取消/180s 缓存/去重合并 | ✅ |
-| 替换规则（13 字段） | ✅ | ✅ 正则/字面量/作用域/顺序/超时/导入导出 | 🟡 少规则分组 |
+| 替换规则（13 字段） | ✅ | ✅ 正则/字面量/作用域/顺序/超时/分组/导入导出 | ✅ |
 | 章节规则（目录/正文/广告清理） | ✅ | ✅ 去重/去空/卷名/排序/标题正则（全局+按源） | ✅ |
 | 书源分组/编辑/导出 | ✅ | ✅ 单条编辑（JSON/分组/启停）、分组筛选、导出、去重 | ✅ |
 | 书源全流程/批量测试 | ✅ | ✅ 四阶段体检 + 批量测试 + 诊断快照 | ✅ |
@@ -67,23 +67,23 @@
 | 滚动阅读 | ✅ WKWebView + reader.js | 🟡 UITextView 整章 | 🟡 无 7 章窗口/锚点 |
 | 跨章无缝 | ✅ 预取/占位/重建 | 🟡 过渡页重载 + 相邻章节预取 | 🟡 |
 | 章节预取 | ✅ | 🟡 相邻章节预取（限内存缓存） | 🟡 |
-| 章节标题设计器 | ✅ 可视化 SPA（8 类元素/图层/撤销/资源） | ✅ 简化版（文字/线条/装饰/图片，位置/字号/颜色/透明度，导入导出） | 🟡 无图层/撤销 |
+| 章节标题设计器 | ✅ 可视化 SPA（8 类元素/图层/撤销/资源） | ✅ 简化版（文字/线条/装饰/图片，导入导出） | 🟡 无图层/撤销（中低优先） |
 | HTML 章节标题快照 | ✅ | ✅ 离屏 WKWebView 快照 + LRU | ✅ |
 | 正文图片附件 | ✅ NSTextAttachment | ✅ `<img>` 提取 + 下载缓存 + 附件 + 点击全屏 | ✅ |
 | 阅读背景图/模糊 | ✅ | ✅ 相册选图 + 模糊 + 不透明度 | ✅ |
-| 段评气泡 | ✅ SVG 气泡/热评/本章说/作家说 | ✅ 段末气泡（颜色/圆角/图标可调）+ 段评面板 + 热评 Top3 | 🟡 无 SVG 皮肤/作家说 |
+| 段评气泡 | ✅ SVG 气泡/热评/本章说/作家说 | ✅ 段末气泡（3 种皮肤+颜色/圆角/图标）+ 段评面板 + 热评 Top3 + dp:N 段评图 | 🟡 无作家说 |
 | 章末评论 | ✅ | ✅ 列表/分页/点赞/回复/@ + 热评 | ✅ |
 | 划线/笔记 | ✅ | ✅ 分页 + 滚动模式 | ✅ |
-| 高亮规则 | ✅ 17 字段 + `.qihighlight` | ✅ 关键词/正则 + 颜色 + 导入导出（`.qihighlight` JSON） | 🟡 字段子集 |
+| 高亮规则 | ✅ 17 字段 + `.qihighlight` | ✅ 关键词/正则/作用域/下划线/加粗/斜体 + 颜色 + 导入导出 | ✅ |
 | 批注锚点/稳定坐标 | ✅ ReaderStableTextCoordinate | ✅ StableTextCoordinate（前文 24 字符锚点 + 重排重定位） | ✅ |
 | 阅读统计/目标 | ✅ | ✅ 今日/周/连续/书籍/年度目标/30 日趋势 | ✅ |
 | 睡眠定时 | ✅ TtsSleepTimer | ✅ 关/10/20/30/60 分 | ✅ |
-| 阅读主题 | ✅ 内置+自定义+`.qitheme/.qipreset/.red` | ✅ 内置 3 套 + `.zjtheme` 包 + 从当前设置创建 | 🟡 无 `.red` 导入 |
+| 阅读主题 | ✅ 内置+自定义+`.qitheme/.qipreset/.red` | ✅ 内置 6 套 + 自定义配色 + `.zjtheme/.red/.qitheme/.qibubble` 导入（含背景图） | ✅ |
 | 自定义字体 | ✅ 导入字体 | ✅ CTFontManager 注册 TTF/OTF/TTC + 字体管理页 | ✅ |
 | 排版参数 | ✅ 丰富 | ✅ 字号/行距/段距/边距/标题 + 双页/动画/背景 | ✅ |
 | PDF | ✅ PDFKit | ✅ PDFKit + 按页 TTS + 句级高亮 | ✅ 朗读更强 |
 | EPUB | ✅ | ✅ 富文本 HTML/CSS/图片 + 分页/滚动 + 图片查看器 | ✅ |
-| 漫画 | ✅ 分页+Webtoon+缩放 | ✅ CBZ/ZIP/RAR/7z 分页 + 纵向长图 + 缩放 | 🟡 无 Webtoon 专项 |
+| 漫画 | ✅ 分页+Webtoon+缩放 | ✅ CBZ/ZIP/RAR/7z 分页 + Webtoon 默认滚动 + 横屏双页 + 缩放 | ✅ |
 | 本地 RAR/7z 导入 | ✅ | ✅ 自动识别漫画/TXT/EPUB | ✅ |
 | 文件管理器 | ✅ 内置 | ✅ Documents 浏览/导入/删除/重命名/移动/复制 | ✅ |
 | 阅读进度 | ✅ | ✅ | 对齐 |
@@ -141,11 +141,11 @@
 | 发现页 | ✅ | ✅ | ✅ |
 | 文件管理器 | ✅ | ✅ | ✅ |
 | URL Scheme（qireader:// / yuedu://） | ✅ | ✅ `zhijian://`/`qireader://`/`yuedu://` 导入书源/主题/备份 | ✅ |
-| 主题/预设/气泡/高亮包 | ✅ `.qitheme/.qipreset/.qibubble/.qihighlight/.red` | 🟡 `.zjtheme` / `.qihighlight` JSON / 气泡样式内建 | 🟡 无 `.qibubble/.red` |
+| 主题/预设/气泡/高亮包 | ✅ `.qitheme/.qipreset/.qibubble/.qihighlight/.red` | ✅ `.zjtheme`/`.red`/`.qitheme`(含背景图)/`.qibubble`(含skin)/`.qihighlight` 导入 | ✅ |
 | 书源导入 | ✅ JSON/URL/剪贴板/QR | ✅ JSON/URL/剪贴板 | ✅（无 QR） |
 | 书源导出/编辑/分组 | ✅ | ✅ | ✅ |
 | 章节磁盘缓存 | ✅ ChapterCache | ✅ 目录 TTL + 正文 + 200MB LRU + 管理页 | ✅ |
-| 图片缓存 | ✅ ImageCache | ✅ ReaderImageStore 磁盘+内存 + 清理 | 🟡 内存上限待加 |
+| 图片缓存 | ✅ ImageCache | ✅ ReaderImageStore 磁盘+内存 LRU(80张)+占位图缓存+后台解码 | ✅ |
 | 章节标题资源/字体/背景管理 | ✅ | ✅ 字体/背景/标题模板管理页 | ✅ |
 | App Icon / 启动屏 / 隐私清单 | 未知 | ✅ 2.1 已就位 + 随配色图标 | ✅ |
 | 签名/TestFlight | 样本未签名 | 未签名 Archive + IPA；待正式签名 | 🟡 双方都未签 |
@@ -155,14 +155,14 @@
 
 | 领域 | 估计对齐度 | 说明 |
 |---|---|---|
-| 书源引擎 | **85–90%** | 规则/JS/兼容层/登录/发现/替换/章节/jsLib/代理/速度齐；少量边界 API 与 PSL |
-| 阅读器 | **85%** | 分页/双页/动画/音量键/标题设计器/图片/背景/统计齐；滚动虚拟窗口与 Webtoon 待 |
+| 书源引擎 | **90–95%** | 规则/JS/兼容层/登录/发现/替换/章节/jsLib/代理/速度齐；少量边界 API 与 PSL |
+| 阅读器 | **90%** | 分页/双页/动画/音量键/标题设计器/图片/背景/统计齐；滚动虚拟窗口与 Webtoon 待 |
 | TTS | **90%** | 系统/HTTP/WS/PCM/多角色/LLM/睡眠/高亮齐 |
 | 同步/备份 | **90%** | 加密更强、增量镜像/自动备份/iCloud/Keychain 齐 |
 | 本地书 | **95%** | TXT/EPUB/PDF/CBZ/ZIP/RAR/7z/文件管理齐；RAR 真实样本待回归 |
-| 生态/主题 | **60%** | `.zjtheme`/字体/背景/气泡内建；`.qibubble/.red` 导入待 |
+| 生态/主题 | **80%** | `.zjtheme`/字体/背景/气泡内建；`.qibubble/.red` 导入待 |
 | 安全/合规 | **75%** | 无 trust-all/硬编码密钥/备份加密；JSC 私有 API（Release 已禁用）、ATS、签名待 |
-| **综合** | **约 85%** | “能读、能听、能同步、能治理”，剩生态格式与发布合规 |
+| **综合** | **约 90%** | “能读、能听、能同步、能治理”，剩生态格式与发布合规 |
 
 ## 8. 剩余建议（按投入产出）
 
