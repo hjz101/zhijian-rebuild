@@ -1,6 +1,10 @@
 # 指尖阅读（Zhijian）
 
-**iOS 原生阅读器**：Legado 兼容书源引擎 + 四阅读器（分页/滚动/EPUB/PDF/漫画）+ 系统·HTTP·WS·PCM TTS + 加密备份/WebDAV/iCloud 同步 + 评论生态。零第三方依赖、零内置内容、无远程后端。
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![iOS](https://img.shields.io/badge/iOS-17%2B-black.svg)]()
+[![Release](https://img.shields.io/badge/Release-v2.3-orange.svg)](https://github.com/hjz101/zhijian-rebuild/releases)
+
+**开源 · 本地优先 · 无广告无收集**：iOS 原生阅读器：Legado 兼容书源引擎 + 四阅读器（分页/滚动/EPUB/PDF/漫画）+ 系统·HTTP·WS·PCM TTS + 加密备份/WebDAV/iCloud 同步 + 评论生态。零第三方依赖、零内置内容、无远程后端。
 
 ![书架](docs/screenshots/lead-01-shelf.png)
 ![分页阅读](docs/screenshots/lead-05-reader.png)
