@@ -155,6 +155,15 @@ enum SelfTestSuite {
                 check("Backup-theme-entry", hasTheme, "reader_theme.json \(hasTheme ? "有" : "无")")
             }
             check("Backup-cookies-entry", hasCookies, "cookies.json \(hasCookies ? "有" : "无")")
+            // 生态类（背景/替换规则）——文件存在时才应有条目（无数据是合理空）
+            let bgFileExists = FileManager.default.fileExists(atPath: AppData.root.appendingPathComponent("reader_background.json").path)
+            if bgFileExists {
+                check("Backup-background-entry", reader.contains("reader_background.json"), "背景文件存在但备份无")
+            }
+            let replaceFileExists = FileManager.default.fileExists(atPath: AppData.root.appendingPathComponent("replace_rules.json").path)
+            if replaceFileExists {
+                check("Backup-replace-entry", reader.contains("replace_rules.json"), "替换规则文件存在但备份无")
+            }
         } catch {
             check("Backup-export", false, "\(error.localizedDescription)")
         }

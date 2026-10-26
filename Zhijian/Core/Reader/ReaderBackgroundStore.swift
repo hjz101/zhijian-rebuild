@@ -35,6 +35,15 @@ final class ReaderBackgroundStore: ObservableObject {
         enabled = payload?.enabled ?? false
     }
 
+    /// 从磁盘重载（备份恢复后调用）
+    func reload() {
+        let payload = AppData.load(Payload.self, file)
+        imageData = payload?.imageData
+        opacity = payload?.opacity ?? 0.35
+        blur = payload?.blur ?? 6
+        enabled = payload?.enabled ?? false
+    }
+
     var image: UIImage? {
         guard let imageData else { return nil }
         return UIImage(data: imageData)

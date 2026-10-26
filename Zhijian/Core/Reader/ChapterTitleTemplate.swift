@@ -159,6 +159,15 @@ final class ChapterTitleTemplateStore: ObservableObject {
         }
     }
 
+    /// 从磁盘重载（备份恢复后调用）
+    func reload() {
+        if let payload = AppData.load(Payload.self, file) {
+            custom = payload.custom
+            selectedID = payload.selectedID
+            enabled = payload.enabled
+        }
+    }
+
     var all: [ChapterTitleTemplate] { ChapterTitleTemplates.builtIns + custom }
 
     var selected: ChapterTitleTemplate? {

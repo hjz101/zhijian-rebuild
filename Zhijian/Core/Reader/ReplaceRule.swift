@@ -157,6 +157,11 @@ final class ReplaceRuleStore: ObservableObject {
         rules = AppData.load([ReplaceRule].self, file) ?? []
     }
 
+    /// 从磁盘重载（备份恢复后调用）
+    func reload() {
+        rules = AppData.load([ReplaceRule].self, file) ?? []
+    }
+
     func add(_ rule: ReplaceRule) {
         rules.append(rule)
         normalizeOrder()

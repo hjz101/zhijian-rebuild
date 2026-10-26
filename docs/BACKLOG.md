@@ -447,6 +447,11 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 备份分类补全（十一批）——对齐度 97%→98%
+- **备份分类 9→14 类**：新增 reader_background / title_templates / replace_rules / chapter_rules（背景设置/章节标题模板/替换规则/目录规则）；
+- 三个 Store 加 reload（ReaderBackgroundStore / ChapterTitleTemplateStore / ReplaceRuleStore）；
+- 恢复时写回原文件 + 触发 reload；自检 44 项（含条件断言）+ 真实源回归通过。
+
 ### [V2.3] ✅ 已完成 · 三项深补（十批）——对齐度 95%→97%
 - **Widget target 全流程**：App Group 共享层 + 源码（swiftc 类型检查通过）+ 集成 README；extension target 需 Xcode 手动新建（pbxproj 手改两次尝试均回退，plutil 不支持 OpenStep 回写，保留安全方案）；
 - **startBrowser 完整版**：离屏 WKWebView 加载 URL + 执行 js → 返回 {url, html, jsResult} JSON；`-startBrowserTest` 验证机制通（同步信号量 + 后台队列 + JSON 序列化）；

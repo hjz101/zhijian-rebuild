@@ -61,6 +61,8 @@ final class BackupService: ObservableObject {
         var themePresets: [ReaderThemePreset]?
         var fontEntries: [CustomFontEntry]?
         var cookies: [String: [String: String]]?
+        /// 生态类原始文件（背景/标题模板/替换规则/目录规则）
+        var rawEntries: [String: Data] = [:]
     }
 
     private static let stateFile = "backup_state.json"
@@ -136,6 +138,19 @@ final class BackupService: ObservableObject {
         if let cookies = try? Data(contentsOf: AppData.root.appendingPathComponent("cookies.json")) {
             zip.add(cookies, name: "cookies.json")
         }
+        // 生态类：背景 / 标题模板 / 替换规则 / 目录规则（ChapterRuleConfig）
+        if let background = try? Data(contentsOf: AppData.root.appendingPathComponent("reader_background.json")) {
+            zip.add(background, name: "reader_background.json")
+        }
+        if let templates = try? Data(contentsOf: AppData.root.appendingPathComponent("chapter_title_templates.json")) {
+            zip.add(templates, name: "chapter_title_templates.json")
+        }
+        if let replaceRules = try? Data(contentsOf: AppData.root.appendingPathComponent("replace_rules.json")) {
+            zip.add(replaceRules, name: "replace_rules.json")
+        }
+        if let chapterRules = try? Data(contentsOf: AppData.root.appendingPathComponent("chapter_rule_config.json")) {
+            zip.add(chapterRules, name: "chapter_rule_config.json")
+        }
         if includeLocalBooks {
             addLocalBooks(to: &zip, manifest: manifest)
         }
@@ -185,6 +200,7 @@ final class BackupService: ObservableObject {
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         let themeCount = ReaderThemePackageStore.shared.all.filter { !$0.isBuiltIn }.count
         let fontCount = (AppData.load([CustomFontEntry].self, "custom_fonts.json") ?? []).count
+        let replaceCount = (AppData.load([ReplaceRule].self, "replace_rules.json") ?? []).count
         let counts: [String: Int] = [
             "bookshelf": books.books.count,
             "sources": sources.sources.count,
@@ -196,9 +212,13 @@ final class BackupService: ObservableObject {
             "readerTheme": themeCount,
             "customFonts": fontCount,
             "cookies": 1,
+            "readerBackground": 1,
+            "titleTemplates": 1,
+            "replaceRules": replaceCount,
+            "chapterRules": 1,
         ]
         var categories = ["bookshelf", "sources", "settings", "tts_sources", "annotations", "paragraph_comments", "chapter_comments",
-                          "reader_theme", "custom_fonts", "cookies"]
+                          "reader_theme", "custom_fonts", "cookies", "reader_background", "title_templates", "replace_rules", "chapter_rules"]
         if includeLocalBooks { categories.append("local_books") }
         return BackupManifest(
             version: Self.supportedVersion,
@@ -285,6 +305,19 @@ final class BackupService: ObservableObject {
         }
         if let cookies = payload.cookies {
             CookieStore.shared.replaceAll(cookies)
+        }
+        // 生态类恢复：直接写回原文件
+        for (fileName, data) in payload.rawEntries {
+            try? data.write(to: AppData.root.appendingPathComponent(fileName), options: .atomic)
+        }
+        if payload.rawEntries["reader_background.json"] != nil {
+            ReaderBackgroundStore.shared.reload()
+        }
+        if payload.rawEntries["chapter_title_templates.json"] != nil {
+            ChapterTitleTemplateStore.shared.reload()
+        }
+        if payload.rawEntries["replace_rules.json"] != nil {
+            ReplaceRuleStore.shared.reload()
         }
 
         let now = Date()
@@ -472,6 +505,13 @@ final class BackupService: ObservableObject {
         if zip.contains("cookies.json"), let data = try? zip.read("cookies.json") {
             cookies = try? Self.decodeJSON([String: [String: String]].self, from: data)
         }
+        // 生态类原始文件（背景/标题模板/替换规则/目录规则）——直接按原文件内容保存
+        var rawEntries: [String: Data] = [:]
+        for entryName in ["reader_background.json", "chapter_title_templates.json", "replace_rules.json", "chapter_rule_config.json"] {
+            if zip.contains(entryName), let data = try? zip.read(entryName) {
+                rawEntries[entryName] = data
+            }
+        }
 
         return BackupPayload(
             manifest: manifest,
@@ -485,7 +525,8 @@ final class BackupService: ObservableObject {
             localBooks: localBooks,
             themePresets: themePresets,
             fontEntries: fontEntries,
-            cookies: cookies
+            cookies: cookies,
+            rawEntries: rawEntries
         )
     }
 
