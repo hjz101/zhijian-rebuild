@@ -21,5 +21,9 @@
 	<array>
 		<string>$(AppIdentifierPrefix)com.zhijian.reader</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.zhijian.reader</string>
+	</array>
 </dict>
 </plist>

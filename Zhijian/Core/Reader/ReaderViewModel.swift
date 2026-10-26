@@ -55,6 +55,9 @@ final class ReaderViewModel {
     @ObservationIgnored private var contentCache: [String: BookChapterContent] = [:]
     @ObservationIgnored private var prefetchTask: Task<Void, Never>?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
+    /// 自动换源防重入（一次加载最多自动换源一次）
+    @ObservationIgnored private var autoSwitchAttempted = false
+    @ObservationIgnored private var isAutoSwitchingSource = false
     @ObservationIgnored private var stateGeneration = 0
     @ObservationIgnored private var started = false
     @ObservationIgnored private var pendingChapterPosition: Int?
@@ -295,6 +298,32 @@ final class ReaderViewModel {
             isPaginating = false
             pendingChapterTitle = nil
             errorMessage = friendly(error)
+            // 自动换源：远程书 + 开启开关 + 未尝试过 + 非用户取消
+            if !book.isLocal, settings.autoSwitchSource, !autoSwitchAttempted, !isAutoSwitchingSource {
+                autoSwitchAttempted = true
+                await autoSwitchSourceAndReload(position: position, landing: landing)
+            }
+        }
+    }
+
+    /// 章节加载失败时：按书名聚合搜索其他源，命中则自动切换并重载当前章。
+    private func autoSwitchSourceAndReload(position: Int, landing: Landing) async {
+        guard let sourceURL = book.sourceUrl, !sourceURL.isEmpty, !isAutoSwitchingSource else { return }
+        isAutoSwitchingSource = true
+        defer { isAutoSwitchingSource = false }
+        let keyword = book.title
+        let engine = AppEnvironment.shared.engines
+        let results = await engine.search(keyword, page: 1, useCache: false)
+        // 找第一个「不同源」且有结果的
+        for group in results where group.error == nil {
+            guard let candidate = group.books.first, !candidate.bookUrl.isEmpty else { continue }
+            if group.source.bookSourceUrl == book.sourceUrl { continue }
+            // 命中：自动切换
+            await changeSource(to: candidate, source: group.source)
+            if chapters.indices.contains(position) {
+                await loadChapter(position, landing: landing)
+            }
+            return
         }
     }
 
@@ -488,6 +517,7 @@ final class ReaderViewModel {
         pageIndex = index
         scrollRatio = pages.isEmpty ? 0 : Double(index) / Double(pages.count)
         schedulePersist()
+        updateWidgetSnapshot()
     }
 
     // MARK: - 尺寸 / 设置
@@ -690,6 +720,21 @@ final class ReaderViewModel {
     }
 
     // MARK: - 进度写回
+
+    /// 更新小组件快照（进度/章节/统计）
+    private func updateWidgetSnapshot() {
+        let progress = pages.isEmpty ? 0 : Double(pageIndex) / Double(pages.count)
+        let snapshot = WidgetSnapshot(
+            bookTitle: book.title,
+            chapterTitle: chapterTitle,
+            progress: min(max(progress, 0), 1),
+            totalMinutesToday: Int(ReadingStatsStore.shared.todaySeconds / 60),
+            weekMinutes: Int(ReadingStatsStore.shared.weekSeconds / 60),
+            bookshelfCount: bookStore.books.count,
+            updatedAt: Date()
+        )
+        WidgetBridge.save(snapshot)
+    }
 
     func persistNow() {
         guard !chapters.isEmpty else { return }

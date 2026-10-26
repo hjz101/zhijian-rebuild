@@ -284,6 +284,12 @@ struct ReadingSettings: Codable, Hashable, Sendable {
     var jsExecutorMode: Int = 0
     /// TTS 读完一章自动连播下一章
     var ttsAutoNextChapter: Bool = false
+    /// 章节加载失败自动换源
+    var autoSwitchSource: Bool = true
+    /// 夜间自动切深墨主题（时间段，小时 0-23）
+    var darkScheduleEnabled: Bool = false
+    var darkScheduleFrom: Int = 22
+    var darkScheduleTo: Int = 7
     /// P2-09：段评气泡样式（颜色 hex / 圆角 / 图标 / 皮肤）
     var bubbleSkin: Int = 0 // 0 胶囊 / 1 圆角 / 2 对话气泡
     var bubbleColorHex: String = "#E8663D"
@@ -353,6 +359,10 @@ struct ReadingSettings: Codable, Hashable, Sendable {
         traditional = try container.decodeIfPresent(Bool.self, forKey: .traditional) ?? false
         jsExecutorMode = try container.decodeIfPresent(Int.self, forKey: .jsExecutorMode) ?? 0
         ttsAutoNextChapter = try container.decodeIfPresent(Bool.self, forKey: .ttsAutoNextChapter) ?? false
+        autoSwitchSource = try container.decodeIfPresent(Bool.self, forKey: .autoSwitchSource) ?? true
+        darkScheduleEnabled = try container.decodeIfPresent(Bool.self, forKey: .darkScheduleEnabled) ?? false
+        darkScheduleFrom = try container.decodeIfPresent(Int.self, forKey: .darkScheduleFrom) ?? 22
+        darkScheduleTo = try container.decodeIfPresent(Int.self, forKey: .darkScheduleTo) ?? 7
         bubbleSkin = try container.decodeIfPresent(Int.self, forKey: .bubbleSkin) ?? 0
         bubbleColorHex = try container.decodeIfPresent(String.self, forKey: .bubbleColorHex) ?? "#E8663D"
         bubbleCornerRadius = try container.decodeIfPresent(Double.self, forKey: .bubbleCornerRadius) ?? 16

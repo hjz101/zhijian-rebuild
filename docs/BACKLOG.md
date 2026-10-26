@@ -447,6 +447,15 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 功能补齐（九批）——对齐度 90%→95%
+- **作家说**：ParagraphComment.Kind（comment/authorSay）+ 面板「作家说」标签 + 发布模式切换；
+- **自动换源**：`autoSwitchSource` 开关，章节加载失败自动聚合搜索其他源并切换重载（防重入）；
+- **深色定时**：`darkScheduleEnabled` + 时间段（从/到），每分钟定时切深墨主题，白天回米宣纸；
+- **阅读报告**：周卡加 vs 上周对比 + 本周书籍数（`previousWeekSeconds`/`weekBooks`）；
+- **startBrowser 诊断**：验证码/交互浏览器报错引导到 loginUrl 浏览器模式（完整异步桥接记录为限制）；
+- **桌面小组件**：App Group `group.com.zhijian.reader` + `WidgetBridge` 共享数据层（翻页自动写入）+ `ZhijianWidget/` 源码（进度/今日/本周）+ 集成 README + `-widgetTest` 验证（App Group 写入成功）；
+- 自检 44 项 + 真实源回归通过。
+
 ### [V2.3] ✅ 已完成 · 深度代码审查（八批）
 - **JS cache 上限**：`JSRuntime.cache` 无限增长 → 1000 条 FIFO 淘汰（防长期内存增长）；
 - **WebViewJSExecutor 单例**：每次执行 new WKWebView → 复用单例（大幅降开销）；

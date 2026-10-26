@@ -122,6 +122,18 @@ struct StatsView: View {
                 Spacer()
                 Text(ReadingStatsStore.text(stats.weekSeconds)).font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
             }
+            // 周报：vs 上周 + 本周书籍
+            HStack(spacing: 12) {
+                let delta = stats.weekSeconds - stats.previousWeekSeconds
+                Label(delta >= 0 ? "+\(ReadingStatsStore.text(delta))" : ReadingStatsStore.text(abs(delta)),
+                      systemImage: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(delta >= 0 ? ZJ.accent : ZJ.textTertiary)
+                Spacer()
+                Label("\(stats.weekBooks) 本", systemImage: "books.vertical")
+                    .font(.system(size: 11))
+                    .foregroundStyle(ZJ.textSecondary)
+            }
             let days = stats.recentWeek()
             let maxValue = max(days.map(\.seconds).max() ?? 0, 60)
             HStack(alignment: .bottom, spacing: 10) {

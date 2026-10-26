@@ -738,7 +738,14 @@ extension JSRuntime {
         let unsupportedWebView: NativeBlock1 = { [weak self] nameValue in
             guard let self else { return JSValue(undefinedIn: JSContext.current()) }
             let name = Self.stringArg(nameValue).isEmpty ? "webView" : Self.stringArg(nameValue)
-            return self.nativeFailure("UnsupportedApi: java.\(name) 需要 WKWebView 执行环境，iOS 首版未启用（请改用 @js:/@css:/@xpath: 规则）")
+            if name == "startBrowser" || name == "startBrowserAwait" {
+                // 交互浏览器（验证码/手动登录）：iOS 端通过「登录面板 → 浏览器模式（loginUrl WebView）」完成
+                return self.nativeFailure("需要浏览器交互（验证码/手动登录）：请在书源登录面板使用浏览器模式（loginUrl WebView），startBrowser 不支持同步调用")
+            }
+            if name == "getVerificationCode" {
+                return self.nativeFailure("需要图形验证码识别：当前书源需在浏览器模式下手动输入验证码")
+            }
+            return self.nativeFailure("UnsupportedApi: java.\(name) 需要 WKWebView 执行环境（请改用 @js:/@css:/@xpath: 规则）")
         }
         java.setObject(unsupportedWebView, forKeyedSubscript: "startBrowserAwait" as NSString)
         java.setObject(unsupportedWebView, forKeyedSubscript: "startBrowser" as NSString)

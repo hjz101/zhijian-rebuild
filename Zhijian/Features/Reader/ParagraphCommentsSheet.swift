@@ -12,6 +12,7 @@ struct ParagraphCommentsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ""
     @State private var replyTarget: ParagraphComment?
+    @State private var authorSayMode = false
 
     private var comments: [ParagraphComment] {
         store.topLevelComments(bookId: bookId, chapterIndex: chapterIndex, paragraphIndex: paragraphIndex)
@@ -65,15 +66,31 @@ struct ParagraphCommentsSheet: View {
                     .padding(.horizontal, 16)
                 }
 
+                HStack(spacing: 6) {
+                    Button {
+                        authorSayMode.toggle()
+                    } label: {
+                        Text("作家说")
+                            .font(.system(size: 10, weight: authorSayMode ? .semibold : .regular))
+                            .foregroundStyle(authorSayMode ? .white : theme.accent)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(authorSayMode ? theme.accent : theme.accent.opacity(0.12), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+
                 HStack(spacing: 8) {
-                    TextField(replyTarget == nil ? "写段评…" : "回复…", text: $draft, axis: .vertical)
+                    TextField(replyTarget == nil ? (authorSayMode ? "写作者的话…" : "写段评…") : "回复…", text: $draft, axis: .vertical)
                         .lineLimit(1...3)
                         .padding(10)
                         .background(theme.text.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
                     Button {
                         store.add(bookId: bookId, chapterIndex: chapterIndex,
                                   paragraphIndex: paragraphIndex, text: draft,
-                                  replyToId: replyTarget?.id)
+                                  replyToId: replyTarget?.id,
+                                  kind: authorSayMode ? .authorSay : .comment)
                         draft = ""
                         replyTarget = nil
                     } label: {
@@ -103,11 +120,19 @@ struct ParagraphCommentsSheet: View {
                 .frame(width: isReply ? 22 : 26, height: isReply ? 22 : 26)
                 .overlay(Text("我").font(.system(size: isReply ? 9 : 11, weight: .semibold)).foregroundStyle(.white))
             VStack(alignment: .leading, spacing: 5) {
+                if comment.kind == .authorSay {
+                    Label("作家说", systemImage: "person.text.rectangle")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                }
                 if isReply {
                     Text("回复 @\(comment.mentions.first ?? "我")")
                         .font(.system(size: 10)).foregroundStyle(theme.accent)
                 }
-                Text(comment.text).font(.system(size: 13)).foregroundStyle(theme.text)
+                Text(comment.text)
+                    .font(.system(size: 13))
+                    .foregroundStyle(theme.text)
+                    .padding(.vertical, comment.kind == .authorSay ? 2 : 0)
                 if !comment.mentions.isEmpty {
                     HStack(spacing: 4) {
                         ForEach(comment.mentions, id: \.self) { name in

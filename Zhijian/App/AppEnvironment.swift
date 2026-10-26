@@ -28,6 +28,12 @@ final class AppEnvironment: ObservableObject {
         self.tts = TTSController()
         self.backup = BackupService(books: books, sources: sources, settings: settings)
         self.localLibrary = LocalLibrary.shared
+        // 夜间主题定时：每分钟检查（放 init 末尾，避免属性未初始化）
+        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.settings.runDarkSchedule()
+            }
+        }
 #if DEBUG
         AppEnvironment.seedDemoSourceIfNeeded(into: sources)
         localLibrary.seedDemoBookIfNeeded(into: books)
@@ -315,6 +321,13 @@ final class AppEnvironment: ObservableObject {
             try? lines.joined(separator: "\n").write(to: AppData.root.appendingPathComponent("archive-import-test.txt"),
                                                      atomically: true, encoding: .utf8)
             NSLog("[ArchiveImport] %@", lines.joined(separator: " | "))
+        }
+        if ProcessInfo.processInfo.arguments.contains("-widgetTest") {
+            let snapshot = WidgetSnapshot(bookTitle: "山居书简", chapterTitle: "第一章 入山",
+                                          progress: 0.36, totalMinutesToday: 45,
+                                          weekMinutes: 320, bookshelfCount: 12, updatedAt: Date())
+            WidgetBridge.save(snapshot)
+            NSLog("[Widget] 已写入示例快照（App Group）")
         }
         if ProcessInfo.processInfo.arguments.contains("-selfTestSuite") {
             let report = SelfTestSuite.run()
@@ -908,6 +921,26 @@ final class SettingsStore: ObservableObject {
         settings = AppData.load(ReadingSettings.self, "settings.json") ?? ReadingSettings()
         HTTPClient.httpsFirstEnabled = settings.httpsFirst
         HTTPClient.currentExecutorMode = settings.jsExecutorMode
+        applyDarkScheduleIfNeeded()
+    }
+
+    /// 夜间定时：到点自动切深墨主题，白天切回米宣纸（仅在用户当前用默认主题时）。
+    private func applyDarkScheduleIfNeeded() {
+        guard settings.darkScheduleEnabled else { return }
+        let hour = Calendar.current.component(.hour, from: Date())
+        let isNight = settings.darkScheduleFrom <= settings.darkScheduleTo
+            ? (hour >= settings.darkScheduleFrom && hour < settings.darkScheduleTo)
+            : (hour >= settings.darkScheduleFrom || hour < settings.darkScheduleTo)
+        if isNight, settings.theme != .ink, settings.customPalette == nil {
+            settings.theme = .ink
+        } else if !isNight, settings.theme == .ink, settings.customPalette == nil {
+            settings.theme = .paper
+        }
+    }
+
+    /// 每分钟检查一次定时（由 AppEnvironment 调度）。
+    func runDarkSchedule() {
+        applyDarkScheduleIfNeeded()
     }
 }
 

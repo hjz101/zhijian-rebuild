@@ -3,7 +3,13 @@ import Foundation
 import Combine
 
 struct ParagraphComment: Codable, Identifiable, Hashable, Sendable {
+    enum Kind: String, Codable, Sendable {
+        case comment, authorSay
+        var label: String { self == .authorSay ? "作家说" : "段评" }
+    }
+
     var id: String = UUID().uuidString
+    var kind: Kind = .comment
     var bookId: String
     var chapterIndex: Int
     var paragraphIndex: Int
@@ -18,8 +24,10 @@ struct ParagraphComment: Codable, Identifiable, Hashable, Sendable {
 
     init(id: String = UUID().uuidString, bookId: String, chapterIndex: Int, paragraphIndex: Int,
          text: String, createdAt: Date = Date(), updatedAt: Date? = nil, deletedAt: Date? = nil,
-         likes: Int = 0, likedByMe: Bool = false, replyToId: String? = nil, mentions: [String] = []) {
+         likes: Int = 0, likedByMe: Bool = false, replyToId: String? = nil, mentions: [String] = [],
+         kind: Kind = .comment) {
         self.id = id
+        self.kind = kind
         self.bookId = bookId
         self.chapterIndex = chapterIndex
         self.paragraphIndex = paragraphIndex
@@ -35,7 +43,7 @@ struct ParagraphComment: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, bookId, chapterIndex, paragraphIndex, text, createdAt, updatedAt, deletedAt
-        case likes, likedByMe, replyToId, mentions
+        case likes, likedByMe, replyToId, mentions, kind
     }
 
     init(from decoder: Decoder) throws {
@@ -50,6 +58,7 @@ struct ParagraphComment: Codable, Identifiable, Hashable, Sendable {
         deletedAt = try c.decodeIfPresent(Date.self, forKey: .deletedAt)
         likes = try c.decodeIfPresent(Int.self, forKey: .likes) ?? 0
         likedByMe = try c.decodeIfPresent(Bool.self, forKey: .likedByMe) ?? false
+        kind = try c.decodeIfPresent(Kind.self, forKey: .kind) ?? .comment
         replyToId = try c.decodeIfPresent(String.self, forKey: .replyToId)
         mentions = try c.decodeIfPresent([String].self, forKey: .mentions) ?? []
     }
@@ -120,13 +129,15 @@ final class ParagraphCommentStore: ObservableObject {
         persist()
     }
 
-    func add(bookId: String, chapterIndex: Int, paragraphIndex: Int, text: String, replyToId: String? = nil) {
+    func add(bookId: String, chapterIndex: Int, paragraphIndex: Int, text: String,
+             replyToId: String? = nil, kind: ParagraphComment.Kind = .comment) {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
         items.append(ParagraphComment(bookId: bookId, chapterIndex: chapterIndex,
                                       paragraphIndex: paragraphIndex, text: value,
                                       replyToId: replyToId,
-                                      mentions: ChapterCommentStore.parseMentions(in: value)))
+                                      mentions: ChapterCommentStore.parseMentions(in: value),
+                                      kind: kind))
         persist()
     }
 

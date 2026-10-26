@@ -504,6 +504,34 @@ struct ReaderSettingsSheet: View {
             }
             .tint(ZJ.accent)
 
+            Toggle(isOn: bind(\.autoSwitchSource)) {
+                Text("加载失败自动换源")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textPrimary)
+            }
+            .tint(ZJ.accent)
+
+            Toggle(isOn: bind(\.darkScheduleEnabled)) {
+                Text("夜间自动深色")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textPrimary)
+            }
+            .tint(ZJ.accent)
+            if settings.darkScheduleEnabled {
+                HStack {
+                    Text("从").font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
+                    Picker("", selection: bind(\.darkScheduleFrom)) {
+                        ForEach(0..<24, id: \.self) { Text("\($0):00").tag($0) }
+                    }
+                    .pickerStyle(.menu).labelsHidden().tint(ZJ.accent)
+                    Text("到").font(.system(size: 12)).foregroundStyle(ZJ.textSecondary)
+                    Picker("", selection: bind(\.darkScheduleTo)) {
+                        ForEach(0..<24, id: \.self) { Text("\($0):00").tag($0) }
+                    }
+                    .pickerStyle(.menu).labelsHidden().tint(ZJ.accent)
+                }
+            }
+
             HStack {
                 Text("JS 执行器").font(.system(size: 13)).foregroundStyle(ZJ.textPrimary)
                 Spacer()

@@ -106,6 +106,26 @@ final class ReadingStatsStore: ObservableObject {
         }
     }
 
+    /// 上周（第 7~13 天前）总时长
+    var previousWeekSeconds: Double {
+        let calendar = Calendar.current
+        return (7..<14).reduce(0) { result, offset in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { return result }
+            return result + seconds(on: day)
+        }
+    }
+
+    /// 本周阅读的书籍数（去重）
+    var weekBooks: Int {
+        let calendar = Calendar.current
+        var bookSet = Set<String>()
+        for offset in 0..<7 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { continue }
+            bookSet.formUnion(data.booksByDay[formatter.string(from: day)] ?? [])
+        }
+        return bookSet.count
+    }
+
     var totalSeconds: Double { data.secondsByDay.values.reduce(0, +) }
 
     var activeDays: Int { data.secondsByDay.values.filter { $0 >= 60 }.count }
