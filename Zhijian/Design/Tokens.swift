@@ -218,25 +218,39 @@ enum ZJ {
     static let pageMargin: CGFloat = 20
 }
 
-/// 玻璃背景：随外观（亮暗 + 强调色）切换。
+/// 玻璃背景：随外观（亮暗 + 强调色）切换；玻璃下透出渐变色彩（Liquid Glass 纪律二）。
 struct QiBackground: View {
     var body: some View {
-        LinearGradient(colors: ZJPaletteStore.current.gradient,
-                       startPoint: .topLeading, endPoint: .bottomTrailing)
-            .ignoresSafeArea()
+        ZStack {
+            LinearGradient(colors: ZJPaletteStore.current.gradient,
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            // 色彩漫开：强调色/青瓷色大块柔光（Liquid Glass 纪律二——玻璃下面必须有东西）
+            RadialGradient(
+                colors: [ZJ.accent.opacity(0.16), .clear],
+                center: .topLeading, startRadius: 0, endRadius: 420
+            )
+            RadialGradient(
+                colors: [ZJ.celadon.opacity(0.14), .clear],
+                center: .bottomTrailing, startRadius: 0, endRadius: 380
+            )
+            // 上层轻微玻璃漫射（保证可读，同时透出下层色彩）
+            Rectangle().fill(.ultraThinMaterial).opacity(0.30)
+        }
+        .ignoresSafeArea()
     }
 }
 
 extension View {
+    /// Liquid Glass 卡片（chrome）：五层玻璃 + 暗边 + 高光
     func qiCard(cornerRadius: CGFloat = 22, padding: CGFloat = 18) -> some View {
         self
             .padding(padding)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .liquidGlass(cornerRadius: cornerRadius)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(ZJPaletteStore.current.cardBorder, lineWidth: 0.8)
+                    .strokeBorder(ZJPaletteStore.current.cardBorder.opacity(0.5), lineWidth: 0.5)
             )
-            .shadow(color: Color.black.opacity(ZJPaletteStore.current.isDark ? 0.25 : 0.05), radius: 18, y: 6)
+            .shadow(color: Color.black.opacity(ZJPaletteStore.current.isDark ? 0.30 : 0.08), radius: 18, y: 6)
     }
 }
 

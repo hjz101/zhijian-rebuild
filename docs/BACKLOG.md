@@ -447,6 +447,14 @@
 
 ## P4 · 发布与合规
 
+### [UI-V2] ✅ 已完成 · iOS 27 Liquid Glass 重构（拾页设计稿）
+- **五层玻璃材质**（GlassTheme.swift）：漫射(Material)/色调(对角渐变)/暗边(底部内阴影)/高光(顶部1.2px镜面)/折射(118°扫光)；
+- **三档通透度**：超透明/标准/完全着色（模糊不变只调颜色权重，对齐 iOS 27）+ 深色自动降一档 + 显示边框 + 降低透明度；
+- **悬浮玻璃 Tab 栏**：自定义底部悬浮栏（liquidGlass + 暗边 + 阴影），替代系统 tabBar；
+- **卡片玻璃化**：qiCard/QiBackground 改用 liquidGlass；背景加色彩漫开（RadialGradient 强调色/青瓷色）；
+- **设置入口**：设置 →「液态玻璃」页（预览卡 + 通透度 chips + 选项开关）；
+- 自检 46 项通过；书架截图确认玻璃 Tab + 色彩漫开生效。
+
 ### [V2.3] ✅ 已完成 · 提醒/定时补全（十五批）
 - **定时备份**：`AutoBackupFrequency.scheduled` + `scheduledHour`（到点且当日未备份才触发）+ 频率 chips 加「定时」+ 小时选择；
 - **阅读提醒**：`ReadingReminderStore`（每日提醒 + 小时选择 + 本地通知 UNCalendarNotificationTrigger 每日重复）+ 设置 UI；

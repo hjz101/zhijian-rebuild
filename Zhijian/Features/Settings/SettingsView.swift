@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var showSources = false
     @State private var placeholder: String?
     @State private var showAppearance = false
+    @State private var showGlass = false
     @State private var showShelfLayout = false
     @State private var showProxy = false
     @AppStorage("shelf.listMode") private var shelfListMode = false
@@ -58,6 +59,7 @@ struct SettingsView: View {
                 ReaderSettingsSheet(settingsStore: env.settings)
             }
             .sheet(isPresented: $showAppearance) { AppearanceSettingsView() }
+            .sheet(isPresented: $showGlass) { GlassSettingsView() }
             .sheet(isPresented: $showShelfLayout) { ShelfLayoutSettingsView() }
             .sheet(isPresented: $showProxy) { ProxySettingsView() }
             .sheet(isPresented: $showSources) {
@@ -91,6 +93,7 @@ struct SettingsView: View {
     private var appearanceSection: some View {
         sectionCard("界面与布局") {
             row("paintbrush.fill", "外观 / 配色", value: ZJPaletteStore.current.name) { showAppearance = true }
+            row("circle.hexagongrid.fill", "液态玻璃", value: GlassSettings.shared.effectiveTransparency.name) { showGlass = true }
             row("circle.lefthalf.filled", "深浅色", value: ZJPaletteStore.current.isDark ? "深色" : "浅色") { showAppearance = true }
             row("rectangle.grid.3x2", "书架布局", value: shelfListMode ? "列表" : "\(shelfColumns) 列网格") {
                 showShelfLayout = true
