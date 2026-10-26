@@ -32,9 +32,30 @@ struct ImageViewerScreen: View {
                         Image(systemName: "square.and.arrow.up").tint(.white)
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        saveToPhotos()
+                    } label: {
+                        Image(systemName: "square.and.arrow.down").tint(.white)
+                    }
+                }
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func saveToPhotos() {
+        guard let image = try? UIImage(contentsOfFile: item.url.path) else {
+            // 远程图片：先下载再保存
+            Task {
+                if let data = try? await URLSession.shared.data(from: item.url).0,
+                   let image = UIImage(data: data) {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                }
+            }
+            return
+        }
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
     }
 }
 

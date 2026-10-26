@@ -12,12 +12,27 @@ struct ReaderCatalogSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var tab: Tab = .chapters
     @State private var query = ""
+    /// 折叠的卷（卷名章节 id 集合）
+    @State private var collapsedVolumes: Set<String> = []
 
     private var filteredChapters: [(offset: Int, element: Chapter)] {
         let all = Array(model.chapters.enumerated())
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !keyword.isEmpty else { return all }
-        return all.filter { $0.element.title.localizedCaseInsensitiveContains(keyword) }
+        let list = keyword.isEmpty ? all : all.filter { $0.element.title.localizedCaseInsensitiveContains(keyword) }
+        // 搜索时不过滤；否则隐藏折叠卷下的章节
+        guard keyword.isEmpty, !collapsedVolumes.isEmpty else { return list }
+        return list.filter { item in
+            if item.element.isVolume { return true }
+            // 找到当前章节所属的卷（前一个卷名）
+            var index = item.offset - 1
+            while index >= 0 {
+                if model.chapters.indices.contains(index), model.chapters[index].isVolume {
+                    return !collapsedVolumes.contains(model.chapters[index].id)
+                }
+                index -= 1
+            }
+            return true
+        }
     }
 
     var body: some View {
@@ -98,6 +113,35 @@ struct ReaderCatalogSheet: View {
     }
 
     private func chapterRow(_ offset: Int, chapter: Chapter) -> some View {
+        if chapter.isVolume {
+            return AnyView(
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        if collapsedVolumes.contains(chapter.id) {
+                            collapsedVolumes.remove(chapter.id)
+                        } else {
+                            collapsedVolumes.insert(chapter.id)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: collapsedVolumes.contains(chapter.id) ? "chevron.right" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                        Text(chapter.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.text)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+            )
+        }
+        return AnyView(volumeContentRow(offset, chapter: chapter))
+    }
+
+    private func volumeContentRow(_ offset: Int, chapter: Chapter) -> some View {
         let isCurrent = offset == model.currentChapterIndex
         return Button {
             dismiss()
@@ -507,6 +551,13 @@ struct ReaderSettingsSheet: View {
 
             Toggle(isOn: bind(\.autoSwitchSource)) {
                 Text("加载失败自动换源")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ZJ.textPrimary)
+            }
+            .tint(ZJ.accent)
+
+            Toggle(isOn: bind(\.keepScreenOn)) {
+                Text("阅读时保持亮屏")
                     .font(.system(size: 13))
                     .foregroundStyle(ZJ.textPrimary)
             }

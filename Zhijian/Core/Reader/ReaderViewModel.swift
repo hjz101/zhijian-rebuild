@@ -92,6 +92,11 @@ final class ReaderViewModel {
 
     var chapterTitle: String { currentChapter?.title ?? book.title }
 
+    /// 当前章字数（正文文本长度，含中文/英文）
+    var chapterWordCount: Int {
+        attributedChapter?.string.count ?? 0
+    }
+
     var pageCount: Int { pages.count }
 
     /// 是否强制分页（滚动模式下超长章节自动切换）

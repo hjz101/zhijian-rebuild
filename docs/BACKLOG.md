@@ -447,6 +447,13 @@
 
 ## P4 · 发布与合规
 
+### [V2.3] ✅ 已完成 · 阅读体验补全（十四批）
+- **屏幕常亮**：`keepScreenOn`（默认开）+ 阅读页 idleTimerDisabled（进入/退出设置）；
+- **正文图片保存**：ImageViewer 加「保存到相册」（本地直接存，远程先下载）+ NSPhotoLibraryAddUsageDescription；
+- **章节字数**：`chapterWordCount` + 状态栏「本章 X 字」；
+- **目录折叠**：卷名章节可展开/收起（搜索时自动展开）；
+- 自检 46 项通过。
+
 ### [V2.3] ✅ 已完成 · 排版/排序补全（十三批）
 - **字距**：`letterSpacing` 设置（0-6）+ 阅读设置 slider + 正文 kern 应用 + 布局签名更新；
 - **书源排序**：书源列表排序菜单（默认/名称/URL），与分组 chips 同行；

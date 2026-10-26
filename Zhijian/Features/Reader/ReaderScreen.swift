@@ -63,6 +63,9 @@ struct ReaderScreen: View {
         }
         .onAppear(perform: prepareModel)
         .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = AppEnvironment.shared.settings.settings.keepScreenOn
+        }
+        .onAppear {
             // TTS 读完一章自动连播下一章（开关在朗读设置）
             env.tts.onChapterFinished = { [weak model] in
                 guard let model, model.chapters.indices.contains(model.currentChapterIndex + 1) else { return }
@@ -81,6 +84,7 @@ struct ReaderScreen: View {
             model?.persistNow()
             model?.stopTTS()
             env.tts.onChapterFinished = nil
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 
@@ -487,6 +491,9 @@ private struct ReaderSurface: View {
             pieces.append(model.chapterTitle)
         }
         pieces.append("\(model.progressPercent)%")
+        if model.chapterWordCount > 0 {
+            pieces.append("本章 \(model.chapterWordCount) 字")
+        }
         return pieces.joined(separator: " · ")
     }
 

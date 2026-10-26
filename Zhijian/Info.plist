@@ -80,6 +80,8 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>保存正文图片到相册需要此权限</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
