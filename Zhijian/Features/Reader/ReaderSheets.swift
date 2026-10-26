@@ -256,10 +256,15 @@ struct ReaderCatalogSheet: View {
                             }
                         }
                         .padding(.vertical, 5)
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Liquid Glass 笔记卡：玻璃但内容不模糊（设计稿屏 05）
+                        .liquidGlass(cornerRadius: 18)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .swipeActions {
                         Button(role: .destructive) { model.removeAnnotation(ann.id) } label: {
                             Label("删除", systemImage: "trash")
@@ -812,13 +817,11 @@ struct ReaderSettingsSheet: View {
         }
         .padding(ZJ.s4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: ZJ.rLg, style: .continuous)
-                .fill(theme.isDark ? Color.white.opacity(0.05) : Color.white.opacity(0.55))
-        )
+        // Liquid Glass 阅读设置栏：玻璃 + 暗边 + 高光（设计稿屏 03）
+        .liquidGlass(cornerRadius: ZJ.rLg)
         .overlay(
             RoundedRectangle(cornerRadius: ZJ.rLg, style: .continuous)
-                .strokeBorder(ZJ.textPrimary.opacity(0.07), lineWidth: 0.5)
+                .strokeBorder(ZJ.textPrimary.opacity(0.06), lineWidth: 0.5)
         )
     }
 
